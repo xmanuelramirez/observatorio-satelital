@@ -1,0 +1,28 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-tinta: #0e2a52;
+  --color-tinta-suave: #1b3f70;
+  --color-agua: #2b7fb8;
+  --color-crema: #f6f4ee;
+  --color-borde: #d8d3c7;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: var(--color-tinta);
+  background: var(--color-crema);
+}
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #10151c;
+}

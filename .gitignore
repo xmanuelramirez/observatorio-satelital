@@ -1,0 +1,37 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python de herramientas/
+__pycache__/
+*.pyc
+
+# Salida de HyP3: los GeoTIFF de subsidencia no van al repositorio
+public/insar/
+
+# Capas internas del departamento. Se quedan en disco para el trabajo local,
+# pero no viajan al repositorio: en un repo publico el fuente se lee igual que
+# el sitio, asi que excluirlas solo del build no bastaria.
+public/capas/EMA.geojson
+public/capas/SENSORES_ARROYOS.geojson
