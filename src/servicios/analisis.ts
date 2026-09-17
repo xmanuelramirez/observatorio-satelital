@@ -10,7 +10,7 @@ import {
 import { kmeans } from './kmeans'
 import { aplicarMascara, mascaraDeArea } from './mascara'
 import { aportacionEnArea, coberturaDelArea } from './mosaico'
-import { colorDeCambio, colorDeClase, colorDeGris, colorDeIndice } from './paletas'
+import { colorDeCalor, colorDeCambio, colorDeClase, colorDeGris, colorDeIndice } from './paletas'
 import { detectarObraNueva, diasEntre, mismaTemporada } from './obranueva'
 import { nubosidadEnArea } from './nubes'
 import { INDICES } from './indices'
@@ -122,6 +122,14 @@ function bandasQuePide(
       )
     }
     return necesarias
+  }
+  if (modo === 'calor') {
+    if (!coleccion.bandas.termica) {
+      throw new Error(
+        `${coleccion.etiqueta} no publica banda térmica. La temperatura de superficie viene de Landsat.`,
+      )
+    }
+    return ['termica']
   }
   if (modo === 'clases') return bandasKmeans
   return coleccion.bandas.rojo
@@ -469,6 +477,53 @@ export async function ejecutarAnalisis(
         if (Math.abs(valor) < umbralCambio) return undefined
         return colorDeCambio(valor, limite)
       },
+      leyenda,
+      notas,
+      sello,
+    }
+  }
+
+  if (modo === 'calor') {
+    const kelvin = pila.bandas.termica
+    const grados = new Float32Array(kelvin.length)
+    let suma = 0
+    let validos = 0
+
+    for (let i = 0; i < kelvin.length; i++) {
+      const k = kelvin[i]
+      if (Number.isNaN(k)) {
+        grados[i] = Number.NaN
+        continue
+      }
+      // El item declara Kelvin; la lectura ya aplico escala y desplazamiento.
+      grados[i] = k - 273.15
+      suma += grados[i]
+      validos++
+    }
+
+    if (validos === 0) {
+      throw new Error('La escena no trae temperatura válida dentro del área')
+    }
+
+    const [p2, p98] = percentiles(grados)
+    const media = suma / validos
+
+    notas.push(
+      `Temperatura de superficie a las ${escenas[0].fechaIso.slice(11, 16)} UTC: media ${media.toFixed(1)} grados, entre ${p2.toFixed(1)} y ${p98.toFixed(1)} (percentiles 2 y 98).`,
+    )
+    notas.push(
+      'Es temperatura de la superficie, no del aire: el asfalto a mediodía pasa de los 50 grados mientras el termómetro marca 30. Sirve para comparar zonas entre sí, no contra el pronóstico.',
+    )
+
+    const leyenda: EntradaLeyenda[] = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+      const valor = p2 + t * (p98 - p2)
+      return { color: colorDeCalor(valor, p2, p98), etiqueta: `${valor.toFixed(1)} grados` }
+    })
+
+    return {
+      rejilla,
+      bandas: [grados],
+      colorear: ([valor]) => (Number.isNaN(valor) ? undefined : colorDeCalor(valor, p2, p98)),
       leyenda,
       notas,
       sello,

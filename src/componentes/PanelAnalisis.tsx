@@ -44,6 +44,7 @@ const MODOS: { id: ModoVista; etiqueta: string }[] = [
   { id: 'indice', etiqueta: 'Índice' },
   { id: 'cambio', etiqueta: 'Cambio' },
   { id: 'obra', etiqueta: 'Obra' },
+  { id: 'calor', etiqueta: 'Calor' },
   { id: 'clases', etiqueta: 'Clases' },
   { id: 'color', etiqueta: 'Color' },
 ]
@@ -120,7 +121,13 @@ export default function PanelAnalisis({
               aria-selected={modo === opcion.id}
               onClick={() => onModo(opcion.id)}
               disabled={
-                (opcion.id === 'indice' || opcion.id === 'cambio') && sinIndices
+                ((opcion.id === 'indice' || opcion.id === 'cambio') && sinIndices) ||
+                (opcion.id === 'calor' && !coleccion.bandas.termica)
+              }
+              title={
+                opcion.id === 'calor' && !coleccion.bandas.termica
+                  ? 'La temperatura de superficie viene de la banda térmica de Landsat'
+                  : undefined
               }
               className={`pestana ${modo === opcion.id ? 'pestana-activa' : ''}`}
             >

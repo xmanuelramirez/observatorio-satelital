@@ -56,6 +56,21 @@ export function colorDeCambio(valor: number, limite: number): string | undefined
   return `rgb(${Math.round(210 - 170 * t)},${Math.round(215 - 60 * t)},${Math.round(220 + 35 * t)})`
 }
 
+/**
+ * Rampa termica: azul frio, amarillo templado, rojo caliente. No es la misma
+ * que la de indices a proposito: una temperatura no se lee como un indice, y
+ * usar la misma escala invita a compararlas.
+ */
+export function colorDeCalor(valor: number, minimo: number, maximo: number): string {
+  const t = Math.max(0, Math.min(1, (valor - minimo) / (maximo - minimo || 1)))
+
+  const frio: [number, number, number] = [49, 104, 168]
+  const templado: [number, number, number] = [240, 217, 130]
+  const caliente: [number, number, number] = [176, 42, 42]
+
+  return t < 0.5 ? mezclar(frio, templado, t * 2) : mezclar(templado, caliente, (t - 0.5) * 2)
+}
+
 export function colorDeGris(valor: number, minimo: number, maximo: number): string {
   const rango = maximo - minimo || 1
   const t = Math.min(1, Math.max(0, (valor - minimo) / rango))

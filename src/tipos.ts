@@ -44,6 +44,8 @@ export type NombreBanda =
   | 'nir'
   | 'swir1'
   | 'swir2'
+  /** Termica en Kelvin: solo Landsat, y es la que ve el calor de la ciudad. */
+  | 'termica'
   | 'vv'
   | 'vh'
 
@@ -101,6 +103,6 @@ export interface GrupoDia {
   nubes: number | null
 }
 
-export type ModoVista = 'indice' | 'cambio' | 'obra' | 'clases' | 'color'
+export type ModoVista = 'indice' | 'cambio' | 'obra' | 'calor' | 'clases' | 'color'
 
 export type CapaCargada = { capa: Capa; datos: FeatureCollection | Feature<Geometry> }

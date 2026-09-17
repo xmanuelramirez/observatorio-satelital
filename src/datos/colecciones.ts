@@ -47,6 +47,9 @@ export const COLECCIONES: Coleccion[] = [
       nir: 'nir08',
       swir1: 'swir16',
       swir2: 'swir22',
+      // ST_B10: temperatura de superficie en Kelvin, con escala y
+      // desplazamiento declarados en el propio item STAC.
+      termica: 'lwir11',
     },
     assetColorVerdadero: null,
     assetVistaPrevia: 'rendered_preview',
