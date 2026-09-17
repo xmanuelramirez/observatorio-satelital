@@ -47,6 +47,8 @@ export default function App() {
   const [modo, setModo] = useState<ModoVista>('indice')
   const [referencia, setReferencia] = useState<Escena[]>([])
   const [umbralCambio, setUmbralCambio] = useState(0.1)
+  const [umbralObra, setUmbralObra] = useState(0.08)
+  const [areaMinimaObra, setAreaMinimaObra] = useState(1)
   const [desplazamiento, setDesplazamiento] = useState<FuenteRaster>(null)
   const [indice, setIndice] = useState<DefinicionIndice | null>(INDICES[0])
   const [bandasKmeans, setBandasKmeans] = useState<NombreBanda[]>([
@@ -146,7 +148,7 @@ export default function App() {
       setResultado(null)
       setBandasKmeans(bandas.slice(0, Math.min(4, bandas.length)))
       setIndice(posibles[0] ?? null)
-      if (posibles.length === 0 && modo === 'indice') setModo('color')
+      if (posibles.length === 0 && (modo === 'indice' || modo === 'obra')) setModo('color')
       limpiarAnalisis()
     },
     [limpiarAnalisis, modo],
@@ -205,7 +207,7 @@ export default function App() {
         desde,
         hasta,
         nubesMax,
-        limite: 60,
+        limite: 100,
       })
       setResultado(salida)
     } catch (error: unknown) {
@@ -242,6 +244,8 @@ export default function App() {
         k,
         tamano,
         umbralCambio,
+        umbralObra,
+        areaMinimaObra,
       })
       setAnalisis(salida)
     } catch (error: unknown) {
@@ -263,6 +267,8 @@ export default function App() {
     k,
     tamano,
     umbralCambio,
+    umbralObra,
+    areaMinimaObra,
   ])
 
   /**
@@ -377,6 +383,16 @@ export default function App() {
               setUmbralCambio(valor)
               limpiarAnalisis()
             }}
+            umbralObra={umbralObra}
+            onUmbralObra={(valor) => {
+              setUmbralObra(valor)
+              limpiarAnalisis()
+            }}
+            areaMinimaObra={areaMinimaObra}
+            onAreaMinimaObra={(valor) => {
+              setAreaMinimaObra(valor)
+              limpiarAnalisis()
+            }}
           />
         </div>
       </aside>
@@ -390,6 +406,7 @@ export default function App() {
           escenas={seleccion}
           fuente={fuente}
           opacidad={opacidad}
+          marcas={desplazamiento ? [] : (analisis?.marcas ?? [])}
           fondo={fondo}
           onEstadoRaster={setEstadoRaster}
         />

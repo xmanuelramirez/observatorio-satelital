@@ -11,7 +11,12 @@ import {
   mascaraDeHuella,
 } from './mosaico'
 import { colorDeCambio, colorDeClase, colorDeGris, colorDeIndice } from './paletas'
+import { detectarObraNueva, diasEntre, mismaTemporada } from './obranueva'
+import { INDICES } from './indices'
 import type { AssetBanda, Bbox, Coleccion, Escena, ModoVista, NombreBanda } from '../tipos'
+
+/** Un solo color para la obra nueva: es una alerta, no una escala. */
+const COLOR_OBRA = '#fb7185'
 
 export interface EntradaLeyenda {
   color: string
@@ -26,8 +31,22 @@ export interface ResultadoAnalisis {
   colorear: (valores: number[]) => string | undefined
   leyenda: EntradaLeyenda[]
   notas: string[]
+  /**
+   * Puntos que el mapa marca aparte del raster. Una zona de obra de una
+   * hectarea son cuatro celdas: a escala municipal no se ve, y sin marca el
+   * resultado es invisible justo cuando mas importa.
+   */
+  marcas?: MarcaMapa[]
   /** Cambia con cada corrida para que la capa del mapa se reconstruya. */
   sello: string
+}
+
+export interface MarcaMapa {
+  lat: number
+  lon: number
+  /** Area en hectareas, para dimensionar el circulo. */
+  hectareas: number
+  etiqueta: string
 }
 
 export interface ParametrosAnalisis {
@@ -46,6 +65,10 @@ export interface ParametrosAnalisis {
   tamano: number
   /** Magnitud minima de cambio que se considera real, en unidades del indice. */
   umbralCambio: number
+  /** Modo obra: cuanto tiene que subir el NDBI para contar como construido. */
+  umbralObra: number
+  /** Modo obra: zonas menores a esto se descartan por ruido. */
+  areaMinimaObra: number
 }
 
 function assetsDe(
@@ -181,6 +204,17 @@ function bandasQuePide(
     if (!indice) throw new Error('Falta elegir el índice')
     return [indice.a, indice.b] as NombreBanda[]
   }
+  // Obra nueva cruza NDBI, NDVI y MNDWI, asi que pide sus cuatro bandas.
+  if (modo === 'obra') {
+    const necesarias: NombreBanda[] = ['swir1', 'nir', 'rojo', 'verde']
+    const faltan = necesarias.filter((banda) => !coleccion.bandas[banda])
+    if (faltan.length > 0) {
+      throw new Error(
+        `${coleccion.etiqueta} no publica ${faltan.join(' ni ')}, que hacen falta para obra nueva`,
+      )
+    }
+    return necesarias
+  }
   if (modo === 'clases') return bandasKmeans
   return coleccion.bandas.rojo
     ? (['rojo', 'verde', 'azul'] as NombreBanda[])
@@ -209,6 +243,8 @@ export async function ejecutarAnalisis(
     k,
     tamano,
     umbralCambio,
+    umbralObra,
+    areaMinimaObra,
   } = parametros
 
   if (escenas.length === 0) throw new Error('Elige al menos una escena')
@@ -217,7 +253,7 @@ export async function ejecutarAnalisis(
   const bandasPedidas = bandasQuePide(modo, coleccion, indice, bandasKmeans)
   if (bandasPedidas.length === 0) throw new Error('No hay bandas que leer con esos ajustes')
 
-  if (modo === 'cambio' && escenasReferencia.length === 0) {
+  if ((modo === 'cambio' || modo === 'obra') && escenasReferencia.length === 0) {
     throw new Error('Elige la fecha contra la cual comparar')
   }
 
@@ -277,7 +313,91 @@ export async function ejecutarAnalisis(
     k,
     tamano,
     umbralCambio,
+    umbralObra,
+    areaMinimaObra,
   ].join(':')
+
+  // Separacion temporal: lo primero que hay que saber al comparar dos fechas.
+  if (modo === 'cambio' || modo === 'obra') {
+    const dias = diasEntre(escenasReferencia[0].dia, escenas[0].dia)
+    notas.unshift(
+      `Separación temporal: ${dias} días entre ${escenasReferencia[0].dia} y ${escenas[0].dia}. ${coleccion.etiqueta} revisita cada ${coleccion.revisitaDias} días, así que es el paso más fino disponible.`,
+    )
+    if (!mismaTemporada(escenasReferencia[0].dia, escenas[0].dia)) {
+      notas.push(
+        'Las dos fechas caen en temporadas distintas (las lluvias van de junio a octubre). El cambio incluye vegetación que aparece y desaparece sola; para obra nueva conviene comparar el mismo mes de dos años.',
+      )
+    }
+  }
+
+  if (modo === 'obra') {
+    const mosaicoBase = await obtenerMosaico(escenasReferencia, coleccion, bandasPedidas, rejilla)
+    const pilaReferencia = mosaicoBase.pila
+    for (const banda of Object.values(pilaReferencia.bandas)) aplicarMascara(banda, dentro)
+
+    const porId = (id: string) => INDICES.find((indice) => indice.id === id)!
+    const ndbi = porId('ndbi')
+    const ndvi = porId('ndvi')
+    const mndwi = porId('mndwi')
+
+    const resultado = detectarObraNueva({
+      ndbiAntes: calcularIndice(pilaReferencia, ndbi).valores,
+      ndbiDespues: calcularIndice(pila, ndbi).valores,
+      ndviAntes: calcularIndice(pilaReferencia, ndvi).valores,
+      ndviDespues: calcularIndice(pila, ndvi).valores,
+      mndwiDespues: calcularIndice(pila, mndwi).valores,
+      rejilla,
+      hectareasPorCelda: haPixel,
+      umbralNdbi: umbralObra,
+      ndviMaximoDespues: 0.3,
+      areaMinimaHa: areaMinimaObra,
+    })
+
+    if (resultado.celdasComparables === 0) {
+      throw new Error('Las dos fechas no comparten píxeles válidos dentro del área')
+    }
+
+    notas.push(
+      `Regla: NDBI sube ${umbralObra.toFixed(2)} o más, NDVI final bajo 0.30 y MNDWI negativo. ${resultado.celdasCrudas.toLocaleString('es-MX')} celdas la cumplieron sobre ${resultado.celdasComparables.toLocaleString('es-MX')} comparables.`,
+    )
+    notas.push(
+      `Se descartaron las manchas menores a ${areaMinimaObra.toFixed(1)} ha, que a esta rejilla son menos de ${Math.max(1, Math.ceil(areaMinimaObra / haPixel))} celdas.`,
+    )
+    notas.push(
+      'Son zonas candidatas, no un dictamen: un despalme sin construir cumple la misma regla, y a esta resolución una casa sola no se ve.',
+    )
+
+    for (const [i, zona] of resultado.zonas.slice(0, 5).entries()) {
+      notas.push(
+        `Zona ${i + 1}: ${zona.hectareas.toFixed(1)} ha, centro ${zona.lat.toFixed(5)}, ${zona.lon.toFixed(5)}`,
+      )
+    }
+
+    const leyenda: EntradaLeyenda[] = [
+      {
+        color: COLOR_OBRA,
+        etiqueta: `Obra nueva probable: ${resultado.zonas.length} zonas`,
+        detalle: `${resultado.hectareasTotales.toLocaleString('es-MX', { maximumFractionDigits: 1 })} ha en total${
+          resultado.zonas.length > 0 ? `, la mayor de ${resultado.zonas[0].hectareas.toFixed(1)} ha` : ''
+        }`,
+      },
+    ]
+
+    return {
+      rejilla,
+      bandas: [resultado.mascara],
+      colorear: ([valor]) => (Number.isNaN(valor) ? undefined : COLOR_OBRA),
+      leyenda,
+      notas,
+      marcas: resultado.zonas.map((zona, i) => ({
+        lat: zona.lat,
+        lon: zona.lon,
+        hectareas: zona.hectareas,
+        etiqueta: `Zona ${i + 1}: ${zona.hectareas.toFixed(1)} ha`,
+      })),
+      sello,
+    }
+  }
 
   if (modo === 'cambio') {
     const mosaicoBase = await obtenerMosaico(escenasReferencia, coleccion, bandasPedidas, rejilla)
@@ -399,7 +519,7 @@ export async function ejecutarAnalisis(
         : `k-means se detuvo en el límite de ${resultado.iteraciones} iteraciones sin converger.`,
     )
     notas.push(
-      `Bandas usadas: ${bandasKmeans.join(', ')}. Estandarizadas antes de agrupar y semilla fija, asi que el resultado se repite.`,
+      `Bandas usadas: ${bandasKmeans.join(', ')}. Estandarizadas antes de agrupar y semilla fija, así que el resultado se repite.`,
     )
 
     const leyenda: EntradaLeyenda[] = resultado.conteos.map((conteo, clase) => {

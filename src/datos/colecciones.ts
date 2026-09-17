@@ -16,6 +16,7 @@ export const COLECCIONES: Coleccion[] = [
     etiqueta: 'Sentinel-2 L2A',
     descripcion: '10 m, revisita nominal 5 días, reflectancia de superficie',
     gsd: 10,
+    revisitaDias: 5,
     filtraNubes: true,
     bandas: {
       azul: 'blue',
@@ -34,6 +35,7 @@ export const COLECCIONES: Coleccion[] = [
     etiqueta: 'Landsat 8/9 C2 L2',
     descripcion: '30 m, 16 días por satélite, archivo largo desde 1982',
     gsd: 30,
+    revisitaDias: 8,
     filtraNubes: true,
     bandas: {
       azul: 'blue',
@@ -52,6 +54,7 @@ export const COLECCIONES: Coleccion[] = [
     etiqueta: 'Sentinel-1 RTC (SAR)',
     descripcion: '10 m, 6 días con 1C y 1D, gamma0 corregido por terreno',
     gsd: 10,
+    revisitaDias: 6,
     filtraNubes: false,
     bandas: { vv: 'vv', vh: 'vh' },
     assetColorVerdadero: null,

@@ -1,6 +1,7 @@
 import type { EntradaLeyenda } from '../servicios/analisis'
 import type { DefinicionIndice } from '../servicios/indices'
 import type { Coleccion, Escena, GrupoDia, ModoVista, NombreBanda } from '../tipos'
+import { diasEntre } from '../servicios/obranueva'
 
 interface Props {
   /** Escenas activas del dia elegido, ya en orden de prioridad del mosaico. */
@@ -29,11 +30,16 @@ interface Props {
   onDiaReferencia: (dia: string) => void
   umbralCambio: number
   onUmbralCambio: (valor: number) => void
+  umbralObra: number
+  onUmbralObra: (valor: number) => void
+  areaMinimaObra: number
+  onAreaMinimaObra: (valor: number) => void
 }
 
 const MODOS: { id: ModoVista; etiqueta: string }[] = [
   { id: 'indice', etiqueta: 'Índice' },
   { id: 'cambio', etiqueta: 'Cambio' },
+  { id: 'obra', etiqueta: 'Obra' },
   { id: 'clases', etiqueta: 'Clases' },
   { id: 'color', etiqueta: 'Color' },
 ]
@@ -67,6 +73,10 @@ export default function PanelAnalisis({
   onDiaReferencia,
   umbralCambio,
   onUmbralCambio,
+  umbralObra,
+  onUmbralObra,
+  areaMinimaObra,
+  onAreaMinimaObra,
 }: Props) {
   if (escenas.length === 0) {
     return (
@@ -79,11 +89,14 @@ export default function PanelAnalisis({
   const mallas = escenas.map((e) => e.malla || e.plataforma).join(' y ')
   const sinIndices = indices.length === 0
   const usaIndice = modo === 'indice' || modo === 'cambio'
+  const comparaFechas = modo === 'cambio' || modo === 'obra'
+  const separacion =
+    comparaFechas && referencia.length > 0 ? diasEntre(referencia[0].dia, escenas[0].dia) : null
   const puedeCalcular =
     !calculando &&
     (modo !== 'clases' || bandasKmeans.length >= 2) &&
     (!usaIndice || indice !== null) &&
-    (modo !== 'cambio' || referencia.length > 0)
+    (!comparaFechas || referencia.length > 0)
 
   return (
     <div className="border-t-2 border-acento">
@@ -98,7 +111,9 @@ export default function PanelAnalisis({
               role="tab"
               aria-selected={modo === opcion.id}
               onClick={() => onModo(opcion.id)}
-              disabled={(opcion.id === 'indice' || opcion.id === 'cambio') && sinIndices}
+              disabled={
+                (opcion.id === 'indice' || opcion.id === 'cambio') && sinIndices
+              }
               className={`pestana ${modo === opcion.id ? 'pestana-activa' : ''}`}
             >
               {opcion.etiqueta}
@@ -128,11 +143,27 @@ export default function PanelAnalisis({
           </label>
         )}
 
-        {modo === 'cambio' && (
+        {comparaFechas && (
           <div className="mb-3.5 space-y-3 border border-filete bg-panel-hondo p-3">
             <p className="text-xs leading-snug text-tinta-suave">
               Fecha actual: <span className="cifra text-tinta">{escenas[0].dia}</span> ({mallas})
             </p>
+
+            {separacion !== null && (
+              <p className="border-l-2 border-acento bg-acento-suave px-2.5 py-2 text-xs leading-snug">
+                <span className="rotulo block">Separación temporal</span>
+                <span className="cifra mt-1 block text-[15px] font-semibold text-tinta">
+                  {separacion} días
+                </span>
+                <span className="cifra block text-tinta-suave">
+                  {referencia[0].dia} a {escenas[0].dia}
+                </span>
+                <span className="mt-1 block text-rotulo">
+                  {coleccion.etiqueta} revisita cada {coleccion.revisitaDias} días: ese es el paso
+                  mínimo entre dos imágenes.
+                </span>
+              </p>
+            )}
 
             <label className="block">
               <Etiqueta>Comparar contra</Etiqueta>
@@ -161,6 +192,7 @@ export default function PanelAnalisis({
               </span>
             </label>
 
+            {modo === 'cambio' && (
             <label className="block">
               <Etiqueta>
                 Umbral de cambio: <span className="cifra text-tinta">{umbralCambio.toFixed(2)}</span>
@@ -178,6 +210,51 @@ export default function PanelAnalisis({
                 Debajo de este valor la diferencia se considera ruido y no se pinta.
               </span>
             </label>
+            )}
+
+            {modo === 'obra' && (
+              <div className="space-y-3">
+                <label className="block">
+                  <Etiqueta>
+                    Cuánto debe subir el NDBI:{' '}
+                    <span className="cifra text-tinta">{umbralObra.toFixed(2)}</span>
+                  </Etiqueta>
+                  <input
+                    type="range"
+                    min={0.03}
+                    max={0.25}
+                    step={0.01}
+                    value={umbralObra}
+                    onChange={(evento) => onUmbralObra(Number(evento.target.value))}
+                    className="w-full"
+                  />
+                  <span className="block text-xs leading-snug text-rotulo">
+                    Más bajo detecta más obra y más ruido. El NDBI sube cuando aparece superficie
+                    impermeable.
+                  </span>
+                </label>
+
+                <label className="block">
+                  <Etiqueta>
+                    Área mínima de la zona:{' '}
+                    <span className="cifra text-tinta">{areaMinimaObra.toFixed(1)}</span> ha
+                  </Etiqueta>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={20}
+                    step={0.5}
+                    value={areaMinimaObra}
+                    onChange={(evento) => onAreaMinimaObra(Number(evento.target.value))}
+                    className="w-full"
+                  />
+                  <span className="block text-xs leading-snug text-rotulo">
+                    Las manchas sueltas más chicas que esto se descartan: a 10 m una casa sola no
+                    se distingue, un fraccionamiento sí.
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
         )}
 

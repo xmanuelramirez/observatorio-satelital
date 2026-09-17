@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { GeoJSON, MapContainer, TileLayer, useMap } from 'react-leaflet'
+import { CircleMarker, GeoJSON, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { circleMarker } from 'leaflet'
 import type { FeatureCollection } from 'geojson'
 import type { Bbox, Capa, Escena, IdCapa } from '../tipos'
 import CapaAnalisis, { type FuenteRaster } from './CapaAnalisis'
+import type { MarcaMapa } from '../servicios/analisis'
 
 interface Props {
   capas: Capa[]
@@ -13,6 +14,8 @@ interface Props {
   escenas: Escena[]
   fuente: FuenteRaster
   opacidad: number
+  /** Zonas detectadas que se marcan aparte del raster. */
+  marcas: MarcaMapa[]
   fondo: IdFondo
   onEstadoRaster: (estado: { cargando: boolean; error: string | null }) => void
 }
@@ -127,6 +130,7 @@ export default function Mapa({
   escenas,
   fuente,
   opacidad,
+  marcas,
   fondo,
   onEstadoRaster,
 }: Props) {
@@ -185,6 +189,22 @@ export default function Mapa({
           />
         )
       })}
+
+      {/*
+        El radio crece con la raiz del area, no con el area: al ojo, el area
+        del circulo es lo que se compara, y si el radio fuera proporcional una
+        zona de 10 ha se veria cien veces mayor que una de 1 ha.
+      */}
+      {marcas.map((marca) => (
+        <CircleMarker
+          key={`${marca.lat},${marca.lon}`}
+          center={[marca.lat, marca.lon]}
+          radius={Math.max(6, Math.min(26, 5 * Math.sqrt(marca.hectareas)))}
+          pathOptions={{ color: '#fb7185', weight: 2, fillColor: '#fb7185', fillOpacity: 0.2 }}
+        >
+          <Tooltip direction="top">{marca.etiqueta}</Tooltip>
+        </CircleMarker>
+      ))}
 
       <SeguirTamano />
       <AjustarA bbox={areaBbox} />

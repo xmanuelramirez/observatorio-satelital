@@ -64,7 +64,9 @@ gobierno exige licencia comercial de pago.
 
 ## Como funciona el analisis
 
-1. Se busca en el catalogo STAC por poligono, rango de fechas y nubosidad.
+1. Se busca en el catalogo STAC por poligono, rango de fechas y nubosidad. La
+   busqueda pagina: con una sola pagina, un periodo de dos anios devolvia solo
+   lo mas reciente y la fecha vieja contra la que comparar nunca aparecia.
 2. La rejilla de analisis se define desde el area, en grados, y no desde la
    escena. Es la pieza que sostiene todo lo demas: la misma celda significa el
    mismo lugar en cualquier escena y cualquier fecha.
@@ -110,6 +112,33 @@ cada escena y cuanto quedo sin dato. La seleccion siempre es de un solo dia.
 
 NDVI, NDWI, MNDWI, NDBI y NBR. La rampa se estira entre los percentiles 2 y 98
 de los pixeles validos del area, no entre -1 y 1, para que el contraste sirva.
+
+### Obra nueva
+
+Detecta desarrollos entre dos fechas. No basta con que suba el NDBI: un
+terreno que se seco entre las dos tomas lo sube igual, y en un municipio con
+media superficie agricola eso llenaria el mapa de falsos positivos. Se piden
+tres condiciones a la vez: el NDBI sube al menos el umbral, el NDVI final
+queda por debajo de 0.30, y el MNDWI final es negativo para descartar agua.
+
+Las celdas que cumplen se agrupan en zonas conexas por vecindad de 8 y se
+descartan las menores al area minima, porque celdas sueltas no son un
+desarrollo. Cada zona se reporta con su superficie y su centro en grados, y se
+marca en el mapa con un circulo cuyo radio va con la raiz del area.
+
+El resultado son candidatos, no un dictamen: un despalme sin construir cumple
+la misma regla y a 10 m una casa sola no se distingue. La app avisa cuando las
+dos fechas caen en temporadas distintas, porque comparar seca contra lluvias
+infla el cambio; para obra nueva conviene el mismo mes de dos anios.
+
+Corrida de ejemplo sobre el limite urbano, 26/08/2024 contra 05/09/2026:
+102 zonas, 266.9 ha, la mayor de 11.0 ha.
+
+### Separacion temporal
+
+Al comparar dos fechas, el panel muestra cuantos dias las separan y cada
+cuanto revisita la coleccion. Es lo primero que hay que saber para interpretar
+un cambio: no es lo mismo un mes que dos anios.
 
 ### k-means
 

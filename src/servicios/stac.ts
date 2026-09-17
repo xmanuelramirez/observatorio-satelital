@@ -119,6 +119,23 @@ function agruparPorDia(escenas: Escena[]): GrupoDia[] {
     .sort((a, b) => b.dia.localeCompare(a.dia))
 }
 
+/** Tope de paginas por busqueda: 8 por 100 son 800 escenas, de sobra para dos anios. */
+const PAGINAS_MAXIMAS = 8
+
+interface RespuestaStac {
+  features?: ItemStac[]
+  numberMatched?: number
+  links?: { rel: string; href: string; body?: Record<string, unknown>; merge?: boolean }[]
+}
+
+/**
+ * Busca en el catalogo pagina por pagina.
+ *
+ * Una sola pagina no alcanza para obra nueva. El catalogo devuelve lo mas
+ * reciente primero, asi que con un periodo de dos anios y una pagina, la
+ * fecha vieja contra la que se quiere comparar nunca aparecia en la lista.
+ * Se siguen los enlaces "next" hasta el tope o hasta que se acaben.
+ */
 export async function buscarEscenas(
   parametros: ParametrosBusqueda,
   senal?: AbortSignal,
@@ -139,27 +156,45 @@ export async function buscarEscenas(
     cuerpo.query = { 'eo:cloud_cover': { lt: nubesMax } }
   }
 
-  const respuesta = await fetch(`${baseStac(coleccion.proveedor)}/search`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cuerpo),
-    signal: senal,
-  })
+  const url = `${baseStac(coleccion.proveedor)}/search`
+  const items: ItemStac[] = []
+  let total: number | null = null
+  let siguiente: Record<string, unknown> | null = cuerpo
+  let paginas = 0
 
-  if (!respuesta.ok) {
-    throw new Error(`El catálogo respondió ${respuesta.status}`)
+  while (siguiente && paginas < PAGINAS_MAXIMAS) {
+    const respuesta: Response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(siguiente),
+      signal: senal,
+    })
+
+    if (!respuesta.ok) {
+      throw new Error(`El catálogo respondió ${respuesta.status}`)
+    }
+
+    const datos = (await respuesta.json()) as RespuestaStac
+    items.push(...(datos.features ?? []))
+    if (total === null && typeof datos.numberMatched === 'number') total = datos.numberMatched
+    paginas++
+
+    // El enlace "next" de POST trae el cuerpo de la siguiente pagina; con
+    // merge, solo las claves que cambian respecto al cuerpo actual.
+    const next = datos.links?.find((enlace) => enlace.rel === 'next')
+    const cuerpoNext = next?.body
+    if (!next || !cuerpoNext || (datos.features ?? []).length === 0) {
+      siguiente = null
+    } else {
+      siguiente = next.merge ? { ...siguiente, ...cuerpoNext } : cuerpoNext
+    }
   }
 
-  const datos = (await respuesta.json()) as {
-    features?: ItemStac[]
-    numberMatched?: number
-  }
-
-  const escenas = (datos.features ?? []).map((item) => aEscena(item, coleccion))
+  const escenas = items.map((item) => aEscena(item, coleccion))
 
   return {
     grupos: agruparPorDia(escenas),
-    totalCoincidencias: datos.numberMatched ?? null,
+    totalCoincidencias: total,
     devueltas: escenas.length,
   }
 }

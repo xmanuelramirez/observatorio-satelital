@@ -43,6 +43,8 @@ export interface Coleccion {
   descripcion: string
   /** Resolucion nativa de las bandas que se usan, en metros. */
   gsd: number
+  /** Revisita nominal de la constelacion, en dias. Es el paso temporal minimo. */
+  revisitaDias: number
   /** Sentinel-1 es radar: no trae nubosidad y el filtro no aplica. */
   filtraNubes: boolean
   /** Banda interna a nombre de asset en el item STAC. */
@@ -86,6 +88,6 @@ export interface GrupoDia {
   nubes: number | null
 }
 
-export type ModoVista = 'indice' | 'cambio' | 'clases' | 'color'
+export type ModoVista = 'indice' | 'cambio' | 'obra' | 'clases' | 'color'
 
 export type CapaCargada = { capa: Capa; datos: FeatureCollection | Feature<Geometry> }
