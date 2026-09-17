@@ -18,6 +18,7 @@ export const COLECCIONES: Coleccion[] = [
     gsd: 10,
     revisitaDias: 5,
     filtraNubes: true,
+    mascaraNubes: { asset: 'scl', tipo: 'scl' },
     bandas: {
       azul: 'blue',
       verde: 'green',
@@ -37,6 +38,7 @@ export const COLECCIONES: Coleccion[] = [
     gsd: 30,
     revisitaDias: 8,
     filtraNubes: true,
+    mascaraNubes: { asset: 'qa_pixel', tipo: 'qa_pixel' },
     bandas: {
       azul: 'blue',
       verde: 'green',
@@ -56,6 +58,8 @@ export const COLECCIONES: Coleccion[] = [
     gsd: 10,
     revisitaDias: 6,
     filtraNubes: false,
+    // El radar atraviesa la nube: no hay nada que enmascarar.
+    mascaraNubes: null,
     bandas: { vv: 'vv', vh: 'vh' },
     assetColorVerdadero: null,
     assetVistaPrevia: 'rendered_preview',

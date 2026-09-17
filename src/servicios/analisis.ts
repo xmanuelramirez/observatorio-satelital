@@ -12,6 +12,7 @@ import {
 } from './mosaico'
 import { colorDeCambio, colorDeClase, colorDeGris, colorDeIndice } from './paletas'
 import { detectarObraNueva, diasEntre, mismaTemporada } from './obranueva'
+import { descartarNubes, mascaraDeNubes, nubosidadEnArea } from './nubes'
 import { INDICES } from './indices'
 import type { AssetBanda, Bbox, Coleccion, Escena, ModoVista, NombreBanda } from '../tipos'
 
@@ -69,6 +70,8 @@ export interface ParametrosAnalisis {
   umbralObra: number
   /** Modo obra: zonas menores a esto se descartan por ruido. */
   areaMinimaObra: number
+  /** Descartar nubes y sombras pixel por pixel con la mascara de la mision. */
+  quitarNubes: boolean
 }
 
 function assetsDe(
@@ -112,7 +115,13 @@ async function firmarAssets(
  * El cache es por escena y no por mosaico a proposito: las dos mallas de una
  * fecha se leen una sola vez aunque despues se cambie cuales se combinan.
  */
-const cachePilas = new Map<string, PilaBandas>()
+interface PilaEscena {
+  pila: PilaBandas
+  /** 1 donde la mascara de la mision descarto la celda, null si no se uso. */
+  nubes: Uint8Array | null
+}
+
+const cachePilas = new Map<string, PilaEscena>()
 
 function claveRejilla(rejilla: Rejilla): string {
   return [
@@ -134,27 +143,55 @@ function claveRejilla(rejilla: Rejilla): string {
  * bbox en grados, asi que sin este paso el borde de la escena entraria al
  * mosaico como si fuera dato.
  */
+const CLAVE_NUBES = '__nubes'
+
 async function obtenerPilaEscena(
   escena: Escena,
   coleccion: Coleccion,
   bandas: NombreBanda[],
   rejilla: Rejilla,
-): Promise<PilaBandas> {
-  const clave = [escena.id, claveRejilla(rejilla), [...bandas].sort().join(',')].join('|')
+  quitarNubes: boolean,
+): Promise<PilaEscena> {
+  const conMascara = quitarNubes && coleccion.mascaraNubes !== null
+  const clave = [
+    escena.id,
+    claveRejilla(rejilla),
+    [...bandas].sort().join(','),
+    conMascara ? 'nubes' : 'crudo',
+  ].join('|')
 
   const guardada = cachePilas.get(clave)
   if (guardada) return guardada
 
   const assets = await firmarAssets(assetsDe(escena, coleccion, bandas), escena)
+
+  // La mascara viaja como una banda mas: asi se lee sobre la misma rejilla y
+  // queda alineada celda a celda con las bandas que va a tachar.
+  if (conMascara) {
+    const asset = escena.assets[coleccion.mascaraNubes!.asset]
+    if (asset) {
+      assets[CLAVE_NUBES] = { ...asset, href: await firmarHref(escena.proveedor, asset.href) }
+    }
+  }
+
   const pila = await leerPila(assets, rejilla)
 
   const huella = mascaraDeHuella(rejilla, escena.huella)
   for (const banda of Object.values(pila.bandas)) aplicarMascara(banda, huella)
 
-  cachePilas.set(clave, pila)
+  let nubes: Uint8Array | null = null
+  const valoresMascara = pila.bandas[CLAVE_NUBES]
+  if (valoresMascara) {
+    nubes = mascaraDeNubes(valoresMascara, coleccion.mascaraNubes!.tipo)
+    delete pila.bandas[CLAVE_NUBES]
+    for (const banda of Object.values(pila.bandas)) descartarNubes(banda, nubes)
+  }
+
+  const resultado: PilaEscena = { pila, nubes }
+  cachePilas.set(clave, resultado)
   if (cachePilas.size > 12) cachePilas.delete(cachePilas.keys().next().value as string)
 
-  return pila
+  return resultado
 }
 
 /** Lee todas las escenas del dia sobre la misma rejilla y las funde en una. */
@@ -163,14 +200,18 @@ async function obtenerMosaico(
   coleccion: Coleccion,
   bandas: NombreBanda[],
   rejilla: Rejilla,
+  quitarNubes: boolean,
 ) {
   if (escenas.length === 0) throw new Error('No hay escenas seleccionadas')
 
-  const pilas = await Promise.all(
-    escenas.map((escena) => obtenerPilaEscena(escena, coleccion, bandas, rejilla)),
+  const porEscena = await Promise.all(
+    escenas.map((escena) => obtenerPilaEscena(escena, coleccion, bandas, rejilla, quitarNubes)),
   )
 
-  return combinarPilas(pilas)
+  return {
+    ...combinarPilas(porEscena.map((resultado) => resultado.pila)),
+    nubesPorEscena: porEscena.map((resultado) => resultado.nubes),
+  }
 }
 
 /**
@@ -221,6 +262,46 @@ function bandasQuePide(
     : (['vv'] as NombreBanda[])
 }
 
+/**
+ * Cuanto le costo la mascara de nubes a cada escena, dentro del area. Es un
+ * dato que hay que ver: si descarto el 40 por ciento del municipio, el
+ * resultado se sostiene sobre la mitad del terreno y conviene buscar otra fecha.
+ */
+function notaDeNubes(
+  nubesPorEscena: (Uint8Array | null)[],
+  escenas: Escena[],
+  dentro: Uint8Array,
+  celdasDentro: number,
+  coleccion: Coleccion,
+  cual: 'actual' | 'base',
+): string {
+  if (coleccion.mascaraNubes === null) {
+    return `${coleccion.etiqueta} es radar: no hay nubes que descartar.`
+  }
+
+  if (nubesPorEscena.every((mascara) => mascara === null)) {
+    return `Fecha ${cual} sin máscara por píxel: el filtro de la búsqueda es por escena completa, así que puede quedar nube sobre el área.`
+  }
+
+  const detalle = nubesPorEscena
+    .map((mascara, i) => {
+      const etiqueta = escenas[i].malla || escenas[i].plataforma
+      if (!mascara) return `${etiqueta} sin máscara`
+
+      const { nubladas, observadas } = nubosidadEnArea(mascara, dentro)
+      if (observadas === 0) return `${etiqueta} no alcanza el área`
+
+      const porcentaje = (nubladas / observadas) * 100
+      const alcance = (observadas / celdasDentro) * 100
+      const cobertura =
+        alcance >= 99.5 ? '' : `, y esa escena solo cubre ${alcance.toFixed(0)} por ciento del área`
+      return `${etiqueta} con ${porcentaje.toFixed(1)} por ciento nublado de lo que observa${cobertura}`
+    })
+    .join(', ')
+
+  return `Máscara de nubes de la fecha ${cual} (${coleccion.mascaraNubes.tipo}): ${detalle}.`
+}
+
 /** Etiqueta corta de un conjunto de escenas: las mallas que lo forman. */
 function etiquetaEscenas(escenas: Escena[]): string {
   const mallas = escenas.map((escena) => escena.malla || escena.plataforma).filter(Boolean)
@@ -245,6 +326,7 @@ export async function ejecutarAnalisis(
     umbralCambio,
     umbralObra,
     areaMinimaObra,
+    quitarNubes,
   } = parametros
 
   if (escenas.length === 0) throw new Error('Elige al menos una escena')
@@ -268,7 +350,7 @@ export async function ejecutarAnalisis(
   let celdasDentro = 0
   for (const marca of dentro) celdasDentro += marca
 
-  const mosaico = await obtenerMosaico(escenas, coleccion, bandasPedidas, rejilla)
+  const mosaico = await obtenerMosaico(escenas, coleccion, bandasPedidas, rejilla, quitarNubes)
   const cobertura = coberturaDelArea(mosaico.procedencia, dentro)
 
   if (cobertura === 0) {
@@ -299,6 +381,10 @@ export async function ejecutarAnalisis(
   }
 
   notas.push(
+    notaDeNubes(mosaico.nubesPorEscena, escenas, dentro, celdasDentro, coleccion, 'actual'),
+  )
+
+  notas.push(
     cobertura >= 0.999
       ? 'El área queda cubierta por completo.'
       : `Quedan sin dato ${((1 - cobertura) * 100).toFixed(1)} por ciento de las celdas del área.`,
@@ -315,6 +401,7 @@ export async function ejecutarAnalisis(
     umbralCambio,
     umbralObra,
     areaMinimaObra,
+    quitarNubes ? 'sinNubes' : 'conNubes',
   ].join(':')
 
   // Separacion temporal: lo primero que hay que saber al comparar dos fechas.
@@ -331,9 +418,18 @@ export async function ejecutarAnalisis(
   }
 
   if (modo === 'obra') {
-    const mosaicoBase = await obtenerMosaico(escenasReferencia, coleccion, bandasPedidas, rejilla)
+    const mosaicoBase = await obtenerMosaico(
+      escenasReferencia,
+      coleccion,
+      bandasPedidas,
+      rejilla,
+      quitarNubes,
+    )
     const pilaReferencia = mosaicoBase.pila
     for (const banda of Object.values(pilaReferencia.bandas)) aplicarMascara(banda, dentro)
+    notas.push(
+      notaDeNubes(mosaicoBase.nubesPorEscena, escenasReferencia, dentro, celdasDentro, coleccion, 'base'),
+    )
 
     const porId = (id: string) => INDICES.find((indice) => indice.id === id)!
     const ndbi = porId('ndbi')
@@ -400,9 +496,18 @@ export async function ejecutarAnalisis(
   }
 
   if (modo === 'cambio') {
-    const mosaicoBase = await obtenerMosaico(escenasReferencia, coleccion, bandasPedidas, rejilla)
+    const mosaicoBase = await obtenerMosaico(
+      escenasReferencia,
+      coleccion,
+      bandasPedidas,
+      rejilla,
+      quitarNubes,
+    )
     const pilaReferencia = mosaicoBase.pila
     for (const banda of Object.values(pilaReferencia.bandas)) aplicarMascara(banda, dentro)
+    notas.push(
+      notaDeNubes(mosaicoBase.nubesPorEscena, escenasReferencia, dentro, celdasDentro, coleccion, 'base'),
+    )
 
     const despues = calcularIndice(pila, indice!)
     const antes = calcularIndice(pilaReferencia, indice!)

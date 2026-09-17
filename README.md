@@ -113,6 +113,28 @@ cada escena y cuanto quedo sin dato. La seleccion siempre es de un solo dia.
 NDVI, NDWI, MNDWI, NDBI y NBR. La rampa se estira entre los percentiles 2 y 98
 de los pixeles validos del area, no entre -1 y 1, para que el contraste sirva.
 
+### Mascara de nubes por pixel
+
+El filtro de nubosidad de la busqueda es por escena completa: una escena con
+15 por ciento de nubes pasa aunque esas nubes caigan justo sobre Leon. La
+mascara por pixel usa la banda que publica cada mision, SCL en Sentinel-2 y
+QA_PIXEL en Landsat, y descarta nube, sombra, cirro y nieve antes de calcular
+nada. Sentinel-1 es radar y no la necesita.
+
+Los tres estados se distinguen a proposito: despejado, nube y sin dato. Una
+escena de Landsat que solo cubre un tercio del municipio deja el resto sin
+dato, y contarlo como nube reportaba 99 por ciento de nubosidad en una escena
+que declaraba 59. La nota dice el porcentaje nublado de lo que cada escena
+alcanza a ver, y cuanto del area cubre.
+
+Que cambia en la practica, sobre el mismo par del limite urbano
+(26/08/2024 contra 05/09/2026): sin mascara salen 102 zonas de obra y 266.9
+ha; con mascara, 91 zonas y 238.9 ha. Once zonas eran nube de la fecha base,
+que a 1.2 por ciento de nubosidad declarada ya bastaba para inventarlas.
+
+Como efecto util, el mosaico del dia rinde mas: donde una malla queda
+nublada, la otra aporta.
+
 ### Obra nueva
 
 Detecta desarrollos entre dos fechas. No basta con que suba el NDBI: un

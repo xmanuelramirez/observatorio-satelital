@@ -34,6 +34,8 @@ interface Props {
   onUmbralObra: (valor: number) => void
   areaMinimaObra: number
   onAreaMinimaObra: (valor: number) => void
+  quitarNubes: boolean
+  onQuitarNubes: (valor: boolean) => void
 }
 
 const MODOS: { id: ModoVista; etiqueta: string }[] = [
@@ -77,6 +79,8 @@ export default function PanelAnalisis({
   onUmbralObra,
   areaMinimaObra,
   onAreaMinimaObra,
+  quitarNubes,
+  onQuitarNubes,
 }: Props) {
   if (escenas.length === 0) {
     return (
@@ -299,6 +303,24 @@ export default function PanelAnalisis({
             </label>
           </div>
         )}
+
+        <label className="mb-3 flex cursor-pointer items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={quitarNubes && coleccion.mascaraNubes !== null}
+            disabled={coleccion.mascaraNubes === null}
+            onChange={(evento) => onQuitarNubes(evento.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="text-xs leading-snug">
+            <span className="text-tinta">Descartar nubes píxel por píxel</span>
+            <span className="mt-0.5 block text-rotulo">
+              {coleccion.mascaraNubes === null
+                ? `${coleccion.etiqueta} es radar: atraviesa la nube y no hay nada que descartar.`
+                : `Usa la banda ${coleccion.mascaraNubes.asset.toUpperCase()} de la escena. El filtro de la búsqueda es por escena completa: una escena con poca nube puede tenerla justo encima de León.`}
+            </span>
+          </span>
+        </label>
 
         <label className="mb-3.5 block">
           <Etiqueta>Rejilla de análisis</Etiqueta>

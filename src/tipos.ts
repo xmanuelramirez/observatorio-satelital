@@ -1,5 +1,6 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import type { IdProveedor } from './servicios/proveedores'
+import type { TipoMascaraNubes } from './servicios/nubes'
 
 /** [oeste, sur, este, norte] en grados WGS84, el orden que pide STAC. */
 export type Bbox = [number, number, number, number]
@@ -47,6 +48,8 @@ export interface Coleccion {
   revisitaDias: number
   /** Sentinel-1 es radar: no trae nubosidad y el filtro no aplica. */
   filtraNubes: boolean
+  /** Asset con la mascara de nubes por pixel y como leerlo, si lo hay. */
+  mascaraNubes: { asset: string; tipo: TipoMascaraNubes } | null
   /** Banda interna a nombre de asset en el item STAC. */
   bandas: Partial<Record<NombreBanda, string>>
   /** Asset RGB de 8 bits ya listo, si la coleccion lo publica. */

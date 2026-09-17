@@ -49,6 +49,9 @@ export default function App() {
   const [umbralCambio, setUmbralCambio] = useState(0.1)
   const [umbralObra, setUmbralObra] = useState(0.08)
   const [areaMinimaObra, setAreaMinimaObra] = useState(1)
+  // Encendida por defecto: una nube sobre un terreno se parece a concreto
+  // nuevo, y el filtro de la busqueda no ve donde cae la nube.
+  const [quitarNubes, setQuitarNubes] = useState(true)
   const [desplazamiento, setDesplazamiento] = useState<FuenteRaster>(null)
   const [indice, setIndice] = useState<DefinicionIndice | null>(INDICES[0])
   const [bandasKmeans, setBandasKmeans] = useState<NombreBanda[]>([
@@ -246,6 +249,7 @@ export default function App() {
         umbralCambio,
         umbralObra,
         areaMinimaObra,
+        quitarNubes,
       })
       setAnalisis(salida)
     } catch (error: unknown) {
@@ -269,6 +273,7 @@ export default function App() {
     umbralCambio,
     umbralObra,
     areaMinimaObra,
+    quitarNubes,
   ])
 
   /**
@@ -391,6 +396,11 @@ export default function App() {
             areaMinimaObra={areaMinimaObra}
             onAreaMinimaObra={(valor) => {
               setAreaMinimaObra(valor)
+              limpiarAnalisis()
+            }}
+            quitarNubes={quitarNubes}
+            onQuitarNubes={(valor) => {
+              setQuitarNubes(valor)
               limpiarAnalisis()
             }}
           />
