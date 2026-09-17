@@ -11,7 +11,7 @@ import { kmeans } from './kmeans'
 import { aplicarMascara, mascaraDeArea } from './mascara'
 import { aportacionEnArea, coberturaDelArea } from './mosaico'
 import { colorDeCalor, colorDeCambio, colorDeClase, colorDeGris, colorDeIndice } from './paletas'
-import { detectarObraNueva, diasEntre, mismaTemporada } from './obranueva'
+import { detectarObraNueva, diasEntre, mismaTemporada, type ZonaObra } from './obranueva'
 import { nubosidadEnArea } from './nubes'
 import { INDICES } from './indices'
 import type { Bbox, Coleccion, Escena, ModoVista, NombreBanda } from '../tipos'
@@ -43,6 +43,8 @@ export interface ResultadoAnalisis {
    * resultado es invisible justo cuando mas importa.
    */
   marcas?: MarcaMapa[]
+  /** Zonas de obra nueva, que el escurrimiento usa para subir el numero de curva. */
+  zonasObra?: ZonaObra[]
   /** Cambia con cada corrida para que la capa del mapa se reconstruya. */
   sello: string
 }
@@ -399,6 +401,7 @@ export async function ejecutarAnalisis(
       colorear: ([valor]) => (Number.isNaN(valor) ? undefined : COLOR_OBRA),
       leyenda,
       notas,
+      zonasObra: resultado.zonas,
       marcas: resultado.zonas.map((zona, i) => ({
         lat: zona.lat,
         lon: zona.lon,

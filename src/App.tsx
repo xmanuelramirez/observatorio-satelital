@@ -16,6 +16,13 @@ import ListaEscenas from './componentes/ListaEscenas'
 import PanelAnalisis from './componentes/PanelAnalisis'
 import PanelSerie from './componentes/PanelSerie'
 import PanelProductos from './componentes/PanelProductos'
+import PanelEscurrimiento from './componentes/PanelEscurrimiento'
+import {
+  calcularEscurrimiento,
+  leerSubcuencas,
+  type CondicionCn,
+  type ResultadoEscurrimiento,
+} from './servicios/escurrimiento'
 import { cargarProducto, PRODUCTOS, type IdProducto } from './servicios/productos'
 import { calcularSerie, type ResultadoSerie } from './servicios/serie'
 
@@ -90,6 +97,13 @@ export default function App() {
   const [cargandoProducto, setCargandoProducto] = useState<IdProducto | null>(null)
   const [errorProducto, setErrorProducto] = useState<string | null>(null)
 
+  const [subcuencasCn, setSubcuencasCn] = useState<FeatureCollection | null>(null)
+  const [lluviaMm, setLluviaMm] = useState(50)
+  const [condicionCn, setCondicionCn] = useState<CondicionCn>('cn_medio')
+  const [escurrimiento, setEscurrimiento] = useState<ResultadoEscurrimiento | null>(null)
+  const [calculandoEscurrimiento, setCalculandoEscurrimiento] = useState(false)
+  const [errorEscurrimiento, setErrorEscurrimiento] = useState<string | null>(null)
+
   const [opacidad, setOpacidad] = useState(1)
   const [fondo, setFondo] = useState<IdFondo>('ninguno')
   const [estadoRaster, setEstadoRaster] = useState<{ cargando: boolean; error: string | null }>({
@@ -117,6 +131,12 @@ export default function App() {
 
       setErrorCapas(faltantes.length > 0 ? faltantes.join(', ') : null)
     })
+  }, [])
+
+  useEffect(() => {
+    cargarGeojson('capas/NUMERO_DE_CURVA.geojson')
+      .then(setSubcuencasCn)
+      .catch(() => setSubcuencasCn(null))
   }, [])
 
   const areaBbox = useMemo<Bbox | null>(() => {
@@ -306,6 +326,34 @@ export default function App() {
     umbralAguaDb,
   ])
 
+  const lanzarEscurrimiento = useCallback(() => {
+    if (!subcuencasCn) return
+
+    setCalculandoEscurrimiento(true)
+    setErrorEscurrimiento(null)
+
+    try {
+      const subcuencas = leerSubcuencas(subcuencasCn, condicionCn)
+      if (subcuencas.length === 0) {
+        throw new Error('La capa no trae número de curva en esa condición')
+      }
+
+      setEscurrimiento(
+        calcularEscurrimiento({
+          subcuencas,
+          lluviaMm,
+          condicion: condicionCn,
+          zonasObra: analisis?.zonasObra ?? [],
+        }),
+      )
+    } catch (error: unknown) {
+      setErrorEscurrimiento(error instanceof Error ? error.message : String(error))
+      setEscurrimiento(null)
+    } finally {
+      setCalculandoEscurrimiento(false)
+    }
+  }, [subcuencasCn, condicionCn, lluviaMm, analisis])
+
   const lanzarProducto = useCallback(
     async (id: IdProducto) => {
       if (!areaBbox) return
@@ -438,6 +486,19 @@ export default function App() {
             onFondo={setFondo}
             buscando={buscando}
             onBuscar={lanzarBusqueda}
+          />
+
+          <PanelEscurrimiento
+            disponible={subcuencasCn !== null}
+            lluviaMm={lluviaMm}
+            onLluviaMm={setLluviaMm}
+            condicion={condicionCn}
+            onCondicion={setCondicionCn}
+            zonasObra={analisis?.zonasObra?.length ?? 0}
+            calculando={calculandoEscurrimiento}
+            resultado={escurrimiento}
+            error={errorEscurrimiento}
+            onCalcular={lanzarEscurrimiento}
           />
 
           <PanelProductos

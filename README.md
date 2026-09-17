@@ -170,6 +170,74 @@ es tipo k-means++ y el generador aleatorio lleva semilla fija, asi que la misma
 escena con los mismos ajustes da exactamente las mismas clases. La leyenda
 reporta hectareas y porcentaje por clase, y el centroide en reflectancia.
 
+### Calor
+
+Temperatura de superficie con la banda termica de Landsat, que el item
+declara en Kelvin con su escala. Es temperatura de la superficie, no del
+aire: el asfalto a mediodia pasa de 50 grados mientras el termometro marca
+30, asi que sirve para comparar zonas entre si.
+
+Corrida sobre el limite urbano el 26/08/2026: media 39.7 grados, entre 32.9
+y 44.9.
+
+### Agua y crecida con radar
+
+Sentinel-1 no ve color, ve rugosidad: el agua en calma devuelve poca senal y
+sale oscura. Con un umbral sobre VV se dibuja la lamina; con fecha base se
+separa agua permanente, agua nueva y agua que desaparecio.
+
+Solo compara celdas con dato en las dos fechas. Cada pasada cubre una franja
+distinta, y sin ese cuidado una toma incompleta reportaba como "agua que
+desaparecio" lo que era falta de imagen.
+
+### Serie de tiempo
+
+Media de un indice sobre el area, fecha por fecha, con las fechas repartidas
+a lo largo del periodo. Corre sobre rejilla de 128 porque la media de miles
+de hectareas no cambia por afinar la celda. Se puede cancelar y copiar como
+CSV.
+
+Corrida sobre la cuenca Palote, 12 fechas de dos anios: NDVI de 0.64 en
+septiembre a 0.21 en enero.
+
+### Calidad de agua
+
+NDCI para clorofila, con el borde rojo B05, y NDTI para turbidez relativa.
+Los dos fuerzan el recorte a la lamina de agua: sobre tierra un NDCI alto es
+vegetacion, no clorofila. La lamina se dibuja con MNDWI y no con NDWI porque
+el concreto tambien tiene NDWI alto.
+
+## Capas de referencia
+
+Productos globales ya calculados que se recortan al area y se miden. No son
+escenas: no hay fecha que elegir ni nubosidad que filtrar.
+
+| Producto | Fuente | Resolucion |
+|---|---|---|
+| Agua historica | JRC Global Surface Water | 30 m, 1984 a 2021 |
+| Cobertura del suelo | ESA WorldCover v200 | 10 m, 2021 |
+| Evapotranspiracion anual | MODIS MOD16A3GF v061 | 500 m, anual |
+
+MODIS obligo a leer la proyeccion desde las geo keys del archivo: su rejilla
+sinusoidal no tiene codigo EPSG, asi que declara 32767 y hay que armar la
+proyeccion por partes. ECOSTRESS, que seria la opcion fina para
+evapotranspiracion, no esta en Planetary Computer y necesitaria tuberia
+aparte con cuenta de Earthdata.
+
+## Escurrimiento
+
+Metodo del numero de curva del SCS sobre las 63 subcuencas del departamento.
+Lo que aporta el satelite no es el numero de curva, que ya existe, sino
+cuanta superficie se impermeabilizo: las zonas del modo Obra se reparten por
+subcuenca y suben el numero de curva en proporcion al area que ocupan.
+
+Corrida con 50 mm de lluvia y condicion media: 45.6 millones de m3 sobre
+2,290 km2, y de esos, 37,669 m3 los agregan las 239 ha de obra nueva
+detectadas entre 2024 y 2026.
+
+La capa `NUMERO_DE_CURVA.geojson` es interna y no viaja al sitio publico; el
+podado la excluye y el panel avisa cuando falta.
+
 ## Capas
 
 Las cinco capas de `public/capas` vienen de
