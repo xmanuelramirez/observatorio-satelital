@@ -1,6 +1,6 @@
 import type { PilaBandas } from './raster'
 
-export type IdIndice = 'ndvi' | 'ndwi' | 'mndwi' | 'ndbi' | 'nbr'
+export type IdIndice = 'ndvi' | 'ndwi' | 'mndwi' | 'ndbi' | 'nbr' | 'ndci' | 'ndti'
 
 export interface DefinicionIndice {
   id: IdIndice
@@ -9,6 +9,12 @@ export interface DefinicionIndice {
   /** Diferencia normalizada (a - b) / (a + b). */
   a: string
   b: string
+  /**
+   * Indices que solo significan algo sobre la lamina de agua. Sobre tierra,
+   * un NDCI alto es vegetacion, no clorofila: por eso la app recorta al agua
+   * antes de interpretarlos.
+   */
+  soloAgua?: boolean
 }
 
 export const INDICES: DefinicionIndice[] = [
@@ -41,6 +47,22 @@ export const INDICES: DefinicionIndice[] = [
     b: 'nir',
   },
   {
+    id: 'ndci',
+    etiqueta: 'NDCI',
+    descripcion: 'Clorofila en agua, borde rojo',
+    a: 'rededge1',
+    b: 'rojo',
+    soloAgua: true,
+  },
+  {
+    id: 'ndti',
+    etiqueta: 'NDTI',
+    descripcion: 'Turbidez relativa del agua',
+    a: 'rojo',
+    b: 'verde',
+    soloAgua: true,
+  },
+  {
     id: 'nbr',
     etiqueta: 'NBR',
     descripcion: 'Área quemada y estrés severo',
@@ -57,6 +79,46 @@ export function indicesDisponibles(bandasDeLaColeccion: string[]): DefinicionInd
   return INDICES.filter((indice) =>
     bandasQueUsa(indice).every((banda) => bandasDeLaColeccion.includes(banda)),
   )
+}
+
+/**
+ * Lamina de agua por pixel.
+ *
+ * Con SWIR se usa MNDWI, que distingue agua de superficie construida mucho
+ * mejor que NDWI: el concreto tambien tiene NDWI alto y sin esto medio centro
+ * de la ciudad entraria como si fuera vaso de presa. Sin SWIR se cae a NDWI,
+ * que es lo unico disponible.
+ */
+export function mascaraDeAgua(pila: PilaBandas, umbral = 0): Uint8Array {
+  const verde = pila.bandas.verde
+  const swir1 = pila.bandas.swir1
+  const nir = pila.bandas.nir
+  const contraste = swir1 ?? nir
+
+  if (!verde || !contraste) {
+    throw new Error('Para recortar al agua hacen falta las bandas verde y swir1 (o nir)')
+  }
+
+  const agua = new Uint8Array(verde.length)
+  for (let i = 0; i < verde.length; i++) {
+    const v = verde[i]
+    const c = contraste[i]
+    const suma = v + c
+    if (Number.isNaN(v) || Number.isNaN(c) || suma === 0) continue
+    agua[i] = (v - c) / suma > umbral ? 1 : 0
+  }
+
+  return agua
+}
+
+/** Deja NaN fuera de la lamina de agua y devuelve cuantas celdas quedaron. */
+export function recortarAgua(banda: Float32Array, agua: Uint8Array): number {
+  let dentro = 0
+  for (let i = 0; i < banda.length; i++) {
+    if (agua[i] === 1) dentro++
+    else banda[i] = Number.NaN
+  }
+  return dentro
 }
 
 export interface ResultadoIndice {

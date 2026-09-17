@@ -1,5 +1,10 @@
 import type { FeatureCollection } from 'geojson'
-import { calcularIndice, type DefinicionIndice } from './indices'
+import {
+  calcularIndice,
+  mascaraDeAgua,
+  recortarAgua,
+  type DefinicionIndice,
+} from './indices'
 import { aplicarMascara, mascaraDeArea } from './mascara'
 import { obtenerMosaico } from './pilas'
 import { rejillaDe } from './raster'
@@ -42,6 +47,10 @@ export interface ParametrosSerie {
   bbox: Bbox
   areaGeojson: FeatureCollection
   quitarNubes: boolean
+  /** Calcular solo sobre la lamina de agua, para los indices que lo piden. */
+  soloAgua: boolean
+  /** Bandas extra que hacen falta para dibujar el agua. */
+  bandasAgua: NombreBanda[]
   /** Lado de la rejilla; 128 basta para una media de area. */
   tamano: number
   /** Cuantas fechas como maximo, repartidas a lo largo del periodo. */
@@ -97,6 +106,8 @@ export async function calcularSerie(parametros: ParametrosSerie): Promise<Result
     bbox,
     areaGeojson,
     quitarNubes,
+    soloAgua,
+    bandasAgua,
     tamano,
     maxFechas,
     coberturaMinima,
@@ -115,7 +126,10 @@ export async function calcularSerie(parametros: ParametrosSerie): Promise<Result
   const ordenadas = [...grupos].sort((a, b) => a.dia.localeCompare(b.dia))
   const elegidas = repartirFechas(ordenadas, maxFechas)
 
-  const bandas = [indice.a, indice.b] as NombreBanda[]
+  const recorteAgua = soloAgua || indice.soloAgua === true
+  const bandas = [
+    ...new Set([...(([indice.a, indice.b] as NombreBanda[])), ...(recorteAgua ? bandasAgua : [])]),
+  ]
   const puntos: PuntoSerie[] = []
   const omitidas: { dia: string; fraccionValida: number }[] = []
 
@@ -126,11 +140,17 @@ export async function calcularSerie(parametros: ParametrosSerie): Promise<Result
     const mosaico = await obtenerMosaico(grupo.escenas, coleccion, bandas, rejilla, quitarNubes)
     for (const banda of Object.values(mosaico.pila.bandas)) aplicarMascara(banda, dentro)
 
+    if (recorteAgua) {
+      const agua = mascaraDeAgua(mosaico.pila)
+      for (const banda of Object.values(mosaico.pila.bandas)) recortarAgua(banda, agua)
+    }
+
     const { valores } = calcularIndice(mosaico.pila, indice)
     const { media, mediana, validos } = resumen(valores)
     const fraccionValida = validos / celdasDentro
 
-    if (validos === 0 || fraccionValida < coberturaMinima) {
+    const minimo = recorteAgua ? 0 : coberturaMinima
+    if (validos === 0 || fraccionValida < minimo) {
       omitidas.push({ dia: grupo.dia, fraccionValida })
       continue
     }

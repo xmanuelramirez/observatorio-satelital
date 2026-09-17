@@ -36,6 +36,8 @@ interface Props {
   onAreaMinimaObra: (valor: number) => void
   quitarNubes: boolean
   onQuitarNubes: (valor: boolean) => void
+  soloAgua: boolean
+  onSoloAgua: (valor: boolean) => void
 }
 
 const MODOS: { id: ModoVista; etiqueta: string }[] = [
@@ -81,6 +83,8 @@ export default function PanelAnalisis({
   onAreaMinimaObra,
   quitarNubes,
   onQuitarNubes,
+  soloAgua,
+  onSoloAgua,
 }: Props) {
   if (escenas.length === 0) {
     return (
@@ -302,6 +306,26 @@ export default function PanelAnalisis({
               />
             </label>
           </div>
+        )}
+
+        {usaIndice && (
+          <label className="mb-3 flex cursor-pointer items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={soloAgua || indice?.soloAgua === true}
+              disabled={indice?.soloAgua === true}
+              onChange={(evento) => onSoloAgua(evento.target.checked)}
+              className="mt-0.5"
+            />
+            <span className="text-xs leading-snug">
+              <span className="text-tinta">Calcular solo sobre la lámina de agua</span>
+              <span className="mt-0.5 block text-rotulo">
+                {indice?.soloAgua === true
+                  ? `${indice.etiqueta} solo significa algo sobre agua: sobre tierra sería vegetación, no clorofila. Por eso queda fijo.`
+                  : 'Dibuja el agua con MNDWI y descarta todo lo demás. Útil para medir el vaso de una presa sin que la orilla ensucie la media.'}
+              </span>
+            </span>
+          </label>
         )}
 
         <label className="mb-3 flex cursor-pointer items-start gap-2.5">

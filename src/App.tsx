@@ -4,7 +4,7 @@ import { CAPAS } from './datos/capas'
 import { COLECCION_POR_DEFECTO, buscarColeccion } from './datos/colecciones'
 import { bboxDe, cargarGeojson } from './servicios/geojson'
 import { buscarEscenas, type ResultadoBusqueda } from './servicios/stac'
-import { ejecutarAnalisis, type ResultadoAnalisis } from './servicios/analisis'
+import { bandasDelAgua, ejecutarAnalisis, type ResultadoAnalisis } from './servicios/analisis'
 import { INDICES, indicesDisponibles, type DefinicionIndice } from './servicios/indices'
 import type { Bbox, Escena, GrupoDia, IdCapa, ModoVista, NombreBanda } from './tipos'
 import { diaLocal } from './lib/fecha'
@@ -54,6 +54,7 @@ export default function App() {
   // Encendida por defecto: una nube sobre un terreno se parece a concreto
   // nuevo, y el filtro de la busqueda no ve donde cae la nube.
   const [quitarNubes, setQuitarNubes] = useState(true)
+  const [soloAgua, setSoloAgua] = useState(false)
   const [desplazamiento, setDesplazamiento] = useState<FuenteRaster>(null)
   const [indice, setIndice] = useState<DefinicionIndice | null>(INDICES[0])
   const [bandasKmeans, setBandasKmeans] = useState<NombreBanda[]>([
@@ -264,6 +265,7 @@ export default function App() {
         umbralObra,
         areaMinimaObra,
         quitarNubes,
+        soloAgua,
       })
       setAnalisis(salida)
     } catch (error: unknown) {
@@ -288,6 +290,7 @@ export default function App() {
     umbralObra,
     areaMinimaObra,
     quitarNubes,
+    soloAgua,
   ])
 
   const lanzarSerie = useCallback(async () => {
@@ -311,6 +314,8 @@ export default function App() {
         bbox: areaBbox,
         areaGeojson,
         quitarNubes,
+        soloAgua,
+        bandasAgua: bandasDelAgua(coleccion),
         // Rejilla gruesa a proposito: la media sobre miles de hectareas no
         // cambia por afinar la celda, y el tiempo de espera si.
         tamano: 128,
@@ -328,7 +333,7 @@ export default function App() {
       setProgresoSerie(null)
       cancelarSerie.current = null
     }
-  }, [areaBbox, indice, datosCapas, area, grupos, coleccion, quitarNubes, maxFechas])
+  }, [areaBbox, indice, datosCapas, area, grupos, coleccion, quitarNubes, soloAgua, maxFechas])
 
   /**
    * El color verdadero de Sentinel-2 se lee del COG completo, que da mas
@@ -468,6 +473,11 @@ export default function App() {
             quitarNubes={quitarNubes}
             onQuitarNubes={(valor) => {
               setQuitarNubes(valor)
+              limpiarAnalisis()
+            }}
+            soloAgua={soloAgua}
+            onSoloAgua={(valor) => {
+              setSoloAgua(valor)
               limpiarAnalisis()
             }}
           />

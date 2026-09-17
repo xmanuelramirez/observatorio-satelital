@@ -1,7 +1,12 @@
 import type { FeatureCollection } from 'geojson'
 import { metrosDeCelda, rejillaDe, type Rejilla } from './raster'
 import { obtenerMosaico } from './pilas'
-import { calcularIndice, type DefinicionIndice } from './indices'
+import {
+  calcularIndice,
+  mascaraDeAgua,
+  recortarAgua,
+  type DefinicionIndice,
+} from './indices'
 import { kmeans } from './kmeans'
 import { aplicarMascara, mascaraDeArea } from './mascara'
 import { aportacionEnArea, coberturaDelArea } from './mosaico'
@@ -67,6 +72,8 @@ export interface ParametrosAnalisis {
   areaMinimaObra: number
   /** Descartar nubes y sombras pixel por pixel con la mascara de la mision. */
   quitarNubes: boolean
+  /** Calcular solo sobre la lamina de agua. Obligatorio para NDCI y NDTI. */
+  soloAgua: boolean
 }
 
 /**
@@ -88,6 +95,11 @@ function percentiles(valores: Float32Array): [number, number] {
   finitos.sort((a, b) => a - b)
   const en = (p: number) => finitos[Math.min(finitos.length - 1, Math.floor(p * finitos.length))]
   return [en(0.02), en(0.98)]
+}
+
+/** Las que hacen falta para dibujar la lamina de agua con MNDWI, o NDWI si no hay SWIR. */
+export function bandasDelAgua(coleccion: Coleccion): NombreBanda[] {
+  return coleccion.bandas.swir1 ? ['verde', 'swir1'] : ['verde', 'nir']
 }
 
 function bandasQuePide(
@@ -182,12 +194,19 @@ export async function ejecutarAnalisis(
     umbralObra,
     areaMinimaObra,
     quitarNubes,
+    soloAgua,
   } = parametros
 
   if (escenas.length === 0) throw new Error('Elige al menos una escena')
 
   const notas: string[] = []
-  const bandasPedidas = bandasQuePide(modo, coleccion, indice, bandasKmeans)
+  const recorteAgua = soloAgua || indice?.soloAgua === true
+  const bandasPedidas = [
+    ...new Set([
+      ...bandasQuePide(modo, coleccion, indice, bandasKmeans),
+      ...(recorteAgua ? bandasDelAgua(coleccion) : []),
+    ]),
+  ]
   if (bandasPedidas.length === 0) throw new Error('No hay bandas que leer con esos ajustes')
 
   if ((modo === 'cambio' || modo === 'obra') && escenasReferencia.length === 0) {
@@ -239,6 +258,20 @@ export async function ejecutarAnalisis(
     notaDeNubes(mosaico.nubesPorEscena, escenas, dentro, celdasDentro, coleccion, 'actual'),
   )
 
+  if (recorteAgua) {
+    const agua = mascaraDeAgua(pila)
+    let celdasAgua = 0
+    for (const banda of Object.values(pila.bandas)) celdasAgua = recortarAgua(banda, agua)
+    if (celdasAgua === 0) {
+      throw new Error(
+        'No se detectó lámina de agua en el área con esa fecha. Revisa que el vaso tenga agua y que la escena no esté nublada.',
+      )
+    }
+    notas.push(
+      `Recortado a la lámina de agua: ${(celdasAgua * haPixel).toLocaleString('es-MX', { maximumFractionDigits: 0 })} ha de agua, ${((celdasAgua / celdasDentro) * 100).toFixed(1)} por ciento del área.`,
+    )
+  }
+
   notas.push(
     cobertura >= 0.999
       ? 'El área queda cubierta por completo.'
@@ -257,6 +290,7 @@ export async function ejecutarAnalisis(
     umbralObra,
     areaMinimaObra,
     quitarNubes ? 'sinNubes' : 'conNubes',
+    recorteAgua ? 'agua' : 'todo',
   ].join(':')
 
   // Separacion temporal: lo primero que hay que saber al comparar dos fechas.

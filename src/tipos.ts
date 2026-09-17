@@ -35,7 +35,17 @@ export type IdColeccion = 'sentinel-2-c1-l2a' | 'landsat-c2-l2' | 'sentinel-1-rt
  * B08 y Landsat lo llama nir08: el mapa de cada coleccion resuelve eso para
  * que los indices se escriban una sola vez.
  */
-export type NombreBanda = 'azul' | 'verde' | 'rojo' | 'nir' | 'swir1' | 'swir2' | 'vv' | 'vh'
+export type NombreBanda =
+  | 'azul'
+  | 'verde'
+  | 'rojo'
+  /** Borde rojo B05: solo Sentinel-2, y es lo que permite ver clorofila. */
+  | 'rededge1'
+  | 'nir'
+  | 'swir1'
+  | 'swir2'
+  | 'vv'
+  | 'vh'
 
 export interface Coleccion {
   id: IdColeccion

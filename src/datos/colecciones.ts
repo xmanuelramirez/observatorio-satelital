@@ -23,6 +23,7 @@ export const COLECCIONES: Coleccion[] = [
       azul: 'blue',
       verde: 'green',
       rojo: 'red',
+      rededge1: 'rededge1',
       nir: 'nir',
       swir1: 'swir16',
       swir2: 'swir22',
