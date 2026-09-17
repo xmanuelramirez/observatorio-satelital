@@ -23,6 +23,8 @@
 #       planetarycomputer.microsoft.com           catalogo STAC y firmador SAS
 #       landsateuwest.blob.core.windows.net       COG de Landsat
 #       sentinel1euwestrtc.blob.core.windows.net  COG de Sentinel-1 RTC
+#       ai4edataeuwest.blob.core.windows.net      JRC Global Surface Water y ESA WorldCover
+#       modiseuwest.blob.core.windows.net         MODIS de evapotranspiracion
 #       api.daac.asf.alaska.edu                   busqueda de pares InSAR
 #   img-src
 #       Miniaturas de Earth Search y Planetary Computer, y los mosaicos de
@@ -31,7 +33,7 @@
 #       Inter y JetBrains Mono auto-alojadas en /fonts. Ningun tercero.
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com https://planetarycomputer.microsoft.com https://a.basemaps.cartocdn.com https://b.basemaps.cartocdn.com https://c.basemaps.cartocdn.com https://d.basemaps.cartocdn.com; font-src 'self'; connect-src 'self' https://earth-search.aws.element84.com https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com https://planetarycomputer.microsoft.com https://landsateuwest.blob.core.windows.net https://sentinel1euwestrtc.blob.core.windows.net https://api.daac.asf.alaska.edu; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com https://planetarycomputer.microsoft.com https://a.basemaps.cartocdn.com https://b.basemaps.cartocdn.com https://c.basemaps.cartocdn.com https://d.basemaps.cartocdn.com; font-src 'self'; connect-src 'self' https://earth-search.aws.element84.com https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com https://planetarycomputer.microsoft.com https://landsateuwest.blob.core.windows.net https://sentinel1euwestrtc.blob.core.windows.net https://ai4edataeuwest.blob.core.windows.net https://modiseuwest.blob.core.windows.net https://api.daac.asf.alaska.edu; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
