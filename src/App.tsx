@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FeatureCollection } from 'geojson'
 import { CAPAS } from './datos/capas'
 import { COLECCION_POR_DEFECTO, buscarColeccion } from './datos/colecciones'
@@ -14,6 +14,8 @@ import PanelBusqueda from './componentes/PanelBusqueda'
 import PanelInsar from './componentes/PanelInsar'
 import ListaEscenas from './componentes/ListaEscenas'
 import PanelAnalisis from './componentes/PanelAnalisis'
+import PanelSerie from './componentes/PanelSerie'
+import { calcularSerie, type ResultadoSerie } from './servicios/serie'
 
 // Dia de Leon, no dia UTC: con toISOString, despues de las 18:00 locales
 // "hoy" ya era manana.
@@ -66,6 +68,17 @@ export default function App() {
   const [analisis, setAnalisis] = useState<ResultadoAnalisis | null>(null)
   const [calculando, setCalculando] = useState(false)
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null)
+
+  const [serie, setSerie] = useState<ResultadoSerie | null>(null)
+  const [calculandoSerie, setCalculandoSerie] = useState(false)
+  const [errorSerie, setErrorSerie] = useState<string | null>(null)
+  const [maxFechas, setMaxFechas] = useState(12)
+  const [progresoSerie, setProgresoSerie] = useState<{
+    hechas: number
+    total: number
+    dia: string
+  } | null>(null)
+  const cancelarSerie = useRef<AbortController | null>(null)
 
   const [opacidad, setOpacidad] = useState(1)
   const [fondo, setFondo] = useState<IdFondo>('ninguno')
@@ -213,6 +226,7 @@ export default function App() {
         limite: 100,
       })
       setResultado(salida)
+      setSerie(null)
     } catch (error: unknown) {
       setErrorBusqueda(error instanceof Error ? error.message : String(error))
       setResultado(null)
@@ -276,6 +290,46 @@ export default function App() {
     quitarNubes,
   ])
 
+  const lanzarSerie = useCallback(async () => {
+    if (!areaBbox || !indice) return
+
+    const areaGeojson = datosCapas[area]
+    if (!areaGeojson) return
+
+    const control = new AbortController()
+    cancelarSerie.current = control
+
+    setCalculandoSerie(true)
+    setErrorSerie(null)
+    setProgresoSerie({ hechas: 0, total: 0, dia: '' })
+
+    try {
+      const salida = await calcularSerie({
+        grupos,
+        coleccion,
+        indice,
+        bbox: areaBbox,
+        areaGeojson,
+        quitarNubes,
+        // Rejilla gruesa a proposito: la media sobre miles de hectareas no
+        // cambia por afinar la celda, y el tiempo de espera si.
+        tamano: 128,
+        maxFechas,
+        coberturaMinima: 0.3,
+        onProgreso: (hechas, total, dia) => setProgresoSerie({ hechas, total, dia }),
+        senal: control.signal,
+      })
+      setSerie(salida)
+    } catch (error: unknown) {
+      setErrorSerie(error instanceof Error ? error.message : String(error))
+      setSerie(null)
+    } finally {
+      setCalculandoSerie(false)
+      setProgresoSerie(null)
+      cancelarSerie.current = null
+    }
+  }, [areaBbox, indice, datosCapas, area, grupos, coleccion, quitarNubes, maxFechas])
+
   /**
    * El color verdadero de Sentinel-2 se lee del COG completo, que da mas
    * detalle que la rejilla de analisis. Todo lo demas sale de las bandas.
@@ -328,6 +382,19 @@ export default function App() {
             onFondo={setFondo}
             buscando={buscando}
             onBuscar={lanzarBusqueda}
+          />
+
+          <PanelSerie
+            indice={indice}
+            fechasDisponibles={grupos.length}
+            maxFechas={maxFechas}
+            onMaxFechas={setMaxFechas}
+            calculando={calculandoSerie}
+            progreso={progresoSerie}
+            resultado={serie}
+            error={errorSerie}
+            onCalcular={lanzarSerie}
+            onCancelar={() => cancelarSerie.current?.abort()}
           />
 
           <PanelInsar
