@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { GeoJSON, MapContainer, TileLayer, useMap } from 'react-leaflet'
 import { circleMarker } from 'leaflet'
 import type { FeatureCollection } from 'geojson'
@@ -63,9 +63,29 @@ function SeguirTamano() {
  */
 function AjustarA({ bbox }: { bbox: Bbox | null }) {
   const mapa = useMap()
+  const usuarioMovio = useRef(false)
+
+  // Mover o acercar el mapa a mano cancela el reencuadre automatico. Se
+  // escucha el gesto en el contenedor y no los eventos del mapa, porque
+  // fitBounds tambien dispara movestart y se cancelaria a si mismo.
+  useEffect(() => {
+    const contenedor = mapa.getContainer()
+    const marcar = () => {
+      usuarioMovio.current = true
+    }
+    contenedor.addEventListener('pointerdown', marcar)
+    contenedor.addEventListener('wheel', marcar, { passive: true })
+    return () => {
+      contenedor.removeEventListener('pointerdown', marcar)
+      contenedor.removeEventListener('wheel', marcar)
+    }
+  }, [mapa])
 
   useEffect(() => {
     if (!bbox) return
+
+    // Elegir otra area es una peticion explicita de encuadre.
+    usuarioMovio.current = false
 
     const ajustar = (): boolean => {
       const tamano = mapa.getSize()
@@ -80,14 +100,19 @@ function AjustarA({ bbox }: { bbox: Bbox | null }) {
       return true
     }
 
-    if (ajustar()) return
+    ajustar()
 
-    const alCrecer = () => {
-      if (ajustar()) mapa.off('resize', alCrecer)
+    /*
+     * Se sigue reencuadrando en cada cambio de tamano mientras nadie haya
+     * tocado el mapa. Sin esto, una ventana que crece despues de cargar deja
+     * el area encuadrada para el tamano viejo: se ve chica y sobra margen.
+     */
+    const alCambiarTamano = () => {
+      if (!usuarioMovio.current) ajustar()
     }
-    mapa.on('resize', alCrecer)
+    mapa.on('resize', alCambiarTamano)
     return () => {
-      mapa.off('resize', alCrecer)
+      mapa.off('resize', alCambiarTamano)
     }
   }, [mapa, bbox])
 
