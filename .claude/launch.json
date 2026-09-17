@@ -11,17 +11,15 @@
       "port": 5173
     },
     {
-      "name": "observatorio-pages",
+      "name": "observatorio-worker",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "wrangler",
-        "pages",
         "dev",
-        "dist",
         "--port",
-        "8788"
+        "8787"
       ],
-      "port": 8788
+      "port": 8787
     }
   ]
 }

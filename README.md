@@ -5,15 +5,15 @@ departamento, calcula indices, compara dos fechas, agrupa el territorio con
 k-means y arma pares InSAR para subsidencia. Todo corre en el navegador,
 contra catalogos abiertos y sin ninguna credencial.
 
-Publicado en https://observatorio-satelital.pages.dev
+Publicado en https://observatorio-satelital.sapal.workers.dev
 
 ```bash
 npm install
 npm run dev        # vite, puerto 5173
 npm run tipos      # tsc; vite build no revisa tipos
 npm run build      # tsc, vite y el podado de capas
-npm run pages      # build servido con las cabeceras reales, puerto 8788
-npm run desplegar  # build y publicacion en Cloudflare Pages
+npm run local      # build servido con las cabeceras reales, puerto 8787
+npm run desplegar  # build y publicacion en Cloudflare
 ```
 
 ## Por que esta armada asi
@@ -134,9 +134,11 @@ publico.
 
 ## Despliegue
 
-Cloudflare Pages, proyecto `observatorio-satelital`, en la cuenta personal de
-Carlos por decision del 17 de septiembre de 2026, igual que SICLAR y ZAPSANAR,
-mientras no exista la institucional. El despliegue es a mano:
+Cloudflare Workers con assets estaticos y sin codigo, igual que Indicadores
+Climaticos, en la cuenta personal de Carlos por decision del 17 de septiembre
+de 2026 mientras no exista la institucional. No es Pages porque ese dia
+Cloudflare rechazo crear cualquier proyecto Pages nuevo en la cuenta. Los
+assets de Workers aplican `public/_headers` igual. El despliegue es a mano:
 
 ```bash
 npm run desplegar
@@ -167,7 +169,7 @@ VITE_CAPAS_INTERNAS=true npm run build
 - **Cabeceras** en `public/_headers`: CSP, HSTS, `X-Frame-Options: DENY`,
   `nosniff`, `Referrer-Policy` y `Permissions-Policy`. La CSP no lleva
   comodines y cada excepcion esta explicada en el propio archivo. Se probo con
-  `npm run pages`, que aplica las mismas cabeceras que produccion, recorriendo
+  `npm run local`, que aplica las mismas cabeceras que produccion, recorriendo
   las tres colecciones y los cuatro modos sin una sola violacion.
 - **Sin secretos.** La app no usa ninguno. El script de HyP3 lee las
   credenciales de Earthdata de variables de entorno o de `~/.netrc`, nunca de

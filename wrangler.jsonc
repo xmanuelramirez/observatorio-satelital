@@ -1,0 +1,22 @@
+{
+  // Sitio 100% estatico: no hay Worker con codigo, solo assets, igual que
+  // Indicadores Climaticos. `npm run desplegar` publica dist/.
+  //
+  // Publica en https://observatorio-satelital.sapal.workers.dev
+  //
+  // Por que Worker y no Pages: el 17 de septiembre de 2026 Cloudflare rechazo
+  // crear cualquier proyecto Pages nuevo en esta cuenta ("Subdomain is
+  // blocked", con cualquier nombre); Pages ahora vive dentro de Workers. Los
+  // assets estaticos de Workers aplican public/_headers igual que Pages.
+  //
+  // Cuenta: por decision del 17 de septiembre de 2026 vive en la cuenta
+  // personal de Carlos, cuyo subdominio workers.dev es "sapal", hasta que
+  // exista la institucional.
+  //
+  // Sin secretos aqui: la app no usa ninguno.
+  "name": "observatorio-satelital",
+  "compatibility_date": "2026-09-17",
+  "assets": {
+    "directory": "./dist"
+  }
+}

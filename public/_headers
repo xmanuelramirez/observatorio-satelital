@@ -1,5 +1,5 @@
-# Cabeceras de seguridad. Cloudflare Pages las aplica a todo lo que sirve desde
-# dist/, que es una copia de public/.
+# Cabeceras de seguridad. Los assets estaticos del Worker las aplican a todo lo
+# que se sirve desde dist/, que es una copia de public/.
 #
 # La CSP no lleva comodines: cada origen externo esta porque la app lo usa, y
 # se abrio solo despues de ver el bloqueo en la consola.
