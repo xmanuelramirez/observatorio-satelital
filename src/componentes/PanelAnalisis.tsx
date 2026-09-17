@@ -32,6 +32,8 @@ interface Props {
   onUmbralCambio: (valor: number) => void
   umbralObra: number
   onUmbralObra: (valor: number) => void
+  umbralAguaDb: number
+  onUmbralAguaDb: (valor: number) => void
   areaMinimaObra: number
   onAreaMinimaObra: (valor: number) => void
   quitarNubes: boolean
@@ -45,9 +47,13 @@ const MODOS: { id: ModoVista; etiqueta: string }[] = [
   { id: 'cambio', etiqueta: 'Cambio' },
   { id: 'obra', etiqueta: 'Obra' },
   { id: 'calor', etiqueta: 'Calor' },
+  { id: 'agua', etiqueta: 'Agua' },
   { id: 'clases', etiqueta: 'Clases' },
   { id: 'color', etiqueta: 'Color' },
 ]
+
+/** Obra nueva cruza NDBI, NDVI y MNDWI: sin estas cuatro no hay modo. */
+const bandasDeObra: NombreBanda[] = ['swir1', 'nir', 'rojo', 'verde']
 
 function Etiqueta({ children }: { children: React.ReactNode }) {
   return <span className="mb-1 block text-xs text-tinta-suave">{children}</span>
@@ -80,6 +86,8 @@ export default function PanelAnalisis({
   onUmbralCambio,
   umbralObra,
   onUmbralObra,
+  umbralAguaDb,
+  onUmbralAguaDb,
   areaMinimaObra,
   onAreaMinimaObra,
   quitarNubes,
@@ -98,14 +106,14 @@ export default function PanelAnalisis({
   const mallas = escenas.map((e) => e.malla || e.plataforma).join(' y ')
   const sinIndices = indices.length === 0
   const usaIndice = modo === 'indice' || modo === 'cambio'
-  const comparaFechas = modo === 'cambio' || modo === 'obra'
+  const comparaFechas = modo === 'cambio' || modo === 'obra' || modo === 'agua'
   const separacion =
     comparaFechas && referencia.length > 0 ? diasEntre(referencia[0].dia, escenas[0].dia) : null
   const puedeCalcular =
     !calculando &&
     (modo !== 'clases' || bandasKmeans.length >= 2) &&
     (!usaIndice || indice !== null) &&
-    (!comparaFechas || referencia.length > 0)
+    (!comparaFechas || modo === 'agua' || referencia.length > 0)
 
   return (
     <div className="border-t-2 border-acento">
@@ -122,7 +130,9 @@ export default function PanelAnalisis({
               onClick={() => onModo(opcion.id)}
               disabled={
                 ((opcion.id === 'indice' || opcion.id === 'cambio') && sinIndices) ||
-                (opcion.id === 'calor' && !coleccion.bandas.termica)
+                (opcion.id === 'calor' && !coleccion.bandas.termica) ||
+                (opcion.id === 'agua' && !coleccion.bandas.vv) ||
+                (opcion.id === 'obra' && !bandasDeObra.every((banda) => coleccion.bandas[banda]))
               }
               title={
                 opcion.id === 'calor' && !coleccion.bandas.termica
@@ -225,6 +235,28 @@ export default function PanelAnalisis({
                 Debajo de este valor la diferencia se considera ruido y no se pinta.
               </span>
             </label>
+            )}
+
+            {modo === 'agua' && (
+              <label className="block">
+                <Etiqueta>
+                  Umbral de agua:{' '}
+                  <span className="cifra text-tinta">{umbralAguaDb.toFixed(1)}</span> dB
+                </Etiqueta>
+                <input
+                  type="range"
+                  min={-24}
+                  max={-10}
+                  step={0.5}
+                  value={umbralAguaDb}
+                  onChange={(evento) => onUmbralAguaDb(Number(evento.target.value))}
+                  className="w-full"
+                />
+                <span className="block text-xs leading-snug text-rotulo">
+                  Más bajo detecta menos agua. La fecha base es opcional: sin ella se dibuja la
+                  lámina, con ella se separa agua permanente de crecida.
+                </span>
+              </label>
             )}
 
             {modo === 'obra' && (

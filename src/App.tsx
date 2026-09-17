@@ -55,6 +55,8 @@ export default function App() {
   // nuevo, y el filtro de la busqueda no ve donde cae la nube.
   const [quitarNubes, setQuitarNubes] = useState(true)
   const [soloAgua, setSoloAgua] = useState(false)
+  // -17 dB es el valor habitual para agua en calma en VV.
+  const [umbralAguaDb, setUmbralAguaDb] = useState(-17)
   const [desplazamiento, setDesplazamiento] = useState<FuenteRaster>(null)
   const [indice, setIndice] = useState<DefinicionIndice | null>(INDICES[0])
   const [bandasKmeans, setBandasKmeans] = useState<NombreBanda[]>([
@@ -266,6 +268,7 @@ export default function App() {
         areaMinimaObra,
         quitarNubes,
         soloAgua,
+        umbralAguaDb,
       })
       setAnalisis(salida)
     } catch (error: unknown) {
@@ -291,6 +294,7 @@ export default function App() {
     areaMinimaObra,
     quitarNubes,
     soloAgua,
+    umbralAguaDb,
   ])
 
   const lanzarSerie = useCallback(async () => {
@@ -463,6 +467,11 @@ export default function App() {
             umbralObra={umbralObra}
             onUmbralObra={(valor) => {
               setUmbralObra(valor)
+              limpiarAnalisis()
+            }}
+            umbralAguaDb={umbralAguaDb}
+            onUmbralAguaDb={(valor) => {
+              setUmbralAguaDb(valor)
               limpiarAnalisis()
             }}
             areaMinimaObra={areaMinimaObra}

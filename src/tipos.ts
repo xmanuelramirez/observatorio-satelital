@@ -103,6 +103,14 @@ export interface GrupoDia {
   nubes: number | null
 }
 
-export type ModoVista = 'indice' | 'cambio' | 'obra' | 'calor' | 'clases' | 'color'
+export type ModoVista =
+  | 'indice'
+  | 'cambio'
+  | 'obra'
+  | 'calor'
+  /** Agua vista por radar, y crecida si hay fecha base. */
+  | 'agua'
+  | 'clases'
+  | 'color'
 
 export type CapaCargada = { capa: Capa; datos: FeatureCollection | Feature<Geometry> }

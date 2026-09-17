@@ -19,6 +19,11 @@ import type { Bbox, Coleccion, Escena, ModoVista, NombreBanda } from '../tipos'
 /** Un solo color para la obra nueva: es una alerta, no una escala. */
 const COLOR_OBRA = '#fb7185'
 
+/** Agua, crecida y retirada. Tres estados, tres colores, sin escala. */
+const COLOR_AGUA = '#2596be'
+const COLOR_CRECIDA = '#38bdf8'
+const COLOR_RETIRADA = '#eaa54a'
+
 export interface EntradaLeyenda {
   color: string
   etiqueta: string
@@ -74,6 +79,8 @@ export interface ParametrosAnalisis {
   quitarNubes: boolean
   /** Calcular solo sobre la lamina de agua. Obligatorio para NDCI y NDTI. */
   soloAgua: boolean
+  /** Modo agua: retrodispersion VV, en decibeles, debajo de la cual hay agua. */
+  umbralAguaDb: number
 }
 
 /**
@@ -122,6 +129,14 @@ function bandasQuePide(
       )
     }
     return necesarias
+  }
+  if (modo === 'agua') {
+    if (!coleccion.bandas.vv) {
+      throw new Error(
+        `${coleccion.etiqueta} no es radar. El agua por retrodispersión viene de Sentinel-1.`,
+      )
+    }
+    return ['vv']
   }
   if (modo === 'calor') {
     if (!coleccion.bandas.termica) {
@@ -203,6 +218,7 @@ export async function ejecutarAnalisis(
     areaMinimaObra,
     quitarNubes,
     soloAgua,
+    umbralAguaDb,
   } = parametros
 
   if (escenas.length === 0) throw new Error('Elige al menos una escena')
@@ -299,6 +315,7 @@ export async function ejecutarAnalisis(
     areaMinimaObra,
     quitarNubes ? 'sinNubes' : 'conNubes',
     recorteAgua ? 'agua' : 'todo',
+    umbralAguaDb,
   ].join(':')
 
   // Separacion temporal: lo primero que hay que saber al comparar dos fechas.
@@ -478,6 +495,137 @@ export async function ejecutarAnalisis(
         return colorDeCambio(valor, limite)
       },
       leyenda,
+      notas,
+      sello,
+    }
+  }
+
+  if (modo === 'agua') {
+    /*
+     * El agua en calma devuelve casi nada al radar: la superficie lisa refleja
+     * la senal lejos de la antena y el pixel sale oscuro. Por eso basta un
+     * umbral sobre VV, y por eso mismo se equivoca con otras superficies
+     * lisas: pista de aeropuerto, techo metalico grande, arena humeda muy
+     * plana. Y al reves, con viento el vaso se encrespa y deja de verse agua.
+     */
+    const umbralLineal = Math.pow(10, umbralAguaDb / 10)
+
+    const aguaDe = (banda: Float32Array): Uint8Array => {
+      const mascara = new Uint8Array(banda.length)
+      for (let i = 0; i < banda.length; i++) {
+        const valor = banda[i]
+        if (!Number.isNaN(valor) && valor <= umbralLineal) mascara[i] = 1
+      }
+      return mascara
+    }
+
+    const aguaAhora = aguaDe(pila.bandas.vv)
+    let celdasAhora = 0
+    for (const marca of aguaAhora) celdasAhora += marca
+
+    notas.push(
+      `Umbral de agua: VV por debajo de ${umbralAguaDb.toFixed(1)} dB. El agua en calma devuelve poca señal, pero una pista de aeropuerto o un techo metálico también, y con viento el vaso deja de verse agua.`,
+    )
+
+    if (escenasReferencia.length === 0) {
+      notas.push(
+        `Lámina detectada: ${(celdasAhora * haPixel).toLocaleString('es-MX', { maximumFractionDigits: 0 })} ha, ${((celdasAhora / celdasDentro) * 100).toFixed(2)} por ciento del área.`,
+      )
+      notas.push('Elige una fecha base para separar el agua permanente de la crecida.')
+
+      return {
+        rejilla,
+        bandas: [Float32Array.from(aguaAhora, (v) => (v === 1 ? 1 : Number.NaN))],
+        colorear: ([valor]) => (Number.isNaN(valor) ? undefined : COLOR_AGUA),
+        leyenda: [
+          {
+            color: COLOR_AGUA,
+            etiqueta: 'Agua detectada',
+            detalle: `${(celdasAhora * haPixel).toLocaleString('es-MX', { maximumFractionDigits: 0 })} ha`,
+          },
+        ],
+        notas,
+        sello,
+      }
+    }
+
+    const mosaicoBase = await obtenerMosaico(
+      escenasReferencia,
+      coleccion,
+      bandasPedidas,
+      rejilla,
+      quitarNubes,
+    )
+    const pilaBase = mosaicoBase.pila
+    for (const banda of Object.values(pilaBase.bandas)) aplicarMascara(banda, dentro)
+
+    const aguaAntes = aguaDe(pilaBase.bandas.vv)
+
+    const clases = new Float32Array(aguaAhora.length)
+    let permanente = 0
+    let nueva = 0
+    let perdida = 0
+    let comparables = 0
+
+    const vvAhora = pila.bandas.vv
+    const vvAntes = pilaBase.bandas.vv
+
+    for (let i = 0; i < clases.length; i++) {
+      /*
+       * Solo se compara donde las dos fechas tienen dato. Sin esto, una toma
+       * que cubre media cuenca dejaba el resto como "agua que desaparecio":
+       * el vaso seguia ahi, lo que faltaba era la imagen.
+       */
+      if (Number.isNaN(vvAntes[i]) || Number.isNaN(vvAhora[i])) {
+        clases[i] = Number.NaN
+        continue
+      }
+      comparables++
+
+      const a = aguaAntes[i] === 1
+      const b = aguaAhora[i] === 1
+
+      if (a && b) {
+        clases[i] = 0
+        permanente++
+      } else if (!a && b) {
+        clases[i] = 1
+        nueva++
+      } else if (a && !b) {
+        clases[i] = 2
+        perdida++
+      } else {
+        clases[i] = Number.NaN
+      }
+    }
+
+    const ha = (celdas: number) =>
+      `${(celdas * haPixel).toLocaleString('es-MX', { maximumFractionDigits: 0 })} ha`
+
+    if (comparables === 0) {
+      throw new Error(
+        'Las dos tomas de radar no se traslapan dentro del área. Elige otra fecha base: cada pasada de Sentinel-1 cubre una franja distinta.',
+      )
+    }
+
+    notas.push(
+      `Agua permanente ${ha(permanente)}, agua nueva ${ha(nueva)}, agua que desapareció ${ha(perdida)}.`,
+    )
+    notas.push(
+      `Comparadas ${((comparables / celdasDentro) * 100).toFixed(1)} por ciento de las celdas del área: el resto no tiene dato en alguna de las dos fechas.`,
+    )
+
+    const colores = [COLOR_AGUA, COLOR_CRECIDA, COLOR_RETIRADA]
+
+    return {
+      rejilla,
+      bandas: [clases],
+      colorear: ([valor]) => (Number.isNaN(valor) ? undefined : colores[Math.round(valor)]),
+      leyenda: [
+        { color: COLOR_AGUA, etiqueta: 'Agua en las dos fechas', detalle: ha(permanente) },
+        { color: COLOR_CRECIDA, etiqueta: 'Agua nueva', detalle: ha(nueva) },
+        { color: COLOR_RETIRADA, etiqueta: 'Agua que desapareció', detalle: ha(perdida) },
+      ],
       notas,
       sello,
     }
