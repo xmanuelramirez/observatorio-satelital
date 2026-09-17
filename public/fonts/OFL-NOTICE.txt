@@ -1,0 +1,20 @@
+Tipografías incluidas en este directorio
+========================================
+
+Inter
+  Copyright (c) The Inter Project Authors
+  https://github.com/rsms/inter
+  SIL Open Font License, Version 1.1
+
+JetBrains Mono
+  Copyright (c) JetBrains s.r.o.
+  https://github.com/JetBrains/JetBrainsMono
+  SIL Open Font License, Version 1.1
+
+Ambas familias se distribuyen bajo la SIL Open Font License 1.1, que permite
+el alojamiento propio y la redistribución junto con el sitio que las usa.
+Texto completo de la licencia: https://openfontlicense.org/
+
+Los archivos .woff2 de este directorio son subconjuntos (rangos unicode latin y
+latin-ext) generados por el servicio de Google Fonts y descargados con
+scripts/descargar_fuentes.py. No han sido modificados de otra forma.

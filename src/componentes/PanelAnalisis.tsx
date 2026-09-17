@@ -32,11 +32,15 @@ interface Props {
 }
 
 const MODOS: { id: ModoVista; etiqueta: string }[] = [
-  { id: 'indice', etiqueta: 'Indice' },
+  { id: 'indice', etiqueta: 'Índice' },
   { id: 'cambio', etiqueta: 'Cambio' },
   { id: 'clases', etiqueta: 'Clases' },
   { id: 'color', etiqueta: 'Color' },
 ]
+
+function Etiqueta({ children }: { children: React.ReactNode }) {
+  return <span className="mb-1 block text-xs text-tinta-suave">{children}</span>
+}
 
 export default function PanelAnalisis({
   escenas,
@@ -66,7 +70,7 @@ export default function PanelAnalisis({
 }: Props) {
   if (escenas.length === 0) {
     return (
-      <p className="border-t border-[--color-borde] px-4 py-4 text-xs leading-snug text-tinta-suave">
+      <p className="px-4 py-4 text-[13px] leading-snug text-tinta-suave">
         Elige una escena de la lista para analizarla.
       </p>
     )
@@ -82,24 +86,20 @@ export default function PanelAnalisis({
     (modo !== 'cambio' || referencia.length > 0)
 
   return (
-    <div className="border-t-2 border-tinta">
-      <div className="px-4 py-3">
-        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-tinta-suave">
-          Analisis de la escena
-        </h2>
+    <div className="border-t-2 border-acento">
+      <div className="px-4 py-3.5">
+        <h2 className="rotulo mb-2.5">Análisis de la escena</h2>
 
-        <div className="mb-3 flex gap-1">
+        <div className="mb-3.5 flex gap-px border border-filete bg-filete" role="tablist">
           {MODOS.map((opcion) => (
             <button
               key={opcion.id}
               type="button"
+              role="tab"
+              aria-selected={modo === opcion.id}
               onClick={() => onModo(opcion.id)}
               disabled={(opcion.id === 'indice' || opcion.id === 'cambio') && sinIndices}
-              className={`flex-1 rounded border px-2 py-1.5 text-xs transition disabled:opacity-40 ${
-                modo === opcion.id
-                  ? 'border-tinta bg-tinta text-white'
-                  : 'border-[--color-borde] bg-white text-tinta-suave'
-              }`}
+              className={`pestana ${modo === opcion.id ? 'pestana-activa' : ''}`}
             >
               {opcion.etiqueta}
             </button>
@@ -107,64 +107,64 @@ export default function PanelAnalisis({
         </div>
 
         {usaIndice && (
-          <label className="mb-3 block">
-            <span className="mb-1 block text-xs text-tinta-suave">Indice</span>
+          <label className="mb-3.5 block">
+            <Etiqueta>Índice</Etiqueta>
             <select
-              className="w-full rounded border border-[--color-borde] bg-white px-2 py-1.5 text-sm"
+              className="campo"
               value={indice?.id ?? ''}
               onChange={(evento) => onIndice(evento.target.value)}
             >
               {indices.map((opcion) => (
                 <option key={opcion.id} value={opcion.id}>
-                  {opcion.etiqueta} - {opcion.descripcion}
+                  {opcion.etiqueta} · {opcion.descripcion}
                 </option>
               ))}
             </select>
             {indice && (
-              <p className="mt-1 text-[11px] text-tinta-suave">
-                ({indice.a} menos {indice.b}) entre ({indice.a} mas {indice.b})
+              <p className="cifra mt-1.5 text-xs text-rotulo">
+                ({indice.a} − {indice.b}) / ({indice.a} + {indice.b})
               </p>
             )}
           </label>
         )}
 
         {modo === 'cambio' && (
-          <div className="mb-3 space-y-2 rounded border border-[--color-borde] bg-white/60 p-2">
-            <p className="text-[11px] leading-snug text-tinta-suave">
-              Fecha actual: <span className="font-medium text-tinta">{escenas[0].dia}</span> ({mallas})
+          <div className="mb-3.5 space-y-3 border border-filete bg-panel-hondo p-3">
+            <p className="text-xs leading-snug text-tinta-suave">
+              Fecha actual: <span className="cifra text-tinta">{escenas[0].dia}</span> ({mallas})
             </p>
 
             <label className="block">
-              <span className="mb-1 block text-xs text-tinta-suave">Comparar contra</span>
+              <Etiqueta>Comparar contra</Etiqueta>
               <select
-                className="w-full rounded border border-[--color-borde] bg-white px-2 py-1.5 text-sm"
+                className="campo"
                 value={referencia[0]?.dia ?? ''}
                 onChange={(evento) => onDiaReferencia(evento.target.value)}
               >
                 <option value="">Elige la fecha base</option>
                 {diasReferencia.map((grupo) => (
                   <option key={grupo.dia} value={grupo.dia}>
-                    {grupo.dia} - {grupo.escenas.length} malla
+                    {grupo.dia} · {grupo.escenas.length} malla
                     {grupo.escenas.length === 1 ? '' : 's'}
-                    {grupo.nubes !== null ? ` - ${grupo.nubes.toFixed(0)} por ciento nubes` : ''}
+                    {grupo.nubes !== null ? ` · ${grupo.nubes.toFixed(0)} % nubes` : ''}
                   </option>
                 ))}
               </select>
               {diasReferencia.length === 0 && (
-                <p className="mt-1 text-[11px] text-rose-700">
-                  No hay otra fecha en los resultados. Amplia el periodo y vuelve a buscar.
+                <p className="mt-1.5 text-xs text-peligro">
+                  No hay otra fecha en los resultados. Amplía el periodo y vuelve a buscar.
                 </p>
               )}
-              <span className="mt-1 block text-[11px] leading-snug text-tinta-suave">
-                La fecha base entra con todas sus mallas unidas, para que las dos
-                fechas se comparen sobre el mismo terreno.
+              <span className="mt-1.5 block text-xs leading-snug text-rotulo">
+                La fecha base entra con todas sus mallas unidas, para que las dos fechas se
+                comparen sobre el mismo terreno.
               </span>
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-xs text-tinta-suave">
-                Umbral de cambio: {umbralCambio.toFixed(2)}
-              </span>
+              <Etiqueta>
+                Umbral de cambio: <span className="cifra text-tinta">{umbralCambio.toFixed(2)}</span>
+              </Etiqueta>
               <input
                 type="range"
                 min={0.02}
@@ -172,9 +172,9 @@ export default function PanelAnalisis({
                 step={0.02}
                 value={umbralCambio}
                 onChange={(evento) => onUmbralCambio(Number(evento.target.value))}
-                className="w-full accent-[#2b7fb8]"
+                className="w-full"
               />
-              <span className="text-[11px] leading-snug text-tinta-suave">
+              <span className="block text-xs leading-snug text-rotulo">
                 Debajo de este valor la diferencia se considera ruido y no se pinta.
               </span>
             </label>
@@ -182,24 +182,19 @@ export default function PanelAnalisis({
         )}
 
         {modo === 'clases' && (
-          <div className="mb-3 space-y-2">
+          <div className="mb-3.5 space-y-3">
             <div>
-              <span className="mb-1 block text-xs text-tinta-suave">
-                Bandas de entrada ({bandasKmeans.length} elegidas)
-              </span>
-              <div className="flex flex-wrap gap-1">
+              <Etiqueta>Bandas de entrada ({bandasKmeans.length} elegidas)</Etiqueta>
+              <div className="flex flex-wrap gap-1.5">
                 {bandasDisponibles.map((banda) => {
                   const activa = bandasKmeans.includes(banda)
                   return (
                     <button
                       key={banda}
                       type="button"
+                      aria-pressed={activa}
                       onClick={() => onBandaKmeans(banda)}
-                      className={`rounded border px-2 py-1 text-[11px] transition ${
-                        activa
-                          ? 'border-agua bg-sky-50 text-tinta'
-                          : 'border-[--color-borde] bg-white text-tinta-suave'
-                      }`}
+                      className={`boton cifra ${activa ? 'boton-activo' : ''}`}
                     >
                       {banda}
                     </button>
@@ -207,12 +202,14 @@ export default function PanelAnalisis({
                 })}
               </div>
               {bandasKmeans.length < 2 && (
-                <p className="mt-1 text-[11px] text-rose-700">Elige al menos dos bandas.</p>
+                <p className="mt-1.5 text-xs text-peligro">Elige al menos dos bandas.</p>
               )}
             </div>
 
             <label className="block">
-              <span className="mb-1 block text-xs text-tinta-suave">Numero de clases: {k}</span>
+              <Etiqueta>
+                Número de clases: <span className="cifra text-tinta">{k}</span>
+              </Etiqueta>
               <input
                 type="range"
                 min={2}
@@ -220,24 +217,22 @@ export default function PanelAnalisis({
                 step={1}
                 value={k}
                 onChange={(evento) => onK(Number(evento.target.value))}
-                className="w-full accent-[#2b7fb8]"
+                className="w-full"
               />
             </label>
           </div>
         )}
 
-        <label className="mb-3 block">
-          <span className="mb-1 block text-xs text-tinta-suave">
-            Rejilla de analisis: {tamano} por {tamano}
-          </span>
+        <label className="mb-3.5 block">
+          <Etiqueta>Rejilla de análisis</Etiqueta>
           <select
-            className="w-full rounded border border-[--color-borde] bg-white px-2 py-1.5 text-sm"
+            className="campo cifra"
             value={tamano}
             onChange={(evento) => onTamano(Number(evento.target.value))}
           >
-            <option value={256}>256 (rapido)</option>
-            <option value={512}>512</option>
-            <option value={1024}>1024 (lento, mas detalle)</option>
+            <option value={256}>256 × 256 · rápido</option>
+            <option value={512}>512 × 512</option>
+            <option value={1024}>1024 × 1024 · lento, más detalle</option>
           </select>
         </label>
 
@@ -245,39 +240,37 @@ export default function PanelAnalisis({
           type="button"
           onClick={onCalcular}
           disabled={!puedeCalcular}
-          className="w-full rounded bg-agua px-3 py-2 text-sm font-semibold text-white transition hover:bg-tinta-suave disabled:opacity-50"
+          className="boton-principal"
         >
-          {calculando ? 'Leyendo bandas y calculando...' : 'Calcular sobre el area'}
+          {calculando ? 'Leyendo bandas y calculando...' : 'Calcular sobre el área'}
         </button>
 
-        <p className="mt-2 text-[11px] leading-snug text-tinta-suave">
-          Se leen las bandas de {coleccion.etiqueta} recortadas al area, no la miniatura.
+        <p className="mt-2 text-xs leading-snug text-rotulo">
+          Se leen las bandas de {coleccion.etiqueta} recortadas al área, no la miniatura.
           {escenas.length > 1 && ` Se unen ${escenas.length} mallas: ${mallas}.`}
         </p>
       </div>
 
       {error && (
-        <p className="border-t border-[--color-borde] px-4 py-3 text-xs leading-snug text-rose-700">
+        <p className="border-t border-filete px-4 py-3 text-xs leading-snug text-peligro" role="alert">
           {error}
         </p>
       )}
 
       {leyenda.length > 0 && (
-        <div className="border-t border-[--color-borde] px-4 py-3">
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-tinta-suave">
-            Leyenda
-          </h3>
-          <ul className="space-y-1">
+        <div className="border-t border-filete px-4 py-3.5">
+          <h3 className="rotulo mb-2.5">Leyenda</h3>
+          <ul className="space-y-2">
             {leyenda.map((entrada) => (
-              <li key={entrada.etiqueta} className="flex items-start gap-2 text-[11px]">
+              <li key={entrada.etiqueta} className="flex items-start gap-2.5 text-[13px]">
                 <span
-                  className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-sm"
+                  className="mt-1 inline-block h-3 w-3 shrink-0"
                   style={{ background: entrada.color }}
                 />
                 <span>
                   <span className="font-medium">{entrada.etiqueta}</span>
                   {entrada.detalle && (
-                    <span className="block text-tinta-suave">{entrada.detalle}</span>
+                    <span className="cifra block text-xs text-tinta-suave">{entrada.detalle}</span>
                   )}
                 </span>
               </li>
@@ -287,8 +280,9 @@ export default function PanelAnalisis({
       )}
 
       {notas.length > 0 && (
-        <div className="border-t border-[--color-borde] px-4 py-3">
-          <ul className="space-y-1 text-[11px] leading-snug text-tinta-suave">
+        <div className="border-t border-filete px-4 py-3.5">
+          <h3 className="rotulo mb-2">Notas del cálculo</h3>
+          <ul className="space-y-1.5 text-xs leading-snug text-tinta-suave">
             {notas.map((nota) => (
               <li key={nota}>{nota}</li>
             ))}

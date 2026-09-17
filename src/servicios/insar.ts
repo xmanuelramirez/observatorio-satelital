@@ -1,4 +1,5 @@
 import type { Bbox } from '../tipos'
+import { diaLocal, rangoUTCdelDia } from '../lib/fecha'
 
 /**
  * Busqueda de pares interferometricos en el catalogo de ASF.
@@ -66,14 +67,15 @@ export async function buscarGranulos(
     processingLevel: 'SLC',
     beamMode: 'IW',
     intersectsWith: wktDe(bbox),
-    start: `${desde}T00:00:00Z`,
-    end: `${hasta}T23:59:59Z`,
+    // Dias de Leon convertidos a su frontera UTC.
+    start: rangoUTCdelDia(desde).desde,
+    end: new Date(Date.parse(rangoUTCdelDia(hasta).hasta) - 1000).toISOString(),
     output: 'jsonlite',
   })
 
   const respuesta = await fetch(`${BUSQUEDA}?${parametros}`, { signal: senal })
   if (!respuesta.ok) {
-    throw new Error(`El catalogo de ASF respondio ${respuesta.status}`)
+    throw new Error(`El catálogo de ASF respondió ${respuesta.status}`)
   }
 
   const cuerpo = (await respuesta.json()) as { results?: FilaAsf[] }
@@ -83,7 +85,8 @@ export async function buscarGranulos(
     .filter((fila) => fila.canInSAR && fila.granuleName && fila.startTime)
     .map((fila) => ({
       nombre: fila.granuleName!,
-      dia: fila.startTime!.slice(0, 10),
+      // Dia de Leon: las pasadas ascendentes caen antes de medianoche local.
+      dia: diaLocal(fila.startTime!),
       fecha: new Date(fila.startTime!),
       ruta: Number(fila.path ?? 0),
       cuadro: Number(fila.frame ?? 0),

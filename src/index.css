@@ -1,11 +1,87 @@
 @import 'tailwindcss';
 
+/*
+ * Identidad visual de la familia de plataformas del departamento.
+ *
+ * La paleta es la de SICLAR, que Subcuencas ya adopto "para que las
+ * aplicaciones del departamento se lean como una sola": carbon profundo con
+ * matices de espresso, acento azul y la pareja Inter + JetBrains Mono. Los
+ * valores estan copiados tal cual de 8. SUBCUENCAS/app/src/style.css; si la
+ * familia cambia de color, se cambia aqui y en ningun otro lado.
+ *
+ * Dos ajustes de accesibilidad respecto al original, ambos por contraste
+ * WCAG AA sobre el fondo:
+ *   --color-rotulo  Subcuencas usa #6e665b para los rotulos, que da 3.4:1 y
+ *                   no alcanza el 4.5:1 de texto. Se usa #8c7f73, que ya
+ *                   existe en la paleta de SICLAR.
+ *   Letra minima    12 px para todo texto que se lee. Solo los rotulos cortos
+ *                   en mayusculas bajan a 11 px.
+ */
 @theme {
-  --color-tinta: #0e2a52;
-  --color-tinta-suave: #1b3f70;
-  --color-agua: #2b7fb8;
-  --color-crema: #f6f4ee;
-  --color-borde: #d8d3c7;
+  --color-fondo: #0d0b0a;
+  --color-panel: #121110;
+  --color-panel-hondo: #0a0908;
+  --color-tinta: #f5efe5;
+  --color-tinta-suave: #b5ac9d;
+  --color-rotulo: #8c7f73;
+  --color-filete: #241d19;
+  --color-filete-fuerte: #2d2722;
+  --color-acento: #2596be;
+  --color-acento-suave: rgb(37 150 190 / 0.12);
+  --color-aviso: #fbbf24;
+  --color-peligro: #fb7185;
+  --color-ok: #34d399;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+
+/*
+ * Tipografia auto-alojada, igual que Indicadores Climaticos. Asi ningun
+ * visitante le entrega su IP a Google y la CSP no tiene que abrir
+ * fonts.googleapis.com. Solo latin y latin-ext, que es lo que pide el
+ * espanol. Licencia SIL OFL 1.1, ver public/fonts/OFL-NOTICE.txt.
+ */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url(/fonts/inter-normal-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url(/fonts/inter-normal-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url(/fonts/jetbrains-mono-normal-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url(/fonts/jetbrains-mono-normal-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 html,
@@ -16,13 +92,192 @@ body,
 }
 
 body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 13px;
   color: var(--color-tinta);
-  background: var(--color-crema);
+  background: var(--color-fondo);
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
 }
+
+@layer components {
+  /* Rotulo de seccion: mono en mayusculas, el unico texto que baja a 11 px. */
+  .rotulo {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-rotulo);
+  }
+
+  /* Cifras, codigos y fechas en mono con numerales tabulares. */
+  .cifra {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .campo {
+    width: 100%;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--color-tinta);
+    background: var(--color-panel-hondo);
+    border: 1px solid var(--color-filete-fuerte);
+    border-radius: 0;
+  }
+
+  .campo:hover {
+    border-color: var(--color-rotulo);
+  }
+
+  .boton {
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--color-tinta);
+    background: var(--color-panel);
+    border: 1px solid var(--color-filete-fuerte);
+    border-radius: 0;
+    cursor: pointer;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
+  }
+
+  .boton:hover:not(:disabled) {
+    background: var(--color-fondo);
+    border-color: var(--color-rotulo);
+  }
+
+  .boton:disabled {
+    color: var(--color-rotulo);
+    cursor: default;
+  }
+
+  .boton-activo {
+    color: var(--color-acento);
+    background: var(--color-acento-suave);
+    border-color: var(--color-acento);
+  }
+
+  /* Accion principal: azul lleno con tinta oscura, como en Subcuencas. */
+  .boton-principal {
+    width: 100%;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-fondo);
+    background: var(--color-acento);
+    border: 1px solid var(--color-acento);
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  .boton-principal:disabled {
+    color: var(--color-rotulo);
+    background: var(--color-panel);
+    border-color: var(--color-filete-fuerte);
+    cursor: default;
+  }
+
+  /* Pestanas: mono en mayusculas, activa en azul tenue. */
+  .pestana {
+    flex: 1 0 auto;
+    padding: 7px 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-tinta-suave);
+    background: var(--color-panel);
+    border: 0;
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  .pestana:hover:not(:disabled) {
+    color: var(--color-tinta);
+  }
+
+  /* Legible pero apagada: con el filete como color no se alcanzaba a leer. */
+  .pestana:disabled {
+    color: var(--color-rotulo);
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .pestana-activa {
+    color: var(--color-acento);
+    background: var(--color-acento-suave);
+  }
+}
+
+input[type='range'],
+input[type='radio'],
+input[type='checkbox'] {
+  accent-color: var(--color-acento);
+}
+
+/* El calendario nativo toma el esquema oscuro con color-scheme. */
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+}
+
+/* No quitar: es la unica senal para quien navega con teclado. */
+:focus-visible {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-filete-fuerte);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- Leaflet en el tema oscuro ---------- */
 
 .leaflet-container {
   height: 100%;
   width: 100%;
-  background: #10151c;
+  font-family: var(--font-sans);
+  background: #000;
+}
+
+.leaflet-control-attribution {
+  font-family: var(--font-mono);
+  font-size: 11px !important;
+  color: var(--color-tinta-suave) !important;
+  background: rgb(10 9 8 / 0.85) !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-acento) !important;
+}
+
+.leaflet-bar a {
+  color: var(--color-tinta) !important;
+  background: var(--color-panel) !important;
+  border-color: var(--color-filete) !important;
+  border-radius: 0 !important;
 }

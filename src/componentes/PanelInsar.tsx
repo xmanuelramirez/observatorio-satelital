@@ -17,10 +17,20 @@ interface Props {
   onCargarDesplazamiento: (href: string, limite: number) => void
 }
 
+/** El color acompana a la palabra, que ya dice la calidad por si sola. */
 const COLOR_COHERENCIA: Record<ParInsar['coherenciaProbable'], string> = {
-  buena: 'text-emerald-700',
-  aceptable: 'text-amber-700',
-  dudosa: 'text-rose-700',
+  buena: 'text-ok',
+  aceptable: 'text-aviso',
+  dudosa: 'text-peligro',
+}
+
+/**
+ * Solo rutas del mismo sitio. El resultado de HyP3 se deja en public/insar y
+ * se sirve junto a la app; aceptar una URL arbitraria haria que el navegador
+ * fuera a buscar un GeoTIFF a donde alguien pegara, y la CSP igual lo bloquearia.
+ */
+function rutaValida(ruta: string): boolean {
+  return /^\/insar\/[\w.-]+\.tif$/i.test(ruta)
 }
 
 export default function PanelInsar({ bbox, desde, hasta, onCargarDesplazamiento }: Props) {
@@ -43,7 +53,7 @@ export default function PanelInsar({ bbox, desde, hasta, onCargarDesplazamiento 
       const encontradas = agruparEnPilas(granulos)
 
       if (encontradas.length === 0) {
-        setError('No hay pilas con dos o mas fechas en ese periodo. Amplia el rango.')
+        setError('No hay pilas con dos o más fechas en ese periodo. Amplía el rango.')
       }
 
       setPilas(encontradas)
@@ -55,33 +65,39 @@ export default function PanelInsar({ bbox, desde, hasta, onCargarDesplazamiento 
     }
   }
 
-  return (
-    <section className="border-t border-[--color-borde] px-3 py-3">
-      <h2 className="mb-2 text-[11px] font-semibold tracking-wide text-tinta-suave">
-        SUBSIDENCIA (InSAR)
-      </h2>
+  const ruta = rutaTif.trim()
 
-      <p className="mb-2 text-[11px] leading-snug text-tinta-suave">
-        Busca pares interferometricos de Sentinel-1 sobre el area. El procesamiento
-        corre en HyP3, que pide cuenta de NASA Earthdata y no acepta llamadas desde
-        el navegador, asi que se lanza con el script del repositorio.
+  return (
+    <section className="border-b border-filete px-4 py-3.5">
+      <h2 className="rotulo mb-2.5">Subsidencia (InSAR)</h2>
+
+      <p className="mb-3 text-xs leading-snug text-tinta-suave">
+        Busca pares interferométricos de Sentinel-1 sobre el área. El procesamiento corre en
+        HyP3, que pide cuenta de NASA Earthdata y no acepta llamadas desde el navegador, así
+        que se lanza con el script del repositorio.
       </p>
 
       <button
+        type="button"
         onClick={buscar}
         disabled={!bbox || buscando}
-        className="w-full rounded bg-tinta px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
+        className="boton w-full"
       >
         {buscando ? 'Buscando pares...' : 'Buscar pares InSAR'}
       </button>
 
-      {error && <p className="mt-2 text-[11px] leading-snug text-rose-700">{error}</p>}
+      {error && (
+        <p className="mt-2 text-xs leading-snug text-peligro" role="alert">
+          {error}
+        </p>
+      )}
 
       {pilas && pilas.length > 0 && (
         <div className="mt-3 space-y-2">
-          <p className="text-[11px] text-tinta-suave">
-            {pilas.length} pila{pilas.length === 1 ? '' : 's'} con geometria consistente.
-            Solo se pueden emparejar tomas de la misma ruta y cuadro.
+          <p className="text-xs text-tinta-suave">
+            <span className="cifra text-tinta">{pilas.length}</span> pila
+            {pilas.length === 1 ? '' : 's'} con geometría consistente. Solo se emparejan tomas de
+            la misma ruta y cuadro.
           </p>
 
           {pilas.map((pila) => {
@@ -90,48 +106,57 @@ export default function PanelInsar({ bbox, desde, hasta, onCargarDesplazamiento 
             const extremos = parDeExtremos(pila)
 
             return (
-              <div key={pila.clave} className="rounded border border-[--color-borde] bg-white/60">
+              <div key={pila.clave} className="border border-filete bg-panel-hondo">
                 <button
+                  type="button"
+                  aria-expanded={abierta}
                   onClick={() => setPilaAbierta(abierta ? null : pila.clave)}
-                  className="flex w-full items-center justify-between px-2 py-1.5 text-left text-xs"
+                  className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-fondo"
                 >
                   <span>
-                    Ruta {pila.ruta}, cuadro {pila.cuadro}
-                    <span className="ml-1 text-tinta-suave">
+                    <span className="cifra">
+                      Ruta {pila.ruta} · cuadro {pila.cuadro}
+                    </span>
+                    <span className="ml-1.5 text-xs text-tinta-suave">
                       {pila.direccion === 'ASCENDING' ? 'ascendente' : 'descendente'}
                     </span>
                   </span>
-                  <span className="text-tinta-suave">{pila.granulos.length} fechas</span>
+                  <span className="cifra text-xs text-tinta-suave">
+                    {pila.granulos.length} fechas
+                  </span>
                 </button>
 
                 {abierta && (
-                  <div className="border-t border-[--color-borde] px-2 py-2">
+                  <div className="border-t border-filete px-3 py-2.5">
                     {extremos && (
-                      <div className="mb-2 rounded bg-arena px-2 py-1.5">
-                        <p className="text-[11px] font-medium">
-                          Acumulado del periodo: {extremos.referencia.dia} a{' '}
-                          {extremos.secundario.dia} ({extremos.baseTemporal} dias)
+                      <div className="mb-2.5 border-l-2 border-acento bg-acento-suave px-2.5 py-2">
+                        <p className="text-xs font-medium">
+                          Acumulado del periodo:{' '}
+                          <span className="cifra">
+                            {extremos.referencia.dia} a {extremos.secundario.dia}
+                          </span>{' '}
+                          ({extremos.baseTemporal} días)
                         </p>
-                        <code className="mt-1 block break-all text-[10px] leading-tight text-tinta-suave">
+                        <code className="cifra mt-1.5 block select-all break-all text-xs leading-snug text-tinta-suave">
                           {comandoHyp3(extremos)}
                         </code>
                       </div>
                     )}
 
-                    <p className="mb-1 text-[11px] text-tinta-suave">
-                      Pares consecutivos ({pares.length}):
-                    </p>
-                    <ul className="space-y-1">
+                    <p className="rotulo mb-1.5">Pares consecutivos ({pares.length})</p>
+                    <ul className="space-y-1.5">
                       {pares.map((par) => (
                         <li key={`${par.referencia.nombre}-${par.secundario.nombre}`}>
                           <details>
-                            <summary className="cursor-pointer text-[11px]">
-                              {par.referencia.dia} a {par.secundario.dia}{' '}
+                            <summary className="cursor-pointer text-xs">
+                              <span className="cifra">
+                                {par.referencia.dia} a {par.secundario.dia}
+                              </span>{' '}
                               <span className={COLOR_COHERENCIA[par.coherenciaProbable]}>
-                                {par.baseTemporal} dias, coherencia {par.coherenciaProbable}
+                                {par.baseTemporal} días, coherencia {par.coherenciaProbable}
                               </span>
                             </summary>
-                            <code className="mt-1 block break-all rounded bg-arena px-1.5 py-1 text-[10px] leading-tight text-tinta-suave">
+                            <code className="cifra mt-1 block select-all break-all bg-fondo px-2 py-1.5 text-xs leading-snug text-tinta-suave">
                               {comandoHyp3(par)}
                             </code>
                           </details>
@@ -146,18 +171,24 @@ export default function PanelInsar({ bbox, desde, hasta, onCargarDesplazamiento 
         </div>
       )}
 
-      <div className="mt-3 border-t border-[--color-borde] pt-3">
-        <p className="mb-1.5 text-[11px] font-medium">Cargar resultado de HyP3</p>
+      <div className="mt-3.5 border-t border-filete pt-3.5">
+        <p className="rotulo mb-2">Cargar resultado de HyP3</p>
         <input
           value={rutaTif}
           onChange={(evento) => setRutaTif(evento.target.value)}
-          placeholder="/insar/S1_..._desplazamiento.tif"
-          className="w-full rounded border border-[--color-borde] bg-white px-2 py-1.5 text-xs"
+          placeholder="/insar/nombre_desplazamiento.tif"
+          aria-label="Ruta del GeoTIFF de desplazamiento"
+          className="campo cifra"
         />
+        {ruta.length > 0 && !rutaValida(ruta) && (
+          <p className="mt-1.5 text-xs text-peligro">
+            Solo archivos servidos por la app: /insar/nombre.tif
+          </p>
+        )}
 
-        <label className="mt-2 block">
-          <span className="text-[11px] text-tinta-suave">
-            Escala de color: mas menos {(limite * 100).toFixed(0)} cm
+        <label className="mt-2.5 block">
+          <span className="mb-1 block text-xs text-tinta-suave">
+            Escala de color: ±<span className="cifra text-tinta">{(limite * 100).toFixed(0)}</span> cm
           </span>
           <input
             type="range"
@@ -166,21 +197,21 @@ export default function PanelInsar({ bbox, desde, hasta, onCargarDesplazamiento 
             step={0.01}
             value={limite}
             onChange={(evento) => setLimite(Number(evento.target.value))}
-            className="w-full accent-[#2b7fb8]"
+            className="w-full"
           />
         </label>
 
         <button
-          onClick={() => onCargarDesplazamiento(rutaTif.trim(), limite)}
-          disabled={rutaTif.trim().length === 0}
-          className="mt-1 w-full rounded border border-[--color-borde] px-3 py-1.5 text-xs disabled:opacity-40"
+          type="button"
+          onClick={() => onCargarDesplazamiento(ruta, limite)}
+          disabled={!rutaValida(ruta)}
+          className="boton mt-1.5 w-full"
         >
           Ver desplazamiento en el mapa
         </button>
 
-        <p className="mt-1.5 text-[11px] leading-snug text-tinta-suave">
-          Rojo es hundimiento, azul es levantamiento. Unidades en metros respecto a
-          la fecha de referencia.
+        <p className="mt-2 text-xs leading-snug text-rotulo">
+          Rojo es hundimiento, azul es levantamiento. Metros respecto a la fecha de referencia.
         </p>
       </div>
     </section>

@@ -8,7 +8,7 @@ import type { Capa } from '../tipos'
 const PUBLICAS: Capa[] = [
   {
     id: 'LIMITE',
-    etiqueta: 'Limite municipal',
+    etiqueta: 'Límite municipal',
     archivo: 'capas/LIMITE.geojson',
     color: '#f2c744',
     tipo: 'poligono',
@@ -18,7 +18,7 @@ const PUBLICAS: Capa[] = [
   },
   {
     id: 'LIMITE_URBANO',
-    etiqueta: 'Limite urbano',
+    etiqueta: 'Límite urbano',
     archivo: 'capas/LIMITE_URBANO.geojson',
     color: '#ff7a45',
     tipo: 'poligono',
@@ -78,10 +78,12 @@ const INTERNAS: Capa[] = [
  * bastaria olvidar una variable de entorno para publicarlas. Asi, el olvido
  * lleva al lado seguro, y el despliegue completo exige decirlo.
  *
- * En desarrollo se activan desde .env.development, para que la herramienta
- * local siga teniendo todo.
+ * En el servidor de desarrollo se activan solas con import.meta.env.DEV, para
+ * que la herramienta local siga teniendo todo. Antes venia de un
+ * .env.development versionado; ningun .env va al repositorio.
  */
-const INCLUIR_INTERNAS = import.meta.env.VITE_CAPAS_INTERNAS === 'true'
+const INCLUIR_INTERNAS =
+  import.meta.env.DEV || import.meta.env.VITE_CAPAS_INTERNAS === 'true'
 
 export const CAPAS: Capa[] = INCLUIR_INTERNAS ? [...PUBLICAS, ...INTERNAS] : PUBLICAS
 

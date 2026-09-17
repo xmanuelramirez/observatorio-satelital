@@ -14,7 +14,7 @@ export const COLECCIONES: Coleccion[] = [
     id: 'sentinel-2-c1-l2a',
     proveedor: 'earth-search',
     etiqueta: 'Sentinel-2 L2A',
-    descripcion: '10 m, revisita nominal 5 dias, reflectancia de superficie',
+    descripcion: '10 m, revisita nominal 5 días, reflectancia de superficie',
     gsd: 10,
     filtraNubes: true,
     bandas: {
@@ -32,7 +32,7 @@ export const COLECCIONES: Coleccion[] = [
     id: 'landsat-c2-l2',
     proveedor: 'planetary-computer',
     etiqueta: 'Landsat 8/9 C2 L2',
-    descripcion: '30 m, 16 dias por satelite, archivo largo desde 1982',
+    descripcion: '30 m, 16 días por satélite, archivo largo desde 1982',
     gsd: 30,
     filtraNubes: true,
     bandas: {
@@ -50,7 +50,7 @@ export const COLECCIONES: Coleccion[] = [
     id: 'sentinel-1-rtc',
     proveedor: 'planetary-computer',
     etiqueta: 'Sentinel-1 RTC (SAR)',
-    descripcion: '10 m, 6 dias con 1C y 1D, gamma0 corregido por terreno',
+    descripcion: '10 m, 6 días con 1C y 1D, gamma0 corregido por terreno',
     gsd: 10,
     filtraNubes: false,
     bandas: { vv: 'vv', vh: 'vh' },
@@ -63,6 +63,6 @@ export const COLECCION_POR_DEFECTO = COLECCIONES[0]
 
 export function buscarColeccion(id: string): Coleccion {
   const encontrada = COLECCIONES.find((c) => c.id === id)
-  if (!encontrada) throw new Error(`Coleccion desconocida: ${id}`)
+  if (!encontrada) throw new Error(`Colección desconocida: ${id}`)
   return encontrada
 }

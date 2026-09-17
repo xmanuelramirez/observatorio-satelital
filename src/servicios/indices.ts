@@ -15,7 +15,7 @@ export const INDICES: DefinicionIndice[] = [
   {
     id: 'ndvi',
     etiqueta: 'NDVI',
-    descripcion: 'Vigor de la vegetacion',
+    descripcion: 'Vigor de la vegetación',
     a: 'nir',
     b: 'rojo',
   },
@@ -43,7 +43,7 @@ export const INDICES: DefinicionIndice[] = [
   {
     id: 'nbr',
     etiqueta: 'NBR',
-    descripcion: 'Area quemada y estres severo',
+    descripcion: 'Área quemada y estrés severo',
     a: 'nir',
     b: 'swir2',
   },

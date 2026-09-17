@@ -7,6 +7,7 @@ import { buscarEscenas, type ResultadoBusqueda } from './servicios/stac'
 import { ejecutarAnalisis, type ResultadoAnalisis } from './servicios/analisis'
 import { INDICES, indicesDisponibles, type DefinicionIndice } from './servicios/indices'
 import type { Bbox, Escena, GrupoDia, IdCapa, ModoVista, NombreBanda } from './tipos'
+import { diaLocal } from './lib/fecha'
 import type { FuenteRaster } from './componentes/CapaAnalisis'
 import Mapa, { type IdFondo } from './componentes/Mapa'
 import PanelBusqueda from './componentes/PanelBusqueda'
@@ -14,14 +15,14 @@ import PanelInsar from './componentes/PanelInsar'
 import ListaEscenas from './componentes/ListaEscenas'
 import PanelAnalisis from './componentes/PanelAnalisis'
 
+// Dia de Leon, no dia UTC: con toISOString, despues de las 18:00 locales
+// "hoy" ya era manana.
 function haceDias(dias: number): string {
-  const fecha = new Date()
-  fecha.setDate(fecha.getDate() - dias)
-  return fecha.toISOString().slice(0, 10)
+  return diaLocal(Date.now() - dias * 86_400_000)
 }
 
 function hoy(): string {
-  return new Date().toISOString().slice(0, 10)
+  return diaLocal(new Date())
 }
 
 export default function App() {
@@ -285,17 +286,16 @@ export default function App() {
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-90 shrink-0 flex-col border-r border-[--color-borde] bg-crema">
-        <header className="border-b border-[--color-borde] px-4 py-3">
-          <h1 className="text-base font-semibold leading-tight">Observatorio satelital</h1>
-          <p className="text-xs text-tinta-suave">
-            Planeacion Hidrica, Leon. Fuentes abiertas, sin credenciales.
-          </p>
+      <aside className="flex w-90 shrink-0 flex-col border-r border-filete bg-panel">
+        <header className="border-b border-filete-fuerte bg-panel-hondo px-4 py-4">
+          <p className="rotulo">Planeación Hídrica · León</p>
+          <h1 className="mt-1 text-[17px] font-semibold tracking-tight">Observatorio satelital</h1>
+          <p className="mt-1 text-xs text-tinta-suave">Fuentes abiertas, sin credenciales.</p>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {errorCapas && (
-            <p className="border-b border-[--color-borde] px-4 py-3 text-xs text-rose-700">
+            <p className="border-b border-filete px-4 py-3 text-xs text-peligro" role="alert">
               No se pudieron cargar estas capas: {errorCapas}. El resto sigue disponible.
             </p>
           )}
@@ -395,48 +395,54 @@ export default function App() {
         />
 
         {seleccion.length > 0 && (
-          <div className="absolute right-3 top-3 z-1000 w-72 rounded border border-[--color-borde] bg-crema/95 p-3 text-xs shadow-lg backdrop-blur">
-            <p className="mb-1 font-semibold">
-              {seleccion[0].dia} -{' '}
-              {seleccion.map((e) => e.malla || e.plataforma).join(' y ')}
-            </p>
-            {seleccion.length > 1 && (
-              <p className="mb-1 text-agua">Mosaico de {seleccion.length} mallas</p>
-            )}
-            <p className="mb-2 break-all text-tinta-suave">
-              {seleccion.map((e) => e.id).join(' / ')}
-            </p>
-
-            {(estadoRaster.cargando || calculando) && (
-              <p className="text-agua">
-                {calculando ? 'Leyendo bandas...' : 'Pintando sobre el mapa...'}
+          <div className="absolute right-3 top-3 z-1000 w-76 border border-filete-fuerte bg-panel-hondo/95 text-xs">
+            <div className="border-b border-filete px-3.5 py-3">
+              <p className="rotulo">Escena en el mapa</p>
+              <p className="cifra mt-1.5 text-[13px] font-semibold text-tinta">
+                {seleccion[0].dia} · {seleccion.map((e) => e.malla || e.plataforma).join(' y ')}
               </p>
-            )}
+              {seleccion.length > 1 && (
+                <p className="mt-1 text-acento">Mosaico de {seleccion.length} mallas</p>
+              )}
+              <p className="cifra mt-1.5 break-all text-tinta-suave">
+                {seleccion.map((e) => e.id).join(' / ')}
+              </p>
 
-            <label className="mt-2 block">
-              <span className="text-tinta-suave">Opacidad</span>
-              <input
-                type="range"
-                min={0.2}
-                max={1}
-                step={0.05}
-                value={opacidad}
-                onChange={(e) => setOpacidad(Number(e.target.value))}
-                className="w-full accent-[#2b7fb8]"
-              />
-            </label>
+              {(estadoRaster.cargando || calculando) && (
+                <p className="mt-2 text-acento" role="status">
+                  {calculando ? 'Leyendo bandas...' : 'Pintando sobre el mapa...'}
+                </p>
+              )}
+            </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setSeleccion([])
-                setReferencia([])
-                limpiarAnalisis()
-              }}
-              className="mt-3 w-full rounded border border-[--color-borde] bg-white px-2 py-1 hover:border-agua"
-            >
-              Quitar del mapa
-            </button>
+            <div className="px-3.5 py-3">
+              <label className="block">
+                <span className="mb-1 block text-tinta-suave">
+                  Opacidad <span className="cifra text-tinta">{Math.round(opacidad * 100)} %</span>
+                </span>
+                <input
+                  type="range"
+                  min={0.2}
+                  max={1}
+                  step={0.05}
+                  value={opacidad}
+                  onChange={(e) => setOpacidad(Number(e.target.value))}
+                  className="w-full"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSeleccion([])
+                  setReferencia([])
+                  limpiarAnalisis()
+                }}
+                className="boton mt-2.5 w-full"
+              >
+                Quitar del mapa
+              </button>
+            </div>
           </div>
         )}
       </main>

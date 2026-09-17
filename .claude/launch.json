@@ -11,16 +11,17 @@
       "port": 5173
     },
     {
-      "name": "observatorio-build",
-      "runtimeExecutable": "npm",
+      "name": "observatorio-pages",
+      "runtimeExecutable": "npx",
       "runtimeArgs": [
-        "run",
-        "preview",
-        "--",
+        "wrangler",
+        "pages",
+        "dev",
+        "dist",
         "--port",
-        "4173"
+        "8788"
       ],
-      "port": 4173
+      "port": 8788
     }
   ]
 }

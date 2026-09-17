@@ -35,3 +35,10 @@ public/insar/
 # el sitio, asi que excluirlas solo del build no bastaria.
 public/capas/EMA.geojson
 public/capas/SENSORES_ARROYOS.geojson
+
+# Ningun .env al repositorio, aunque solo traiga banderas.
+.env
+.env.*
+
+# Temporales de wrangler pages dev
+.wrangler/

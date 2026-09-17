@@ -1,0 +1,48 @@
+name: Verificar
+
+# Revisa cada cambio antes de que alguien lo despliegue. El despliegue es a
+# mano con `npm run desplegar`, igual que las demas plataformas del
+# departamento, asi que este flujo no necesita ni toca ninguna credencial.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Vite borra los tipos sin comprobarlos: un build en verde no dice nada
+      # sobre ellos. Son dos revisiones distintas.
+      - name: Tipos
+        run: npx tsc -b --force
+
+      # Compila y poda las capas internas. Si una capa sin clasificar llega al
+      # dist, podar-capas la quita y lo reporta.
+      - name: Build publico
+        run: npm run build
+
+      - name: Sin capas internas en el build
+        run: |
+          if grep -rlE "EMA\.geojson|SENSORES_ARROYOS" dist; then
+            echo "Hay referencias a capas internas en dist/" >&2
+            exit 1
+          fi
+
+      # Bloquea solo por severidad alta o critica. Bloquear por todo entrena a
+      # la gente a ignorar la alerta.
+      - name: Dependencias
+        run: npm audit --audit-level=high

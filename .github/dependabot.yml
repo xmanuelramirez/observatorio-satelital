@@ -1,0 +1,22 @@
+version: 2
+
+# Las versiones mayores no se proponen solas: rompen API y las decide una
+# persona, agrupadas en una ventana. Menores y parches llegan juntos una vez
+# por semana para no convertir la revision en goteo.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+    groups:
+      menores-y-parches:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -178,7 +178,7 @@ function bandasQuePide(
   bandasKmeans: NombreBanda[],
 ): NombreBanda[] {
   if (modo === 'indice' || modo === 'cambio') {
-    if (!indice) throw new Error('Falta elegir el indice')
+    if (!indice) throw new Error('Falta elegir el índice')
     return [indice.a, indice.b] as NombreBanda[]
   }
   if (modo === 'clases') return bandasKmeans
@@ -237,7 +237,7 @@ export async function ejecutarAnalisis(
 
   if (cobertura === 0) {
     throw new Error(
-      'Ninguna de las escenas elegidas tiene dato valido dentro del area. Prueba con la otra malla de la misma fecha.',
+      'Ninguna de las escenas elegidas tiene dato válido dentro del área. Prueba con la otra malla de la misma fecha.',
     )
   }
 
@@ -245,10 +245,10 @@ export async function ejecutarAnalisis(
   for (const banda of Object.values(pila.bandas)) aplicarMascara(banda, dentro)
 
   notas.push(
-    `Rejilla ${tamano} por ${tamano} sobre el area, celda de ${celda.ancho.toFixed(0)} por ${celda.alto.toFixed(0)} m (sensor nativo ${coleccion.gsd} m).`,
+    `Rejilla ${tamano} por ${tamano} sobre el área, celda de ${celda.ancho.toFixed(0)} por ${celda.alto.toFixed(0)} m (sensor nativo ${coleccion.gsd} m).`,
   )
   notas.push(
-    `Recortado al poligono de ${etiquetaArea}: ${(celdasDentro * haPixel).toLocaleString('es-MX', { maximumFractionDigits: 0 })} ha dentro del area.`,
+    `Recortado al polígono de ${etiquetaArea}: ${(celdasDentro * haPixel).toLocaleString('es-MX', { maximumFractionDigits: 0 })} ha dentro del área.`,
   )
 
   if (escenas.length > 1) {
@@ -264,8 +264,8 @@ export async function ejecutarAnalisis(
 
   notas.push(
     cobertura >= 0.999
-      ? 'El area queda cubierta por completo.'
-      : `Quedan sin dato ${((1 - cobertura) * 100).toFixed(1)} por ciento de las celdas del area.`,
+      ? 'El área queda cubierta por completo.'
+      : `Quedan sin dato ${((1 - cobertura) * 100).toFixed(1)} por ciento de las celdas del área.`,
   )
 
   const sello = [
@@ -314,7 +314,7 @@ export async function ejecutarAnalisis(
     }
 
     if (validos === 0) {
-      throw new Error('Las dos fechas no comparten pixeles validos dentro del area')
+      throw new Error('Las dos fechas no comparten píxeles válidos dentro del área')
     }
 
     const limite = Math.max(
@@ -326,7 +326,7 @@ export async function ejecutarAnalisis(
       `Diferencia de ${indice!.etiqueta}: ${escenasReferencia[0].dia} (${etiquetaEscenas(escenasReferencia)}) como base contra ${escenas[0].dia} (${etiquetaEscenas(escenas)}).`,
     )
     notas.push(
-      `Cambio medio ${(sumaDelta / validos).toFixed(3)} sobre ${validos.toLocaleString('es-MX')} pixeles comparables, ${((validos / celdasDentro) * 100).toFixed(1)} por ciento del area. Umbral ${umbralCambio.toFixed(2)}.`,
+      `Cambio medio ${(sumaDelta / validos).toFixed(3)} sobre ${validos.toLocaleString('es-MX')} píxeles comparables, ${((validos / celdasDentro) * 100).toFixed(1)} por ciento del área. Umbral ${umbralCambio.toFixed(2)}.`,
     )
 
     const leyenda: EntradaLeyenda[] = [
@@ -364,7 +364,7 @@ export async function ejecutarAnalisis(
   if (modo === 'indice') {
     const resultado = calcularIndice(pila, indice!)
     notas.push(
-      `${indice!.etiqueta} entre ${resultado.p2.toFixed(2)} y ${resultado.p98.toFixed(2)} (percentiles 2 y 98 de ${resultado.validos.toLocaleString('es-MX')} pixeles validos).`,
+      `${indice!.etiqueta} entre ${resultado.p2.toFixed(2)} y ${resultado.p98.toFixed(2)} (percentiles 2 y 98 de ${resultado.validos.toLocaleString('es-MX')} píxeles válidos).`,
     )
 
     const leyenda: EntradaLeyenda[] = [0, 0.25, 0.5, 0.75, 1].map((t) => {
@@ -388,15 +388,15 @@ export async function ejecutarAnalisis(
     const resultado = kmeans(matrices, bandasKmeans, k)
 
     if (resultado.centroides.length === 0) {
-      throw new Error('No hubo pixeles validos suficientes para agrupar')
+      throw new Error('No hubo píxeles válidos suficientes para agrupar')
     }
 
     const totalClasificado = resultado.conteos.reduce((suma, c) => suma + c, 0)
 
     notas.push(
       resultado.convergio
-        ? `k-means convergio en ${resultado.iteraciones} iteraciones sobre ${totalClasificado.toLocaleString('es-MX')} pixeles.`
-        : `k-means se detuvo en el limite de ${resultado.iteraciones} iteraciones sin converger.`,
+        ? `k-means convergió en ${resultado.iteraciones} iteraciones sobre ${totalClasificado.toLocaleString('es-MX')} píxeles.`
+        : `k-means se detuvo en el límite de ${resultado.iteraciones} iteraciones sin converger.`,
     )
     notas.push(
       `Bandas usadas: ${bandasKmeans.join(', ')}. Estandarizadas antes de agrupar y semilla fija, asi que el resultado se repite.`,

@@ -1,15 +1,47 @@
 # Observatorio satelital, Planeacion Hidrica Leon
 
 Lee bandas de Sentinel-2, Landsat y Sentinel-1 recortadas a los poligonos del
-departamento, calcula indices y agrupa el territorio con k-means. Todo corre en
-el navegador, contra catalogos abiertos y sin ninguna credencial.
+departamento, calcula indices, compara dos fechas, agrupa el territorio con
+k-means y arma pares InSAR para subsidencia. Todo corre en el navegador,
+contra catalogos abiertos y sin ninguna credencial.
+
+Publicado en https://observatorio-satelital.pages.dev
 
 ```bash
 npm install
-npm run dev      # vite, puerto 5173
-npm run build
-npx tsc -b       # chequeo de tipos
+npm run dev        # vite, puerto 5173
+npm run tipos      # tsc; vite build no revisa tipos
+npm run build      # tsc, vite y el podado de capas
+npm run pages      # build servido con las cabeceras reales, puerto 8788
+npm run desplegar  # build y publicacion en Cloudflare Pages
 ```
+
+## Por que esta armada asi
+
+| Pregunta | Respuesta |
+|---|---|
+| Quien la usa | Publico general. Sin autenticacion: todo lo que muestra puede ser publico, y lo que no, no entra al build |
+| Trata datos personales | No. Ni captura, ni cuentas, ni coordenadas de tomas |
+| El navegador escribe algo | No. Sin base de datos |
+| Necesita calculo periodico | No. No hay precomputo: cada calculo depende de la escena y el area que se elijan en el momento |
+
+### Clasificacion de los datos
+
+| Conjunto | Nivel | Tratamiento |
+|---|---|---|
+| Limite municipal, limite urbano, cuenca Palote | Publico | Se publican en `capas/` |
+| Estaciones EMA, sensores en arroyos | Reservado | Ubicacion de instrumentacion. Fuera del repositorio (`.gitignore`), fuera del bundle y podadas de `dist/` |
+| Escenas Sentinel-2, Landsat, Sentinel-1 | Publico | No se guardan: se leen al vuelo del catalogo |
+| Resultados de HyP3 en `public/insar/` | Interno | Fuera del repositorio (`.gitignore`); solo se ven en local |
+
+### Calculo en el navegador
+
+La regla del departamento es que el calculo pesado no corra en el navegador.
+Aqui es una excepcion consciente: el calculo depende de escena, fecha, area,
+indice y rejilla elegidos al momento, y precalcular todas las combinaciones no
+es viable. Lo pesado se acota leyendo solo la ventana del area por rangos HTTP,
+con rejillas de 256 a 1024 celdas, y guardando en memoria las bandas ya
+leidas. InSAR, que si es calculo de horas, corre fuera, en HyP3.
 
 ## De donde salen los datos
 
@@ -102,13 +134,17 @@ publico.
 
 ## Despliegue
 
-El sitio es estatico y se publica solo. Cada push a `main` dispara
-`.github/workflows/desplegar.yml`, que compila y sube el resultado a GitHub
-Pages.
+Cloudflare Pages, proyecto `observatorio-satelital`, en la cuenta personal de
+Carlos por decision del 17 de septiembre de 2026, igual que SICLAR y ZAPSANAR,
+mientras no exista la institucional. El despliegue es a mano:
 
 ```bash
-npm run build     # tsc, vite y el podado de capas
+npm run desplegar
 ```
+
+`.github/workflows/verificar.yml` revisa cada push: tipos, build publico, que
+no haya capas internas en `dist/` y `npm audit` con umbral alto. No despliega
+y no usa ninguna credencial.
 
 Dos piezas sostienen que no se publique de mas:
 
@@ -120,14 +156,43 @@ Dos piezas sostienen que no se publique de mas:
    su lista blanca. Es lista blanca y no lista negra a proposito: una capa
    nueva que nadie haya clasificado no se publica, y el script lo reporta.
 
-Para un despliegue interno que si deba llevarlas:
+Para un build interno que si deba llevarlas, que no se despliega:
 
 ```bash
 VITE_CAPAS_INTERNAS=true npm run build
 ```
 
-`base` esta en `'./'`, asi que el sitio funciona en cualquier subruta y no hay
-que tocar nada si cambia el nombre del repositorio.
+## Seguridad
+
+- **Cabeceras** en `public/_headers`: CSP, HSTS, `X-Frame-Options: DENY`,
+  `nosniff`, `Referrer-Policy` y `Permissions-Policy`. La CSP no lleva
+  comodines y cada excepcion esta explicada en el propio archivo. Se probo con
+  `npm run pages`, que aplica las mismas cabeceras que produccion, recorriendo
+  las tres colecciones y los cuatro modos sin una sola violacion.
+- **Sin secretos.** La app no usa ninguno. El script de HyP3 lee las
+  credenciales de Earthdata de variables de entorno o de `~/.netrc`, nunca de
+  un archivo del repositorio.
+- **Dependencias.** `npm audit` en cero. `georaster` pide `worker-loader`, que
+  pide `webpack` 4 como peer, y npm instalaba sola esa cadena con 17
+  vulnerabilidades aunque nada de ella corre: georaster publica sus bundles ya
+  compilados. `.npmrc` activa `legacy-peer-deps` para no instalar peers que
+  nadie pidio. Dependabot propone menores y parches cada semana; las mayores
+  las decide una persona.
+
+## Identidad visual
+
+Paleta y tipografia de la familia de plataformas del departamento, tomadas de
+SICLAR y Subcuencas: carbon profundo, acento azul `#2596be`, Inter y JetBrains
+Mono auto-alojadas en `public/fonts`. Los tokens viven en `src/index.css`. Dos
+ajustes por contraste WCAG AA: el color de rotulo sube a `#8c7f73` (5.05:1
+contra 3.47:1 del original) y ningun texto que se lee baja de 12 px.
+
+## Fechas
+
+Todo dia se maneja en hora de Leon con `src/lib/fecha.ts`. Recortar la cadena
+ISO daba el dia UTC, y las pasadas ascendentes de Sentinel-1, cerca de las
+00:49 UTC, aparecian con la fecha del dia siguiente. El periodo que se captura
+tambien se convierte a su frontera UTC antes de consultar los catalogos.
 
 ## Limitaciones conocidas
 
@@ -149,8 +214,8 @@ que tocar nada si cambia el nombre del repositorio.
   completarla.
 - **Sin mascara de nubes.** El filtro de nubosidad es por escena completa; no
   se usa todavia la banda SCL para descartar pixel por pixel.
-- **Sin serie de tiempo.** Cada calculo es de una fecha. Comparar dos fechas
-  sigue siendo manual.
-- `georaster` arrastra `worker-loader` y `webpack` 4 como dependencias de
-  ejecucion, y de ahi salen las 15 alertas de `npm audit`. No entran al bundle
-  del navegador, pero ahi estan.
+- **Sin serie de tiempo.** El modo cambio compara dos fechas; una serie con
+  mas de dos sigue pendiente.
+- **InSAR no se procesa en la app.** La app arma los pares y el comando; el
+  procesamiento corre con `herramientas/hyp3_subsidencia.py` y necesita cuenta
+  de NASA Earthdata. Esa ruta no se ha corrido de extremo a extremo.

@@ -1,0 +1,14 @@
+# Cloudflare Pages - proyecto observatorio-satelital
+#
+# Publica en https://observatorio-satelital.pages.dev
+#
+# Cuenta: por decision del 17 de septiembre de 2026 vive en la cuenta personal
+# de Carlos, igual que SICLAR y ZAPSANAR, hasta que exista la institucional.
+# "observatorio" a secas ya estaba tomado en pages.dev.
+#
+# Sin secretos aqui: la app no usa ninguno. Si algun dia hiciera falta, se
+# capturan con `wrangler pages secret put`, nunca en este archivo.
+
+name = "observatorio-satelital"
+compatibility_date = "2026-09-17"
+pages_build_output_dir = "dist"

@@ -1,0 +1,51 @@
+# Cabeceras de seguridad. Cloudflare Pages las aplica a todo lo que sirve desde
+# dist/, que es una copia de public/.
+#
+# La CSP no lleva comodines: cada origen externo esta porque la app lo usa, y
+# se abrio solo despues de ver el bloqueo en la consola.
+#
+#   script-src 'self', sin 'wasm-unsafe-eval'
+#       geotiff.js trae decodificadores WASM para LERC y ZSTD, pero ninguna de
+#       las tres colecciones los usa: se probo el 17/09/2026 con script-src
+#       'self' a secas y pintaron Sentinel-2 (indice, color, cambio, clases),
+#       Landsat y Sentinel-1. Si algun dia entra una coleccion con esas
+#       compresiones y el mapa sale vacio, esta es la excepcion a abrir.
+#   worker-src blob:
+#       Probado: sin esto la capa no se pinta y la consola reporta el bloqueo.
+#       georaster reparte el trabajo en web workers que crea desde un Blob en
+#       memoria, no desde un archivo del sitio.
+#   style-src 'unsafe-inline'
+#       Leaflet posiciona cada mosaico y cada capa con el atributo style, y
+#       React aplica los colores de leyenda igual. Sin esto el mapa no se arma.
+#   connect-src
+#       earth-search.aws.element84.com            catalogo STAC de Sentinel-2
+#       e84-earth-search-sentinel-data.s3...      COG de Sentinel-2, por rangos
+#       planetarycomputer.microsoft.com           catalogo STAC y firmador SAS
+#       landsateuwest.blob.core.windows.net       COG de Landsat
+#       sentinel1euwestrtc.blob.core.windows.net  COG de Sentinel-1 RTC
+#       api.daac.asf.alaska.edu                   busqueda de pares InSAR
+#   img-src
+#       Miniaturas de Earth Search y Planetary Computer, y los mosaicos de
+#       CARTO del mapa de referencia (subdominios a, b, c y d).
+#   font-src 'self'
+#       Inter y JetBrains Mono auto-alojadas en /fonts. Ningun tercero.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com https://planetarycomputer.microsoft.com https://a.basemaps.cartocdn.com https://b.basemaps.cartocdn.com https://c.basemaps.cartocdn.com https://d.basemaps.cartocdn.com; font-src 'self'; connect-src 'self' https://earth-search.aws.element84.com https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com https://planetarycomputer.microsoft.com https://landsateuwest.blob.core.windows.net https://sentinel1euwestrtc.blob.core.windows.net https://api.daac.asf.alaska.edu; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=()
+
+# Los assets de Vite llevan huella en el nombre: cambian de direccion en cada
+# build y pueden cachearse como inmutables.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Las capas no llevan huella; se revalidan para que un cambio se vea al momento.
+/capas/*
+  Cache-Control: public, max-age=0, must-revalidate

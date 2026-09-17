@@ -31,7 +31,7 @@ export async function firmarHref(proveedor: IdProveedor, href: string): Promise<
 
   const respuesta = await fetch(`${FIRMADOR_MPC}?href=${encodeURIComponent(href)}`)
   if (!respuesta.ok) {
-    throw new Error(`El firmador de Planetary Computer respondio ${respuesta.status}`)
+    throw new Error(`El firmador de Planetary Computer respondió ${respuesta.status}`)
   }
 
   const datos = (await respuesta.json()) as { href: string; 'msft:expiry'?: string }

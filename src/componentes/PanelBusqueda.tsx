@@ -23,18 +23,23 @@ interface Props {
   onBuscar: () => void
 }
 
-const claseCampo =
-  'w-full rounded border border-[--color-borde] bg-white px-2 py-1.5 text-sm text-tinta outline-none focus:border-agua'
+const ETIQUETA_FONDO: Record<IdFondo, string> = {
+  ninguno: 'Ninguno',
+  claro: 'Claro',
+  oscuro: 'Oscuro',
+}
 
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="border-b border-[--color-borde] px-4 py-3">
-      <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-tinta-suave">
-        {titulo}
-      </h2>
+    <section className="border-b border-filete px-4 py-3.5">
+      <h2 className="rotulo mb-2.5">{titulo}</h2>
       {children}
     </section>
   )
+}
+
+function Muestra({ color }: { color: string }) {
+  return <span className="inline-block h-0.75 w-4 shrink-0" style={{ background: color }} />
 }
 
 export default function PanelBusqueda({
@@ -57,29 +62,26 @@ export default function PanelBusqueda({
 }: Props) {
   return (
     <div>
-      <Bloque titulo="Area de interes">
-        <div className="space-y-1">
+      <Bloque titulo="Área de interés">
+        <div className="space-y-1.5">
           {CAPAS_AREA.map((capa) => (
-            <label key={capa.id} className="flex cursor-pointer items-center gap-2 text-sm">
+            <label key={capa.id} className="flex cursor-pointer items-center gap-2.5">
               <input
                 type="radio"
                 name="area"
                 checked={area === capa.id}
                 onChange={() => onArea(capa.id)}
               />
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-sm"
-                style={{ background: capa.color }}
-              />
+              <Muestra color={capa.color} />
               {capa.etiqueta}
             </label>
           ))}
         </div>
       </Bloque>
 
-      <Bloque titulo="Coleccion">
+      <Bloque titulo="Colección">
         <select
-          className={claseCampo}
+          className="campo"
           value={coleccion.id}
           onChange={(evento) => onColeccion(evento.target.value)}
         >
@@ -89,9 +91,9 @@ export default function PanelBusqueda({
             </option>
           ))}
         </select>
-        <p className="mt-1.5 text-xs leading-snug text-tinta-suave">{coleccion.descripcion}</p>
-        <p className="mt-1 text-[11px] text-tinta-suave/80">
-          Catalogo: {ETIQUETA_PROVEEDOR[coleccion.proveedor]}
+        <p className="mt-2 text-xs leading-snug text-tinta-suave">{coleccion.descripcion}</p>
+        <p className="mt-1 text-xs text-rotulo">
+          Catálogo: {ETIQUETA_PROVEEDOR[coleccion.proveedor]}
         </p>
       </Bloque>
 
@@ -101,7 +103,7 @@ export default function PanelBusqueda({
             <span className="mb-1 block text-xs text-tinta-suave">Desde</span>
             <input
               type="date"
-              className={claseCampo}
+              className="campo cifra"
               value={desde}
               onChange={(e) => onDesde(e.target.value)}
             />
@@ -110,15 +112,16 @@ export default function PanelBusqueda({
             <span className="mb-1 block text-xs text-tinta-suave">Hasta</span>
             <input
               type="date"
-              className={claseCampo}
+              className="campo cifra"
               value={hasta}
               onChange={(e) => onHasta(e.target.value)}
             />
           </label>
         </div>
+        <p className="mt-1.5 text-xs text-rotulo">Días en hora de León.</p>
       </Bloque>
 
-      <Bloque titulo="Nubosidad maxima">
+      <Bloque titulo="Nubosidad máxima">
         {coleccion.filtraNubes ? (
           <>
             <input
@@ -128,9 +131,9 @@ export default function PanelBusqueda({
               step={5}
               value={nubesMax}
               onChange={(e) => onNubesMax(Number(e.target.value))}
-              className="w-full accent-[#2b7fb8]"
+              className="w-full"
             />
-            <div className="mt-1 text-xs text-tinta-suave">{nubesMax} por ciento</div>
+            <div className="cifra mt-1 text-xs text-tinta-suave">{nubesMax} %</div>
           </>
         ) : (
           <p className="text-xs leading-snug text-tinta-suave">
@@ -139,30 +142,22 @@ export default function PanelBusqueda({
         )}
       </Bloque>
 
-      <div className="px-4 py-3">
-        <button
-          type="button"
-          onClick={onBuscar}
-          disabled={buscando}
-          className="w-full rounded bg-tinta px-3 py-2 text-sm font-semibold text-white transition hover:bg-tinta-suave disabled:opacity-50"
-        >
+      <div className="border-b border-filete px-4 py-3.5">
+        <button type="button" onClick={onBuscar} disabled={buscando} className="boton-principal">
           {buscando ? 'Buscando...' : 'Buscar escenas'}
         </button>
       </div>
 
       <Bloque titulo="Capas en el mapa">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {CAPAS.map((capa) => (
-            <label key={capa.id} className="flex cursor-pointer items-center gap-2 text-sm">
+            <label key={capa.id} className="flex cursor-pointer items-center gap-2.5">
               <input
                 type="checkbox"
                 checked={visibles.has(capa.id)}
                 onChange={() => onVisible(capa.id)}
               />
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-sm"
-                style={{ background: capa.color }}
-              />
+              <Muestra color={capa.color} />
               {capa.etiqueta}
             </label>
           ))}
@@ -170,24 +165,21 @@ export default function PanelBusqueda({
       </Bloque>
 
       <Bloque titulo="Mapa de referencia">
-        <div className="flex gap-2">
-          {(['ninguno', 'claro', 'oscuro'] as const).map((opcion) => (
+        <div className="flex gap-px bg-filete">
+          {(Object.keys(ETIQUETA_FONDO) as IdFondo[]).map((opcion) => (
             <button
               key={opcion}
               type="button"
               onClick={() => onFondo(opcion)}
-              className={`flex-1 rounded border px-2 py-1.5 text-xs capitalize transition ${
-                fondo === opcion
-                  ? 'border-tinta bg-tinta text-white'
-                  : 'border-[--color-borde] bg-white text-tinta-suave'
-              }`}
+              aria-pressed={fondo === opcion}
+              className={`pestana ${fondo === opcion ? 'pestana-activa' : ''}`}
             >
-              {opcion}
+              {ETIQUETA_FONDO[opcion]}
             </button>
           ))}
         </div>
-        <p className="mt-1.5 text-[11px] leading-snug text-tinta-suave">
-          Sin mosaico satelital de fondo: competia con la imagen analizada.
+        <p className="mt-2 text-xs leading-snug text-rotulo">
+          Sin mosaico satelital de fondo: competía con la imagen analizada.
         </p>
       </Bloque>
     </div>

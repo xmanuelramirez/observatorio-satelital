@@ -1,5 +1,13 @@
 import type { AssetBanda, Bbox, Coleccion, Escena, GrupoDia } from '../tipos'
 import { baseStac } from './proveedores'
+import { diaLocal, rangoUTCdelDia } from '../lib/fecha'
+
+/** Del inicio del primer dia local al ultimo segundo del ultimo, en UTC. */
+export function intervaloUTC(desde: string, hasta: string): string {
+  const inicio = rangoUTCdelDia(desde).desde
+  const fin = new Date(Date.parse(rangoUTCdelDia(hasta).hasta) - 1000).toISOString()
+  return `${inicio}/${fin}`
+}
 
 interface BandaRaster {
   nodata?: number
@@ -77,7 +85,10 @@ function aEscena(item: ItemStac, coleccion: Coleccion): Escena {
     coleccion: coleccion.id,
     proveedor: coleccion.proveedor,
     fechaIso,
-    dia: fechaIso.slice(0, 10),
+    // Dia de Leon. Recortar la cadena daba el dia UTC, y las pasadas
+    // ascendentes de Sentinel-1 (cerca de las 00:49 UTC, 18:49 locales)
+    // aparecian con la fecha del dia siguiente.
+    dia: diaLocal(fechaIso),
     nubes: typeof nubesCrudas === 'number' ? nubesCrudas : null,
     plataforma: texto(props.platform).toUpperCase(),
     malla: malla(props),
@@ -117,7 +128,8 @@ export async function buscarEscenas(
   const cuerpo: Record<string, unknown> = {
     collections: [coleccion.id],
     bbox,
-    datetime: `${desde}T00:00:00Z/${hasta}T23:59:59Z`,
+    // El periodo se captura en dias de Leon; el catalogo compara en UTC.
+    datetime: intervaloUTC(desde, hasta),
     sortby: [{ field: 'properties.datetime', direction: 'desc' }],
     limit: limite,
   }
@@ -135,7 +147,7 @@ export async function buscarEscenas(
   })
 
   if (!respuesta.ok) {
-    throw new Error(`El catalogo respondio ${respuesta.status}`)
+    throw new Error(`El catálogo respondió ${respuesta.status}`)
   }
 
   const datos = (await respuesta.json()) as {

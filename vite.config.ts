@@ -4,11 +4,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   /*
-   * Base relativa. GitHub Pages sirve el proyecto en /<repo>/, no en la raiz,
-   * y con './' los assets y el fetch de las capas resuelven contra la URL del
-   * documento sea cual sea el nombre del repositorio. cargarGeojson ya compone
-   * sus rutas con import.meta.env.BASE_URL.
+   * Base en la raiz. Cloudflare Pages sirve el sitio en la raiz de su dominio,
+   * y las fuentes se piden con ruta absoluta (/fonts/...) desde index.css.
+   * cargarGeojson compone sus rutas con import.meta.env.BASE_URL.
    */
-  base: './',
+  base: '/',
   plugins: [react(), tailwindcss()],
 })
