@@ -15,6 +15,8 @@ import PanelInsar from './componentes/PanelInsar'
 import ListaEscenas from './componentes/ListaEscenas'
 import PanelAnalisis from './componentes/PanelAnalisis'
 import PanelSerie from './componentes/PanelSerie'
+import PanelProductos from './componentes/PanelProductos'
+import { cargarProducto, PRODUCTOS, type IdProducto } from './servicios/productos'
 import { calcularSerie, type ResultadoSerie } from './servicios/serie'
 
 // Dia de Leon, no dia UTC: con toISOString, despues de las 18:00 locales
@@ -82,6 +84,11 @@ export default function App() {
     dia: string
   } | null>(null)
   const cancelarSerie = useRef<AbortController | null>(null)
+
+  const [producto, setProducto] = useState<IdProducto | null>(null)
+  const [productoResultado, setProductoResultado] = useState<ResultadoAnalisis | null>(null)
+  const [cargandoProducto, setCargandoProducto] = useState<IdProducto | null>(null)
+  const [errorProducto, setErrorProducto] = useState<string | null>(null)
 
   const [opacidad, setOpacidad] = useState(1)
   const [fondo, setFondo] = useState<IdFondo>('ninguno')
@@ -248,8 +255,10 @@ export default function App() {
       const areaGeojson = datosCapas[area]
       if (!areaGeojson) throw new Error('El area todavia no termina de cargar')
 
-      // Un analisis nuevo reemplaza al desplazamiento en el mapa.
+      // Un analisis nuevo reemplaza a lo que hubiera en el mapa.
       setDesplazamiento(null)
+      setProductoResultado(null)
+      setProducto(null)
 
       const salida = await ejecutarAnalisis({
         escenas: seleccion,
@@ -296,6 +305,43 @@ export default function App() {
     soloAgua,
     umbralAguaDb,
   ])
+
+  const lanzarProducto = useCallback(
+    async (id: IdProducto) => {
+      if (!areaBbox) return
+      const areaGeojson = datosCapas[area]
+      if (!areaGeojson) return
+
+      const definicion = PRODUCTOS.find((p) => p.id === id)
+      if (!definicion) return
+
+      setCargandoProducto(id)
+      setErrorProducto(null)
+
+      try {
+        const salida = await cargarProducto({
+          producto: definicion,
+          bbox: areaBbox,
+          areaGeojson,
+          etiquetaArea: CAPAS.find((c) => c.id === area)?.etiqueta ?? area,
+          // Rejilla fina: son productos estaticos y se leen una sola vez.
+          tamano: 512,
+        })
+        setProductoResultado(salida)
+        setProducto(id)
+        // La capa de referencia manda sobre lo que hubiera pintado antes.
+        limpiarAnalisis()
+        setDesplazamiento(null)
+      } catch (error: unknown) {
+        setErrorProducto(error instanceof Error ? error.message : String(error))
+        setProductoResultado(null)
+        setProducto(null)
+      } finally {
+        setCargandoProducto(null)
+      }
+    },
+    [areaBbox, datosCapas, area, limpiarAnalisis],
+  )
 
   const lanzarSerie = useCallback(async () => {
     if (!areaBbox || !indice) return
@@ -346,6 +392,7 @@ export default function App() {
   const fuente = useMemo<FuenteRaster>(() => {
     // El desplazamiento gana: es un producto aparte que el usuario pidio ver.
     if (desplazamiento) return desplazamiento
+    if (productoResultado) return { tipo: 'memoria', resultado: productoResultado }
     if (analisis) return { tipo: 'memoria', resultado: analisis }
     // Con dos mallas el atajo no sirve: cada COG trae su propia zona UTM y
     // pintarlos encima no es un mosaico. Ahi hay que pasar por el calculo.
@@ -354,7 +401,7 @@ export default function App() {
       if (asset) return { tipo: 'cog', href: asset.href }
     }
     return null
-  }, [desplazamiento, analisis, seleccion, modo, coleccion])
+  }, [desplazamiento, productoResultado, analisis, seleccion, modo, coleccion])
 
   const errorRaster = errorAnalisis ?? estadoRaster.error
 
@@ -391,6 +438,18 @@ export default function App() {
             onFondo={setFondo}
             buscando={buscando}
             onBuscar={lanzarBusqueda}
+          />
+
+          <PanelProductos
+            activo={producto}
+            cargando={cargandoProducto}
+            error={errorProducto}
+            resultado={productoResultado}
+            onCargar={lanzarProducto}
+            onQuitar={() => {
+              setProducto(null)
+              setProductoResultado(null)
+            }}
           />
 
           <PanelSerie

@@ -21,6 +21,47 @@ export function definicionCrs(epsg: number): string {
   throw new Error(`CRS no soportado todavia: EPSG:${epsg}`)
 }
 
+/** Codigo EPSG reservado para "definido por el usuario" en las geo keys. */
+const EPSG_A_MEDIDA = 32767
+
+/** CT_Sinusoidal en la tabla de transformaciones de GeoTIFF. Es la de MODIS. */
+const CT_SINUSOIDAL = 24
+
+type GeoKeys = Record<string, number | string | undefined>
+
+/**
+ * Arma la proyeccion desde las geo keys del propio archivo.
+ *
+ * La mayoria de los COG declaran un EPSG y con eso basta, pero MODIS no: su
+ * rejilla sinusoidal no tiene codigo EPSG, asi que el archivo pone 32767
+ * ("definido por el usuario") y describe la proyeccion por partes. Sin leer
+ * esas partes, cualquier producto MODIS queda fuera del alcance de la app.
+ */
+export function crsDeGeoKeys(claves: GeoKeys): string {
+  const numero = (clave: string): number | undefined => {
+    const valor = claves[clave]
+    return typeof valor === 'number' ? valor : undefined
+  }
+
+  const proyectado = numero('ProjectedCSTypeGeoKey')
+  const geografico = numero('GeographicTypeGeoKey')
+
+  if (proyectado && proyectado !== EPSG_A_MEDIDA) return definicionCrs(proyectado)
+  if (!proyectado && geografico && geografico !== EPSG_A_MEDIDA) return definicionCrs(geografico)
+
+  if (numero('ProjCoordTransGeoKey') === CT_SINUSOIDAL) {
+    const radio = numero('GeogSemiMajorAxisGeoKey') ?? 6371007.181
+    const centro = numero('ProjCenterLongGeoKey') ?? 0
+    const este = numero('ProjFalseEastingGeoKey') ?? 0
+    const norte = numero('ProjFalseNorthingGeoKey') ?? 0
+    return `+proj=sinu +lon_0=${centro} +x_0=${este} +y_0=${norte} +R=${radio} +units=m +no_defs`
+  }
+
+  throw new Error(
+    'El COG usa una proyeccion que la app todavia no sabe leer y no declara codigo EPSG',
+  )
+}
+
 /** Reproyecta las cuatro esquinas, no solo dos: en UTM el rectangulo se curva. */
 function bboxProyectado(bbox: Bbox, destino: string): Bbox {
   if (destino === 'EPSG:4326') return bbox
@@ -142,7 +183,8 @@ interface VentanaNativa {
   valores: Float32Array
   ancho: number
   alto: number
-  epsg: number
+  /** Proyeccion nativa ya resuelta, en la forma que entiende proj4. */
+  crs: string
   xmin: number
   ymax: number
   pixelAncho: number
@@ -158,17 +200,16 @@ async function leerVentanaNativa(
 
   // geotiff 3 entrega las geo keys por metodo; la propiedad geoKeys va vacia.
   const conGeo = imagen as unknown as {
-    getGeoKeys?: () => Record<string, number>
-    geoKeys?: Record<string, number>
+    getGeoKeys?: () => Record<string, number | string>
+    geoKeys?: Record<string, number | string>
   }
   const claves = conGeo.getGeoKeys?.() ?? conGeo.geoKeys
 
-  const epsg = claves?.ProjectedCSTypeGeoKey ?? claves?.GeographicTypeGeoKey
-  if (!epsg) {
+  if (!claves) {
     throw new Error('El COG no declara su sistema de coordenadas y no se puede recortar')
   }
 
-  const crs = definicionCrs(epsg)
+  const crs = crsDeGeoKeys(claves)
   const [xmin, ymin, xmax, ymax] = bboxProyectado(bboxDeRejilla(destino), crs)
 
   /**
@@ -202,7 +243,7 @@ async function leerVentanaNativa(
     valores,
     ancho: destino.ancho,
     alto: destino.alto,
-    epsg,
+    crs,
     xmin,
     ymax,
     pixelAncho: (xmax - xmin) / destino.ancho,
@@ -220,7 +261,7 @@ async function leerVentanaNativa(
  */
 function mapaHaciaDestino(destino: Rejilla, ventana: VentanaNativa): Int32Array {
   const mapa = new Int32Array(destino.ancho * destino.alto)
-  const crs = definicionCrs(ventana.epsg)
+  const crs = ventana.crs
   const aNativo = crs === 'EPSG:4326' ? null : proj4('EPSG:4326', crs)
 
   for (let fila = 0; fila < destino.alto; fila++) {
@@ -246,7 +287,7 @@ function mapaHaciaDestino(destino: Rejilla, ventana: VentanaNativa): Int32Array 
 
 function claveVentana(ventana: VentanaNativa): string {
   return [
-    ventana.epsg,
+    ventana.crs,
     ventana.ancho,
     ventana.alto,
     ventana.xmin.toFixed(2),

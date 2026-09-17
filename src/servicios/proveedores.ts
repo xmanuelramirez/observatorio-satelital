@@ -29,9 +29,23 @@ export async function firmarHref(proveedor: IdProveedor, href: string): Promise<
   const enCache = cacheFirmas.get(href)
   if (enCache && enCache.expira > Date.now() + 60_000) return enCache.href
 
-  const respuesta = await fetch(`${FIRMADOR_MPC}?href=${encodeURIComponent(href)}`)
+  /*
+   * El firmador limita cuantas firmas se piden seguidas y contesta 429. Un
+   * reintento con espera basta: no es una caida, es un tope por rafaga.
+   */
+  let respuesta = await fetch(`${FIRMADOR_MPC}?href=${encodeURIComponent(href)}`)
+
+  if (respuesta.status === 429) {
+    await new Promise((seguir) => setTimeout(seguir, 2000))
+    respuesta = await fetch(`${FIRMADOR_MPC}?href=${encodeURIComponent(href)}`)
+  }
+
   if (!respuesta.ok) {
-    throw new Error(`El firmador de Planetary Computer respondió ${respuesta.status}`)
+    throw new Error(
+      respuesta.status === 429
+        ? 'Planetary Computer está limitando las peticiones de firma. Espera un minuto y vuelve a intentar.'
+        : `El firmador de Planetary Computer respondió ${respuesta.status}`,
+    )
   }
 
   const datos = (await respuesta.json()) as { href: string; 'msft:expiry'?: string }
