@@ -37,18 +37,58 @@ const FONDOS = {
 
 export type IdFondo = keyof typeof FONDOS
 
+/**
+ * Leaflet mide su contenedor una vez y guarda el tamano. Si el mapa nace en
+ * 0 por 0 (pestana cargada en segundo plano, panel que se abre despues) y
+ * luego crece, se queda con el tamano viejo. Observar el contenedor lo
+ * mantiene al dia y dispara el resize que AjustarA espera para encuadrar.
+ */
+function SeguirTamano() {
+  const mapa = useMap()
+
+  useEffect(() => {
+    const observador = new ResizeObserver(() => mapa.invalidateSize({ animate: false }))
+    observador.observe(mapa.getContainer())
+    return () => observador.disconnect()
+  }, [mapa])
+
+  return null
+}
+
+/**
+ * Encuadra el area, pero solo con el mapa ya medido. fitBounds sobre un
+ * contenedor de 0 por 0 calcula un zoom invalido y deja la vista en NaN, que
+ * es de donde salia el error; invalidar el tamano despues ya no lo repara.
+ * Si todavia no hay tamano, espera al primer evento resize.
+ */
 function AjustarA({ bbox }: { bbox: Bbox | null }) {
   const mapa = useMap()
 
   useEffect(() => {
     if (!bbox) return
-    mapa.fitBounds(
-      [
-        [bbox[1], bbox[0]],
-        [bbox[3], bbox[2]],
-      ],
-      { padding: [24, 24] },
-    )
+
+    const ajustar = (): boolean => {
+      const tamano = mapa.getSize()
+      if (tamano.x === 0 || tamano.y === 0) return false
+      mapa.fitBounds(
+        [
+          [bbox[1], bbox[0]],
+          [bbox[3], bbox[2]],
+        ],
+        { padding: [24, 24] },
+      )
+      return true
+    }
+
+    if (ajustar()) return
+
+    const alCrecer = () => {
+      if (ajustar()) mapa.off('resize', alCrecer)
+    }
+    mapa.on('resize', alCrecer)
+    return () => {
+      mapa.off('resize', alCrecer)
+    }
   }, [mapa, bbox])
 
   return null
@@ -121,6 +161,7 @@ export default function Mapa({
         )
       })}
 
+      <SeguirTamano />
       <AjustarA bbox={areaBbox} />
     </MapContainer>
   )
