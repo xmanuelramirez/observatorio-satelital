@@ -1,4 +1,3 @@
-import type { EntradaLeyenda } from '../servicios/analisis'
 import type { DefinicionIndice } from '../servicios/indices'
 import type { Coleccion, Escena, GrupoDia, ModoVista, NombreBanda } from '../tipos'
 import { diasEntre } from '../servicios/obranueva'
@@ -22,8 +21,6 @@ interface Props {
   calculando: boolean
   onCalcular: () => void
   error: string | null
-  leyenda: EntradaLeyenda[]
-  notas: string[]
   /** Dias distintos al elegido, que pueden servir de base en modo cambio. */
   diasReferencia: GrupoDia[]
   referencia: Escena[]
@@ -77,8 +74,6 @@ export default function PanelAnalisis({
   calculando,
   onCalcular,
   error,
-  leyenda,
-  notas,
   diasReferencia,
   referencia,
   onDiaReferencia,
@@ -120,7 +115,7 @@ export default function PanelAnalisis({
       <div className="px-4 py-3.5">
         <h2 className="rotulo mb-2.5">Análisis de la escena</h2>
 
-        <div className="mb-3.5 flex gap-px border border-filete bg-filete" role="tablist">
+        <div className="mb-3.5 grid grid-cols-4 gap-px border border-filete bg-filete" role="tablist">
           {MODOS.map((opcion) => (
             <button
               key={opcion.id}
@@ -398,19 +393,25 @@ export default function PanelAnalisis({
           </select>
         </label>
 
-        <button
-          type="button"
-          onClick={onCalcular}
-          disabled={!puedeCalcular}
-          className="boton-principal"
-        >
-          {calculando ? 'Leyendo bandas y calculando...' : 'Calcular sobre el área'}
-        </button>
-
-        <p className="mt-2 text-xs leading-snug text-rotulo">
+        <p className="mb-2 text-xs leading-snug text-rotulo">
           Se leen las bandas de {coleccion.etiqueta} recortadas al área, no la miniatura.
           {escenas.length > 1 && ` Se unen ${escenas.length} mallas: ${mallas}.`}
         </p>
+
+        {/*
+          Pegado al pie del panel: con los controles de un modo abiertos, el
+          boton quedaba debajo del borde y habia que bajar a buscarlo.
+        */}
+        <div className="sticky bottom-0 -mx-4 border-t border-filete bg-panel px-4 py-3">
+          <button
+            type="button"
+            onClick={onCalcular}
+            disabled={!puedeCalcular}
+            className="boton-principal"
+          >
+            {calculando ? 'Leyendo bandas y calculando...' : 'Calcular sobre el área'}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -419,38 +420,6 @@ export default function PanelAnalisis({
         </p>
       )}
 
-      {leyenda.length > 0 && (
-        <div className="border-t border-filete px-4 py-3.5">
-          <h3 className="rotulo mb-2.5">Leyenda</h3>
-          <ul className="space-y-2">
-            {leyenda.map((entrada) => (
-              <li key={entrada.etiqueta} className="flex items-start gap-2.5 text-[13px]">
-                <span
-                  className="mt-1 inline-block h-3 w-3 shrink-0"
-                  style={{ background: entrada.color }}
-                />
-                <span>
-                  <span className="font-medium">{entrada.etiqueta}</span>
-                  {entrada.detalle && (
-                    <span className="cifra block text-xs text-tinta-suave">{entrada.detalle}</span>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {notas.length > 0 && (
-        <div className="border-t border-filete px-4 py-3.5">
-          <h3 className="rotulo mb-2">Notas del cálculo</h3>
-          <ul className="space-y-1.5 text-xs leading-snug text-tinta-suave">
-            {notas.map((nota) => (
-              <li key={nota}>{nota}</li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   )
 }

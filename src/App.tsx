@@ -13,6 +13,9 @@ import { diaLocal } from './lib/fecha'
 import type { FuenteRaster } from './componentes/CapaAnalisis'
 import Mapa, { type IdFondo } from './componentes/Mapa'
 import PanelBusqueda from './componentes/PanelBusqueda'
+import SelectorArea from './componentes/SelectorArea'
+import ControlMapa from './componentes/ControlMapa'
+import TarjetaResultado from './componentes/TarjetaResultado'
 import PanelInsar from './componentes/PanelInsar'
 import ListaEscenas from './componentes/ListaEscenas'
 import PanelAnalisis from './componentes/PanelAnalisis'
@@ -27,6 +30,25 @@ import {
 } from './servicios/escurrimiento'
 import { cargarProducto, PRODUCTOS, type IdProducto } from './servicios/productos'
 import type { ResultadoSerie } from './servicios/serie'
+
+type Pestana = 'escenas' | 'serie' | 'referencia' | 'hidrologia'
+
+const PESTANAS: { id: Pestana; etiqueta: string }[] = [
+  { id: 'escenas', etiqueta: 'Escenas' },
+  { id: 'serie', etiqueta: 'Serie' },
+  { id: 'referencia', etiqueta: 'Referencia' },
+  { id: 'hidrologia', etiqueta: 'Hidrología' },
+]
+
+const ETIQUETA_MODO: Record<ModoVista, string> = {
+  indice: 'Índice',
+  cambio: 'Cambio',
+  obra: 'Obra nueva',
+  calor: 'Temperatura',
+  agua: 'Agua por radar',
+  clases: 'Clases',
+  color: 'Color',
+}
 
 // Dia de Leon, no dia UTC: con toISOString, despues de las 18:00 locales
 // "hoy" ya era manana.
@@ -113,6 +135,9 @@ export default function App() {
   const [escurrimiento, setEscurrimiento] = useState<ResultadoEscurrimiento | null>(null)
   const [calculandoEscurrimiento, setCalculandoEscurrimiento] = useState(false)
   const [errorEscurrimiento, setErrorEscurrimiento] = useState<string | null>(null)
+
+  const [pestana, setPestana] = useState<Pestana>('escenas')
+  const [busquedaPlegada, setBusquedaPlegada] = useState(false)
 
   const [opacidad, setOpacidad] = useState(1)
   const [fondo, setFondo] = useState<IdFondo>('ninguno')
@@ -267,6 +292,7 @@ export default function App() {
       })
       setResultado(salida)
       setSerie(null)
+      setBusquedaPlegada(true)
     } catch (error: unknown) {
       setErrorBusqueda(error instanceof Error ? error.message : String(error))
       setResultado(null)
@@ -497,163 +523,201 @@ export default function App() {
 
   const errorRaster = errorAnalisis ?? estadoRaster.error
 
+  const tituloResultado = productoVista
+    ? (PRODUCTOS.find((p) => p.id === producto)?.etiqueta ?? 'Capa de referencia')
+    : analisis && seleccion.length > 0
+      ? `${ETIQUETA_MODO[modo]} · ${seleccion[0].dia}`
+      : 'Resultado'
+
+  const leyendaEnMapa = productoVista?.leyenda ?? analisis?.leyenda ?? []
+  const notasEnMapa = productoVista?.notas ?? analisis?.notas ?? []
+
   return (
     <div className="flex h-full">
       <aside className="flex w-90 shrink-0 flex-col border-r border-filete bg-panel">
-        <header className="border-b border-filete-fuerte bg-panel-hondo px-4 py-4">
+        <header className="border-b border-filete-fuerte bg-panel-hondo px-4 py-3.5">
           <p className="rotulo">Planeación Hídrica · León</p>
           <h1 className="mt-1 text-[17px] font-semibold tracking-tight">Observatorio satelital</h1>
-          <p className="mt-1 text-xs text-tinta-suave">Fuentes abiertas, sin credenciales.</p>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {errorCapas && (
-            <p className="border-b border-filete px-4 py-3 text-xs text-peligro" role="alert">
-              No se pudieron cargar estas capas: {errorCapas}. El resto sigue disponible.
-            </p>
+        {errorCapas && (
+          <p className="border-b border-filete px-4 py-3 text-xs text-peligro" role="alert">
+            No se pudieron cargar estas capas: {errorCapas}. El resto sigue disponible.
+          </p>
+        )}
+
+        <SelectorArea area={area} onArea={setArea} />
+
+        {/*
+          Cuatro pestanas por tipo de trabajo, en vez de una columna con todo
+          apilado: antes habia que bajar por nueve secciones para llegar al
+          analisis de una escena.
+        */}
+        <nav className="flex gap-px border-b border-filete bg-filete" role="tablist">
+          {PESTANAS.map((opcion) => (
+            <button
+              key={opcion.id}
+              type="button"
+              role="tab"
+              aria-selected={pestana === opcion.id}
+              onClick={() => setPestana(opcion.id)}
+              className={`pestana ${pestana === opcion.id ? 'pestana-activa' : ''}`}
+            >
+              {opcion.etiqueta}
+            </button>
+          ))}
+        </nav>
+
+        <div className="min-h-0 flex-1 overflow-y-auto" role="tabpanel">
+          {pestana === 'escenas' && (
+            <>
+              <PanelBusqueda
+                coleccion={coleccion}
+                onColeccion={cambiarColeccion}
+                desde={desde}
+                onDesde={setDesde}
+                hasta={hasta}
+                onHasta={setHasta}
+                nubesMax={nubesMax}
+                onNubesMax={setNubesMax}
+                buscando={buscando}
+                onBuscar={lanzarBusqueda}
+                plegado={busquedaPlegada}
+                onDesplegar={() => setBusquedaPlegada(false)}
+              />
+
+              {/* La lista se desplaza sola para que el analisis no quede al fondo. */}
+              <div className="max-h-[32vh] overflow-y-auto border-b border-filete">
+                <ListaEscenas
+                  grupos={grupos}
+                  totalCoincidencias={resultado?.totalCoincidencias ?? null}
+                  seleccion={seleccion}
+                  onAlternar={alternarEscena}
+                  onDiaCompleto={seleccionarDia}
+                  buscando={buscando}
+                  error={errorBusqueda}
+                  yaBusco={resultado !== null || errorBusqueda !== null}
+                />
+              </div>
+
+              <PanelAnalisis
+                escenas={seleccion}
+                coleccion={coleccion}
+                modo={modo}
+                onModo={(nuevo) => {
+                  setModo(nuevo)
+                  limpiarAnalisis()
+                }}
+                indices={indicesPosibles}
+                indice={indice}
+                onIndice={(id) => {
+                  setIndice(indicesPosibles.find((i) => i.id === id) ?? null)
+                  limpiarAnalisis()
+                }}
+                bandasDisponibles={bandasDisponibles}
+                bandasKmeans={bandasKmeans}
+                onBandaKmeans={alternarBandaKmeans}
+                k={k}
+                onK={setK}
+                tamano={tamano}
+                onTamano={setTamano}
+                calculando={calculando}
+                onCalcular={lanzarAnalisis}
+                error={errorRaster}
+                diasReferencia={diasReferencia}
+                referencia={referencia}
+                onDiaReferencia={(dia) => {
+                  setReferencia(grupos.find((grupo) => grupo.dia === dia)?.escenas ?? [])
+                  limpiarAnalisis()
+                }}
+                umbralCambio={umbralCambio}
+                onUmbralCambio={(valor) => {
+                  setUmbralCambio(valor)
+                  limpiarAnalisis()
+                }}
+                umbralObra={umbralObra}
+                onUmbralObra={(valor) => {
+                  setUmbralObra(valor)
+                  limpiarAnalisis()
+                }}
+                umbralAguaDb={umbralAguaDb}
+                onUmbralAguaDb={(valor) => {
+                  setUmbralAguaDb(valor)
+                  limpiarAnalisis()
+                }}
+                areaMinimaObra={areaMinimaObra}
+                onAreaMinimaObra={(valor) => {
+                  setAreaMinimaObra(valor)
+                  limpiarAnalisis()
+                }}
+                quitarNubes={quitarNubes}
+                onQuitarNubes={(valor) => {
+                  setQuitarNubes(valor)
+                  limpiarAnalisis()
+                }}
+                soloAgua={soloAgua}
+                onSoloAgua={(valor) => {
+                  setSoloAgua(valor)
+                  limpiarAnalisis()
+                }}
+              />
+            </>
           )}
 
-          <PanelBusqueda
-            area={area}
-            onArea={setArea}
-            coleccion={coleccion}
-            onColeccion={cambiarColeccion}
-            desde={desde}
-            onDesde={setDesde}
-            hasta={hasta}
-            onHasta={setHasta}
-            nubesMax={nubesMax}
-            onNubesMax={setNubesMax}
-            visibles={visibles}
-            onVisible={alternarVisible}
-            fondo={fondo}
-            onFondo={setFondo}
-            buscando={buscando}
-            onBuscar={lanzarBusqueda}
-          />
+          {pestana === 'serie' && (
+            <PanelSerie
+              indice={indice}
+              fechasDisponibles={grupos.length}
+              maxFechas={maxFechas}
+              onMaxFechas={setMaxFechas}
+              calculando={calculandoSerie}
+              progreso={progresoSerie}
+              resultado={serie}
+              error={errorSerie}
+              onCalcular={lanzarSerie}
+              onCancelar={() => cancelarSerie.current?.abort()}
+            />
+          )}
 
-          <PanelEscurrimiento
-            disponible={subcuencasCn !== null}
-            lluviaMm={lluviaMm}
-            onLluviaMm={setLluviaMm}
-            condicion={condicionCn}
-            onCondicion={setCondicionCn}
-            zonasObra={analisis?.zonasObra?.length ?? 0}
-            calculando={calculandoEscurrimiento}
-            resultado={escurrimiento}
-            error={errorEscurrimiento}
-            onCalcular={lanzarEscurrimiento}
-          />
+          {pestana === 'referencia' && (
+            <PanelProductos
+              activo={producto}
+              cargando={cargandoProducto}
+              error={errorProducto}
+              onCargar={lanzarProducto}
+              onQuitar={() => {
+                setProducto(null)
+                setProductoVista(null)
+              }}
+            />
+          )}
 
-          <PanelProductos
-            activo={producto}
-            cargando={cargandoProducto}
-            error={errorProducto}
-            resultado={productoVista}
-            onCargar={lanzarProducto}
-            onQuitar={() => {
-              setProducto(null)
-              setProductoVista(null)
-            }}
-          />
+          {pestana === 'hidrologia' && (
+            <>
+              <PanelEscurrimiento
+                disponible={subcuencasCn !== null}
+                lluviaMm={lluviaMm}
+                onLluviaMm={setLluviaMm}
+                condicion={condicionCn}
+                onCondicion={setCondicionCn}
+                zonasObra={analisis?.zonasObra?.length ?? 0}
+                calculando={calculandoEscurrimiento}
+                resultado={escurrimiento}
+                error={errorEscurrimiento}
+                onCalcular={lanzarEscurrimiento}
+              />
 
-          <PanelSerie
-            indice={indice}
-            fechasDisponibles={grupos.length}
-            maxFechas={maxFechas}
-            onMaxFechas={setMaxFechas}
-            calculando={calculandoSerie}
-            progreso={progresoSerie}
-            resultado={serie}
-            error={errorSerie}
-            onCalcular={lanzarSerie}
-            onCancelar={() => cancelarSerie.current?.abort()}
-          />
-
-          <PanelInsar
-            bbox={areaBbox}
-            desde={desde}
-            hasta={hasta}
-            onCargarDesplazamiento={(href, limite) => {
-              limpiarAnalisis()
-              setDesplazamiento(href ? { tipo: 'insar', href, limite } : null)
-            }}
-          />
-
-          <ListaEscenas
-            grupos={grupos}
-            totalCoincidencias={resultado?.totalCoincidencias ?? null}
-            seleccion={seleccion}
-            onAlternar={alternarEscena}
-            onDiaCompleto={seleccionarDia}
-            buscando={buscando}
-            error={errorBusqueda}
-            yaBusco={resultado !== null || errorBusqueda !== null}
-          />
-
-          <PanelAnalisis
-            escenas={seleccion}
-            coleccion={coleccion}
-            modo={modo}
-            onModo={(nuevo) => {
-              setModo(nuevo)
-              limpiarAnalisis()
-            }}
-            indices={indicesPosibles}
-            indice={indice}
-            onIndice={(id) => {
-              setIndice(indicesPosibles.find((i) => i.id === id) ?? null)
-              limpiarAnalisis()
-            }}
-            bandasDisponibles={bandasDisponibles}
-            bandasKmeans={bandasKmeans}
-            onBandaKmeans={alternarBandaKmeans}
-            k={k}
-            onK={setK}
-            tamano={tamano}
-            onTamano={setTamano}
-            calculando={calculando}
-            onCalcular={lanzarAnalisis}
-            error={errorRaster}
-            leyenda={analisis?.leyenda ?? []}
-            notas={analisis?.notas ?? []}
-            diasReferencia={diasReferencia}
-            referencia={referencia}
-            onDiaReferencia={(dia) => {
-              setReferencia(grupos.find((grupo) => grupo.dia === dia)?.escenas ?? [])
-              limpiarAnalisis()
-            }}
-            umbralCambio={umbralCambio}
-            onUmbralCambio={(valor) => {
-              setUmbralCambio(valor)
-              limpiarAnalisis()
-            }}
-            umbralObra={umbralObra}
-            onUmbralObra={(valor) => {
-              setUmbralObra(valor)
-              limpiarAnalisis()
-            }}
-            umbralAguaDb={umbralAguaDb}
-            onUmbralAguaDb={(valor) => {
-              setUmbralAguaDb(valor)
-              limpiarAnalisis()
-            }}
-            areaMinimaObra={areaMinimaObra}
-            onAreaMinimaObra={(valor) => {
-              setAreaMinimaObra(valor)
-              limpiarAnalisis()
-            }}
-            quitarNubes={quitarNubes}
-            onQuitarNubes={(valor) => {
-              setQuitarNubes(valor)
-              limpiarAnalisis()
-            }}
-            soloAgua={soloAgua}
-            onSoloAgua={(valor) => {
-              setSoloAgua(valor)
-              limpiarAnalisis()
-            }}
-          />
+              <PanelInsar
+                bbox={areaBbox}
+                desde={desde}
+                hasta={hasta}
+                onCargarDesplazamiento={(href, limite) => {
+                  limpiarAnalisis()
+                  setDesplazamiento(href ? { tipo: 'insar', href, limite } : null)
+                }}
+              />
+            </>
+          )}
         </div>
       </aside>
 
@@ -666,10 +730,14 @@ export default function App() {
           escenas={seleccion}
           fuente={fuente}
           opacidad={opacidad}
-          marcas={desplazamiento ? [] : (analisis?.marcas ?? [])}
+          marcas={desplazamiento || productoVista ? [] : (analisis?.marcas ?? [])}
           fondo={fondo}
           onEstadoRaster={setEstadoRaster}
         />
+
+        <ControlMapa visibles={visibles} onVisible={alternarVisible} fondo={fondo} onFondo={setFondo} />
+
+        <TarjetaResultado titulo={tituloResultado} leyenda={leyendaEnMapa} notas={notasEnMapa} />
 
         {seleccion.length > 0 && (
           <div className="absolute right-3 top-3 z-1000 w-76 border border-filete-fuerte bg-panel-hondo/95 text-xs">
@@ -681,9 +749,6 @@ export default function App() {
               {seleccion.length > 1 && (
                 <p className="mt-1 text-acento">Mosaico de {seleccion.length} mallas</p>
               )}
-              <p className="cifra mt-1.5 break-all text-tinta-suave">
-                {seleccion.map((e) => e.id).join(' / ')}
-              </p>
 
               {(estadoRaster.cargando || calculando) && (
                 <p className="mt-2 text-acento" role="status">

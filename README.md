@@ -43,6 +43,19 @@ es viable. Lo pesado se acota leyendo solo la ventana del area por rangos HTTP,
 con rejillas de 256 a 1024 celdas, y guardando en memoria las bandas ya
 leidas. InSAR, que si es calculo de horas, corre fuera, en HyP3.
 
+Lo que si se calcula aqui corre en un Web Worker (`src/trabajador/calculo.worker.ts`),
+no en el hilo de la interfaz. El worker lee las bandas, calcula y pinta los
+pixeles; a la pagina solo le llega un arreglo RGBA transferido, que se vuelve
+PNG y se pone como `ImageOverlay`. Antes el pintado con georaster congelaba la
+pagina hasta 1.4 s por calculo; ahora ninguna tarea del hilo principal pasa de
+50 ms. georaster queda solo para el color verdadero de la escena y el TIF de
+InSAR.
+
+En `npm run dev` el worker fallaba con "buffer error" al descomprimir: Vite
+descubria geotiff y pako a media sesion y el worker terminaba con copias
+distintas. `optimizeDeps.include` en `vite.config.ts` los empaqueta desde el
+arranque. El build nunca tuvo el problema.
+
 ## De donde salen los datos
 
 | Coleccion | Catalogo | Resolucion | Revisita |
@@ -207,6 +220,15 @@ Los dos fuerzan el recorte a la lamina de agua: sobre tierra un NDCI alto es
 vegetacion, no clorofila. La lamina se dibuja con MNDWI y no con NDWI porque
 el concreto tambien tiene NDWI alto.
 
+## Organizacion de la interfaz
+
+El area de interes va arriba y la comparten cuatro pestanas: Escenas (busqueda,
+lista y analisis), Serie, Referencia e Hidrologia (escurrimiento e InSAR). La
+busqueda se pliega a una linea al tener resultados y el boton de calcular queda
+fijo al pie. Capas y fondo, leyenda y notas flotan sobre el mapa. Antes todo
+iba en una columna de 1,780 px, 2.2 pantallas de alto; ahora cada pestana
+cabe en una.
+
 ## Capas de referencia
 
 Productos globales ya calculados que se recortan al area y se miden. No son
@@ -223,6 +245,20 @@ sinusoidal no tiene codigo EPSG, asi que declara 32767 y hay que armar la
 proyeccion por partes. ECOSTRESS, que seria la opcion fina para
 evapotranspiracion, no esta en Planetary Computer y necesitaria tuberia
 aparte con cuenta de Earthdata.
+
+Las tres se precalculan antes de desplegar, para las tres areas, y viajan en
+`public/precalculado/<area>/<producto>.png` con su `.json` de leyenda y notas.
+En el navegador solo se descarga la imagen: la cobertura del municipio pasa de
+8.8 s de lectura y calculo a unos 0.1 s. Si falta el archivo, la app cae al
+calculo en vivo. Los productos cambian cada ano o nunca, asi que se regeneran a
+mano cuando sale una version nueva:
+
+```bash
+npm run precalcular
+```
+
+Tarda un par de minutos por las pausas entre peticiones (Planetary Computer
+responde 429 si se le pide seguido).
 
 ## Escurrimiento
 

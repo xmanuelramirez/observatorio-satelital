@@ -1,13 +1,9 @@
-import type { EntradaLeyenda } from '../servicios/analisis'
 import { PRODUCTOS, type IdProducto } from '../servicios/productos'
 
 interface Props {
   activo: IdProducto | null
   cargando: IdProducto | null
   error: string | null
-  /** Leyenda y notas del producto cargado; se muestran aqui y no en el panel
-   *  de analisis, porque este no existe hasta elegir una escena. */
-  resultado: { leyenda: EntradaLeyenda[]; notas: string[] } | null
   onCargar: (id: IdProducto) => void
   onQuitar: () => void
 }
@@ -21,7 +17,6 @@ export default function PanelProductos({
   activo,
   cargando,
   error,
-  resultado,
   onCargar,
   onQuitar,
 }: Props) {
@@ -57,35 +52,6 @@ export default function PanelProductos({
         <p className="mt-2 text-xs leading-snug text-peligro" role="alert">
           {error}
         </p>
-      )}
-
-      {resultado && (
-        <div className="mt-3 border-t border-filete pt-3">
-          {resultado.leyenda.length > 0 && (
-            <ul className="space-y-2">
-              {resultado.leyenda.map((entrada) => (
-                <li key={entrada.etiqueta} className="flex items-start gap-2.5 text-[13px]">
-                  <span
-                    className="mt-1 inline-block h-3 w-3 shrink-0"
-                    style={{ background: entrada.color }}
-                  />
-                  <span>
-                    <span className="font-medium">{entrada.etiqueta}</span>
-                    {entrada.detalle && (
-                      <span className="cifra block text-xs text-tinta-suave">{entrada.detalle}</span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <ul className="mt-2.5 space-y-1.5 text-xs leading-snug text-tinta-suave">
-            {resultado.notas.map((nota) => (
-              <li key={nota}>{nota}</li>
-            ))}
-          </ul>
-        </div>
       )}
 
       <p className="mt-2 text-xs leading-snug text-rotulo">
