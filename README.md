@@ -222,15 +222,19 @@ el concreto tambien tiene NDWI alto.
 
 ## Organizacion de la interfaz
 
-El area de interes va arriba y la comparten cuatro pestanas: Escenas, Serie,
-Referencia e Hidrologia (escurrimiento e InSAR). Escenas es un flujo de tres
-pasos numerados (busqueda, escena y analisis); cada paso cumplido se pliega a
-una linea con su resumen y un boton Cambiar. Los modos de analisis van en dos
-filas segun cuantas fechas piden. Sobre el mapa flotan cuatro tarjetas: capas
-arriba a la izquierda, escena arriba a la derecha, simbologia abajo a la
-derecha y notas del calculo abajo a la izquierda, plegadas. Antes todo
-iba en una columna de 1,780 px, 2.2 pantallas de alto; ahora cada pestana
-cabe en una.
+El mapa ocupa toda la pantalla. En el margen izquierdo flota una columna de
+tarjetas independientes: titulo y area de interes, y luego Escenas, Serie de
+tiempo, Capas de referencia, Hidrologia y Capas del mapa. Funcionan como
+acordeon: abrir una pliega la que estaba abierta, y cada tarjeta plegada dice
+en una linea que tiene o que se eligio. Escenas es un flujo de tres pasos
+numerados (busqueda, escena y analisis) que se pliegan al cumplirse.
+
+"Ver en pantalla completa" abre las escenas encontradas en una galeria con la
+vista previa grande, por fecha, para elegir cual analizar. La vista previa es
+la del catalogo (343 px en Sentinel-2): sirve para ver nubes, no para medir.
+
+A la derecha flotan la escena en el mapa (arriba) y la simbologia con las
+notas del calculo plegadas (abajo).
 
 ## Capas de referencia
 

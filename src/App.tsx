@@ -15,6 +15,9 @@ import Mapa, { type IdFondo } from './componentes/Mapa'
 import PanelBusqueda from './componentes/PanelBusqueda'
 import SelectorArea from './componentes/SelectorArea'
 import ControlMapa from './componentes/ControlMapa'
+import { ETIQUETA_FONDO } from './datos/fondos'
+import SeccionFlotante from './componentes/SeccionFlotante'
+import GaleriaEscenas from './componentes/GaleriaEscenas'
 import TarjetaResultado from './componentes/TarjetaResultado'
 import PanelInsar from './componentes/PanelInsar'
 import ListaEscenas from './componentes/ListaEscenas'
@@ -31,14 +34,7 @@ import {
 import { cargarProducto, PRODUCTOS, type IdProducto } from './servicios/productos'
 import type { ResultadoSerie } from './servicios/serie'
 
-type Pestana = 'escenas' | 'serie' | 'referencia' | 'hidrologia'
-
-const PESTANAS: { id: Pestana; etiqueta: string }[] = [
-  { id: 'escenas', etiqueta: 'Escenas' },
-  { id: 'serie', etiqueta: 'Serie' },
-  { id: 'referencia', etiqueta: 'Referencia' },
-  { id: 'hidrologia', etiqueta: 'Hidrología' },
-]
+type Seccion = 'escenas' | 'serie' | 'referencia' | 'hidrologia' | 'capas'
 
 const ETIQUETA_MODO: Record<ModoVista, string> = {
   indice: 'Índice',
@@ -136,7 +132,9 @@ export default function App() {
   const [calculandoEscurrimiento, setCalculandoEscurrimiento] = useState(false)
   const [errorEscurrimiento, setErrorEscurrimiento] = useState<string | null>(null)
 
-  const [pestana, setPestana] = useState<Pestana>('escenas')
+  const [seccion, setSeccion] = useState<Seccion | null>('escenas')
+  const [galeriaAbierta, setGaleriaAbierta] = useState(false)
+  const alternarSeccion = (id: Seccion) => setSeccion((actual) => (actual === id ? null : id))
   const [busquedaPlegada, setBusquedaPlegada] = useState(false)
   const [listaPlegada, setListaPlegada] = useState(false)
 
@@ -514,216 +512,242 @@ export default function App() {
   const leyendaEnMapa = productoVista?.leyenda ?? analisis?.leyenda ?? []
   const notasEnMapa = productoVista?.notas ?? analisis?.notas ?? []
 
+  const resumenEscenas =
+    seleccion.length > 0
+      ? `${seleccion[0].dia} · ${seleccion.map((e) => e.malla || e.plataforma).join(' + ')}`
+      : resultado
+        ? `${grupos.length} fechas encontradas en ${coleccion.etiqueta}`
+        : 'Buscar imágenes y analizarlas'
+  const resumenSerie = serie
+    ? `${serie.puntos.length} fechas calculadas`
+    : 'Un índice a lo largo del tiempo'
+  const resumenReferencia = producto
+    ? (PRODUCTOS.find((p) => p.id === producto)?.etiqueta ?? '')
+    : 'Agua histórica, cobertura y evapotranspiración'
+  const resumenCapas = `${visibles.size} capas · fondo ${ETIQUETA_FONDO[fondo].toLowerCase()}`
+
   return (
-    <div className="flex h-full">
-      <aside className="flex w-90 shrink-0 flex-col border-r border-filete bg-panel">
-        <header className="border-b border-filete-fuerte bg-panel-hondo px-4 py-3.5">
-          <p className="rotulo">Planeación Hídrica · León</p>
-          <h1 className="mt-1 text-[17px] font-semibold tracking-tight">Observatorio satelital</h1>
-        </header>
+    <div className="relative h-full">
+      <Mapa
+        capas={CAPAS}
+        datosCapas={datosCapas}
+        visibles={visibles}
+        areaBbox={areaBbox}
+        escenas={seleccion}
+        fuente={fuente}
+        opacidad={opacidad}
+        marcas={desplazamiento || productoVista ? [] : (analisis?.marcas ?? [])}
+        fondo={fondo}
+        onEstadoRaster={setEstadoRaster}
+      />
 
-        {errorCapas && (
-          <p className="border-b border-filete px-4 py-3 text-xs text-peligro" role="alert">
-            No se pudieron cargar estas capas: {errorCapas}. El resto sigue disponible.
-          </p>
-        )}
+      {/*
+        Menu flotante del margen izquierdo: tarjetas independientes sobre el
+        mapa que funcionan como acordeon. Abrir una pliega la que estaba
+        abierta, asi el mapa queda libre salvo por la tarjeta en uso.
+      */}
+      <div className="pointer-events-none absolute inset-y-3 left-3 z-1000 flex w-88 flex-col gap-2">
+        <div className="pointer-events-auto shrink-0 border border-filete-fuerte bg-panel/95 shadow-lg shadow-black/40">
+          <header className="px-4 pt-3">
+            <p className="rotulo">Planeación Hídrica · León</p>
+            <h1 className="mt-1 text-[17px] font-semibold tracking-tight">Observatorio satelital</h1>
+          </header>
 
-        <SelectorArea area={area} onArea={setArea} />
-
-        {/*
-          Cuatro pestanas por tipo de trabajo, en vez de una columna con todo
-          apilado: antes habia que bajar por nueve secciones para llegar al
-          analisis de una escena.
-        */}
-        <nav className="flex gap-px border-b border-filete bg-filete" role="tablist">
-          {PESTANAS.map((opcion) => (
-            <button
-              key={opcion.id}
-              type="button"
-              role="tab"
-              aria-selected={pestana === opcion.id}
-              onClick={() => setPestana(opcion.id)}
-              className={`pestana ${pestana === opcion.id ? 'pestana-activa' : ''}`}
-            >
-              {opcion.etiqueta}
-            </button>
-          ))}
-        </nav>
-
-        <div className="min-h-0 flex-1 overflow-y-auto" role="tabpanel">
-          {pestana === 'escenas' && (
-            <>
-              <PanelBusqueda
-                coleccion={coleccion}
-                onColeccion={cambiarColeccion}
-                desde={desde}
-                onDesde={setDesde}
-                hasta={hasta}
-                onHasta={setHasta}
-                nubesMax={nubesMax}
-                onNubesMax={setNubesMax}
-                buscando={buscando}
-                onBuscar={lanzarBusqueda}
-                plegado={busquedaPlegada}
-                onDesplegar={() => setBusquedaPlegada(false)}
-              />
-
-              <ListaEscenas
-                grupos={grupos}
-                totalCoincidencias={resultado?.totalCoincidencias ?? null}
-                seleccion={seleccion}
-                onElegir={(escenas) => {
-                  seleccionarDia(escenas)
-                  setListaPlegada(true)
-                }}
-                plegado={listaPlegada}
-                onDesplegar={() => setListaPlegada(false)}
-                buscando={buscando}
-                error={errorBusqueda}
-                yaBusco={resultado !== null || errorBusqueda !== null}
-              />
-
-              {/* El analisis aparece cuando la lista ya se plego a la escena elegida. */}
-              {listaPlegada && (
-              <PanelAnalisis
-                escenas={seleccion}
-                coleccion={coleccion}
-                modo={modo}
-                onModo={(nuevo) => {
-                  setModo(nuevo)
-                  limpiarAnalisis()
-                }}
-                indices={indicesPosibles}
-                indice={indice}
-                onIndice={(id) => {
-                  setIndice(indicesPosibles.find((i) => i.id === id) ?? null)
-                  limpiarAnalisis()
-                }}
-                bandasDisponibles={bandasDisponibles}
-                bandasKmeans={bandasKmeans}
-                onBandaKmeans={alternarBandaKmeans}
-                k={k}
-                onK={setK}
-                tamano={tamano}
-                onTamano={setTamano}
-                calculando={calculando}
-                onCalcular={lanzarAnalisis}
-                error={errorRaster}
-                diasReferencia={diasReferencia}
-                referencia={referencia}
-                onDiaReferencia={(dia) => {
-                  setReferencia(grupos.find((grupo) => grupo.dia === dia)?.escenas ?? [])
-                  limpiarAnalisis()
-                }}
-                umbralCambio={umbralCambio}
-                onUmbralCambio={(valor) => {
-                  setUmbralCambio(valor)
-                  limpiarAnalisis()
-                }}
-                umbralObra={umbralObra}
-                onUmbralObra={(valor) => {
-                  setUmbralObra(valor)
-                  limpiarAnalisis()
-                }}
-                umbralAguaDb={umbralAguaDb}
-                onUmbralAguaDb={(valor) => {
-                  setUmbralAguaDb(valor)
-                  limpiarAnalisis()
-                }}
-                areaMinimaObra={areaMinimaObra}
-                onAreaMinimaObra={(valor) => {
-                  setAreaMinimaObra(valor)
-                  limpiarAnalisis()
-                }}
-                quitarNubes={quitarNubes}
-                onQuitarNubes={(valor) => {
-                  setQuitarNubes(valor)
-                  limpiarAnalisis()
-                }}
-                soloAgua={soloAgua}
-                onSoloAgua={(valor) => {
-                  setSoloAgua(valor)
-                  limpiarAnalisis()
-                }}
-              />
-              )}
-            </>
+          {errorCapas && (
+            <p className="border-b border-filete px-4 py-3 text-xs text-peligro" role="alert">
+              No se pudieron cargar estas capas: {errorCapas}. El resto sigue disponible.
+            </p>
           )}
 
-          {pestana === 'serie' && (
-            <PanelSerie
-              indice={indice}
-              fechasDisponibles={grupos.length}
-              maxFechas={maxFechas}
-              onMaxFechas={setMaxFechas}
-              calculando={calculandoSerie}
-              progreso={progresoSerie}
-              resultado={serie}
-              error={errorSerie}
-              onCalcular={lanzarSerie}
-              onCancelar={() => cancelarSerie.current?.abort()}
-            />
-          )}
-
-          {pestana === 'referencia' && (
-            <PanelProductos
-              activo={producto}
-              cargando={cargandoProducto}
-              error={errorProducto}
-              onCargar={lanzarProducto}
-              onQuitar={() => {
-                setProducto(null)
-                setProductoVista(null)
-              }}
-            />
-          )}
-
-          {pestana === 'hidrologia' && (
-            <>
-              <PanelEscurrimiento
-                disponible={subcuencasCn !== null}
-                lluviaMm={lluviaMm}
-                onLluviaMm={setLluviaMm}
-                condicion={condicionCn}
-                onCondicion={setCondicionCn}
-                zonasObra={analisis?.zonasObra?.length ?? 0}
-                calculando={calculandoEscurrimiento}
-                resultado={escurrimiento}
-                error={errorEscurrimiento}
-                onCalcular={lanzarEscurrimiento}
-              />
-
-              <PanelInsar
-                bbox={areaBbox}
-                desde={desde}
-                hasta={hasta}
-                onCargarDesplazamiento={(href, limite) => {
-                  limpiarAnalisis()
-                  setDesplazamiento(href ? { tipo: 'insar', href, limite } : null)
-                }}
-              />
-            </>
-          )}
+          <SelectorArea area={area} onArea={setArea} />
         </div>
-      </aside>
 
-      <main className="relative min-w-0 flex-1">
-        <Mapa
-          capas={CAPAS}
-          datosCapas={datosCapas}
-          visibles={visibles}
-          areaBbox={areaBbox}
-          escenas={seleccion}
-          fuente={fuente}
-          opacidad={opacidad}
-          marcas={desplazamiento || productoVista ? [] : (analisis?.marcas ?? [])}
-          fondo={fondo}
-          onEstadoRaster={setEstadoRaster}
-        />
+        <SeccionFlotante
+          titulo="Escenas"
+          resumen={resumenEscenas}
+          abierta={seccion === 'escenas'}
+          onAlternar={() => alternarSeccion('escenas')}
+        >
+              <>
+                <PanelBusqueda
+                  coleccion={coleccion}
+                  onColeccion={cambiarColeccion}
+                  desde={desde}
+                  onDesde={setDesde}
+                  hasta={hasta}
+                  onHasta={setHasta}
+                  nubesMax={nubesMax}
+                  onNubesMax={setNubesMax}
+                  buscando={buscando}
+                  onBuscar={lanzarBusqueda}
+                  plegado={busquedaPlegada}
+                  onDesplegar={() => setBusquedaPlegada(false)}
+                />
 
-        <ControlMapa visibles={visibles} onVisible={alternarVisible} fondo={fondo} onFondo={setFondo} />
+                <ListaEscenas
+                  grupos={grupos}
+                  totalCoincidencias={resultado?.totalCoincidencias ?? null}
+                  seleccion={seleccion}
+                  onElegir={(escenas) => {
+                    seleccionarDia(escenas)
+                    setListaPlegada(true)
+                  }}
+                  plegado={listaPlegada}
+                  onDesplegar={() => setListaPlegada(false)}
+                  onPantallaCompleta={() => setGaleriaAbierta(true)}
+                  buscando={buscando}
+                  error={errorBusqueda}
+                  yaBusco={resultado !== null || errorBusqueda !== null}
+                />
 
-        <TarjetaResultado titulo={tituloResultado} leyenda={leyendaEnMapa} notas={notasEnMapa} />
+                {/* El analisis aparece cuando la lista ya se plego a la escena elegida. */}
+                {listaPlegada && (
+                <PanelAnalisis
+                  escenas={seleccion}
+                  coleccion={coleccion}
+                  modo={modo}
+                  onModo={(nuevo) => {
+                    setModo(nuevo)
+                    limpiarAnalisis()
+                  }}
+                  indices={indicesPosibles}
+                  indice={indice}
+                  onIndice={(id) => {
+                    setIndice(indicesPosibles.find((i) => i.id === id) ?? null)
+                    limpiarAnalisis()
+                  }}
+                  bandasDisponibles={bandasDisponibles}
+                  bandasKmeans={bandasKmeans}
+                  onBandaKmeans={alternarBandaKmeans}
+                  k={k}
+                  onK={setK}
+                  tamano={tamano}
+                  onTamano={setTamano}
+                  calculando={calculando}
+                  onCalcular={lanzarAnalisis}
+                  error={errorRaster}
+                  diasReferencia={diasReferencia}
+                  referencia={referencia}
+                  onDiaReferencia={(dia) => {
+                    setReferencia(grupos.find((grupo) => grupo.dia === dia)?.escenas ?? [])
+                    limpiarAnalisis()
+                  }}
+                  umbralCambio={umbralCambio}
+                  onUmbralCambio={(valor) => {
+                    setUmbralCambio(valor)
+                    limpiarAnalisis()
+                  }}
+                  umbralObra={umbralObra}
+                  onUmbralObra={(valor) => {
+                    setUmbralObra(valor)
+                    limpiarAnalisis()
+                  }}
+                  umbralAguaDb={umbralAguaDb}
+                  onUmbralAguaDb={(valor) => {
+                    setUmbralAguaDb(valor)
+                    limpiarAnalisis()
+                  }}
+                  areaMinimaObra={areaMinimaObra}
+                  onAreaMinimaObra={(valor) => {
+                    setAreaMinimaObra(valor)
+                    limpiarAnalisis()
+                  }}
+                  quitarNubes={quitarNubes}
+                  onQuitarNubes={(valor) => {
+                    setQuitarNubes(valor)
+                    limpiarAnalisis()
+                  }}
+                  soloAgua={soloAgua}
+                  onSoloAgua={(valor) => {
+                    setSoloAgua(valor)
+                    limpiarAnalisis()
+                  }}
+                />
+                )}
+              </>
+        </SeccionFlotante>
+
+        <SeccionFlotante
+          titulo="Serie de tiempo"
+          resumen={resumenSerie}
+          abierta={seccion === 'serie'}
+          onAlternar={() => alternarSeccion('serie')}
+        >
+              <PanelSerie
+                indice={indice}
+                fechasDisponibles={grupos.length}
+                maxFechas={maxFechas}
+                onMaxFechas={setMaxFechas}
+                calculando={calculandoSerie}
+                progreso={progresoSerie}
+                resultado={serie}
+                error={errorSerie}
+                onCalcular={lanzarSerie}
+                onCancelar={() => cancelarSerie.current?.abort()}
+              />
+        </SeccionFlotante>
+
+        <SeccionFlotante
+          titulo="Capas de referencia"
+          resumen={resumenReferencia}
+          abierta={seccion === 'referencia'}
+          onAlternar={() => alternarSeccion('referencia')}
+        >
+              <PanelProductos
+                activo={producto}
+                cargando={cargandoProducto}
+                error={errorProducto}
+                onCargar={lanzarProducto}
+                onQuitar={() => {
+                  setProducto(null)
+                  setProductoVista(null)
+                }}
+              />
+        </SeccionFlotante>
+
+        <SeccionFlotante
+          titulo="Hidrología"
+          resumen={'Escurrimiento por número de curva y subsidencia InSAR'}
+          abierta={seccion === 'hidrologia'}
+          onAlternar={() => alternarSeccion('hidrologia')}
+        >
+              <>
+                <PanelEscurrimiento
+                  disponible={subcuencasCn !== null}
+                  lluviaMm={lluviaMm}
+                  onLluviaMm={setLluviaMm}
+                  condicion={condicionCn}
+                  onCondicion={setCondicionCn}
+                  zonasObra={analisis?.zonasObra?.length ?? 0}
+                  calculando={calculandoEscurrimiento}
+                  resultado={escurrimiento}
+                  error={errorEscurrimiento}
+                  onCalcular={lanzarEscurrimiento}
+                />
+
+                <PanelInsar
+                  bbox={areaBbox}
+                  desde={desde}
+                  hasta={hasta}
+                  onCargarDesplazamiento={(href, limite) => {
+                    limpiarAnalisis()
+                    setDesplazamiento(href ? { tipo: 'insar', href, limite } : null)
+                  }}
+                />
+              </>
+        </SeccionFlotante>
+
+        <SeccionFlotante
+          titulo="Capas del mapa"
+          resumen={resumenCapas}
+          abierta={seccion === 'capas'}
+          onAlternar={() => alternarSeccion('capas')}
+        >
+            <ControlMapa visibles={visibles} onVisible={alternarVisible} fondo={fondo} onFondo={setFondo} />
+        </SeccionFlotante>
+      </div>
+
+      <TarjetaResultado titulo={tituloResultado} leyenda={leyendaEnMapa} notas={notasEnMapa} />
 
         {seleccion.length > 0 && (
           <div className="absolute right-3 top-3 z-1000 w-76 border border-filete-fuerte bg-panel-hondo/95 text-xs">
@@ -774,7 +798,20 @@ export default function App() {
             </div>
           </div>
         )}
-      </main>
+
+      {galeriaAbierta && (
+        <GaleriaEscenas
+          grupos={grupos}
+          seleccion={seleccion}
+          coleccion={coleccion.etiqueta}
+          onElegir={(escenas) => {
+            seleccionarDia(escenas)
+            setListaPlegada(true)
+            setSeccion('escenas')
+          }}
+          onCerrar={() => setGaleriaAbierta(false)}
+        />
+      )}
     </div>
   )
 }

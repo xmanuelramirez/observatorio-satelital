@@ -10,6 +10,7 @@ interface Props {
   onElegir: (escenas: Escena[]) => void
   plegado: boolean
   onDesplegar: () => void
+  onPantallaCompleta: () => void
   buscando: boolean
   error: string | null
   yaBusco: boolean
@@ -51,6 +52,7 @@ export default function ListaEscenas({
   onElegir,
   plegado,
   onDesplegar,
+  onPantallaCompleta,
   buscando,
   error,
   yaBusco,
@@ -95,7 +97,12 @@ export default function ListaEscenas({
   return (
     <div>
       <div className="border-b border-filete px-4 py-3">
-        <TituloPaso numero={2} titulo="Escena" />
+        <div className="flex items-center justify-between gap-2">
+          <TituloPaso numero={2} titulo="Escena" />
+          <button type="button" onClick={onPantallaCompleta} className="boton py-1">
+            Ver en pantalla completa
+          </button>
+        </div>
         <p className="mt-1.5 text-xs leading-snug text-tinta-suave">
           <span className="cifra text-tinta">{grupos.length}</span> fechas,{' '}
           <span className="cifra text-tinta">{totalEscenas}</span> escenas

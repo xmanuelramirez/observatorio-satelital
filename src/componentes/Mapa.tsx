@@ -98,7 +98,8 @@ function AjustarA({ bbox }: { bbox: Bbox | null }) {
           [bbox[1], bbox[0]],
           [bbox[3], bbox[2]],
         ],
-        { padding: [24, 24] },
+        // El menu flotante ocupa unos 370 px del margen izquierdo.
+        { paddingTopLeft: [390, 24], paddingBottomRight: [24, 24] },
       )
       return true
     }
