@@ -4,7 +4,9 @@ import { CAPAS } from './datos/capas'
 import { COLECCION_POR_DEFECTO, buscarColeccion } from './datos/colecciones'
 import { bboxDe, cargarGeojson } from './servicios/geojson'
 import { buscarEscenas, type ResultadoBusqueda } from './servicios/stac'
-import { bandasDelAgua, ejecutarAnalisis, type ResultadoAnalisis } from './servicios/analisis'
+import { bandasDelAgua, type EntradaLeyenda } from './servicios/analisis'
+import { pedirAnalisis, pedirSerie } from './servicios/calculo'
+import { pintarResultado, type ResultadoPintado } from './servicios/pintura'
 import { INDICES, indicesDisponibles, type DefinicionIndice } from './servicios/indices'
 import type { Bbox, Escena, GrupoDia, IdCapa, ModoVista, NombreBanda } from './tipos'
 import { diaLocal } from './lib/fecha'
@@ -24,7 +26,7 @@ import {
   type ResultadoEscurrimiento,
 } from './servicios/escurrimiento'
 import { cargarProducto, PRODUCTOS, type IdProducto } from './servicios/productos'
-import { calcularSerie, type ResultadoSerie } from './servicios/serie'
+import type { ResultadoSerie } from './servicios/serie'
 
 // Dia de Leon, no dia UTC: con toISOString, despues de las 18:00 locales
 // "hoy" ya era manana.
@@ -77,7 +79,7 @@ export default function App() {
   const [k, setK] = useState(5)
   const [tamano, setTamano] = useState(512)
 
-  const [analisis, setAnalisis] = useState<ResultadoAnalisis | null>(null)
+  const [analisis, setAnalisis] = useState<ResultadoPintado | null>(null)
   const [calculando, setCalculando] = useState(false)
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null)
 
@@ -93,7 +95,15 @@ export default function App() {
   const cancelarSerie = useRef<AbortController | null>(null)
 
   const [producto, setProducto] = useState<IdProducto | null>(null)
-  const [productoResultado, setProductoResultado] = useState<ResultadoAnalisis | null>(null)
+  /**
+   * Lo que la capa de referencia pone en el mapa y en su leyenda. Casi
+   * siempre es una imagen precalculada; solo si falta se calcula en vivo.
+   */
+  const [productoVista, setProductoVista] = useState<{
+    fuente: FuenteRaster
+    leyenda: EntradaLeyenda[]
+    notas: string[]
+  } | null>(null)
   const [cargandoProducto, setCargandoProducto] = useState<IdProducto | null>(null)
   const [errorProducto, setErrorProducto] = useState<string | null>(null)
 
@@ -277,10 +287,10 @@ export default function App() {
 
       // Un analisis nuevo reemplaza a lo que hubiera en el mapa.
       setDesplazamiento(null)
-      setProductoResultado(null)
+      setProductoVista(null)
       setProducto(null)
 
-      const salida = await ejecutarAnalisis({
+      const salida = await pedirAnalisis({
         escenas: seleccion,
         escenasReferencia: referencia,
         coleccion,
@@ -367,22 +377,47 @@ export default function App() {
       setErrorProducto(null)
 
       try {
-        const salida = await cargarProducto({
-          producto: definicion,
-          bbox: areaBbox,
-          areaGeojson,
-          etiquetaArea: CAPAS.find((c) => c.id === area)?.etiqueta ?? area,
-          // Rejilla fina: son productos estaticos y se leen una sola vez.
-          tamano: 512,
-        })
-        setProductoResultado(salida)
+        const ruta = `${import.meta.env.BASE_URL}precalculado/${area}/${id}`
+        const precalculado = await fetch(`${ruta}.json`).catch(() => null)
+
+        if (precalculado?.ok) {
+          const datos = (await precalculado.json()) as {
+            limites: [[number, number], [number, number]]
+            leyenda: EntradaLeyenda[]
+            notas: string[]
+            generado: string
+          }
+          setProductoVista({
+            fuente: { tipo: 'imagen', url: `${ruta}.png`, limites: datos.limites, clave: ruta },
+            leyenda: datos.leyenda,
+            notas: [
+              ...datos.notas,
+              `Precalculado al construir el sitio (${datos.generado.slice(0, 10)}), no en tu navegador.`,
+            ],
+          })
+        } else {
+          // Area sin precalculo: se calcula aqui, que es lo lento.
+          const salida = await cargarProducto({
+            producto: definicion,
+            bbox: areaBbox,
+            areaGeojson,
+            etiquetaArea: CAPAS.find((c) => c.id === area)?.etiqueta ?? area,
+            tamano: 512,
+          })
+          setProductoVista({
+            fuente: { tipo: 'pintado', resultado: pintarResultado(salida) },
+            leyenda: salida.leyenda,
+            notas: salida.notas,
+          })
+        }
+
         setProducto(id)
         // La capa de referencia manda sobre lo que hubiera pintado antes.
         limpiarAnalisis()
         setDesplazamiento(null)
       } catch (error: unknown) {
         setErrorProducto(error instanceof Error ? error.message : String(error))
-        setProductoResultado(null)
+        setProductoVista(null)
         setProducto(null)
       } finally {
         setCargandoProducto(null)
@@ -390,6 +425,13 @@ export default function App() {
     },
     [areaBbox, datosCapas, area, limpiarAnalisis],
   )
+
+  // Cambiar de area con una capa de referencia puesta la vuelve a cargar para
+  // la nueva area; sin esto se quedaba pintada la del area anterior.
+  useEffect(() => {
+    if (producto) void lanzarProducto(producto)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [area])
 
   const lanzarSerie = useCallback(async () => {
     if (!areaBbox || !indice) return
@@ -405,23 +447,25 @@ export default function App() {
     setProgresoSerie({ hechas: 0, total: 0, dia: '' })
 
     try {
-      const salida = await calcularSerie({
-        grupos,
-        coleccion,
-        indice,
-        bbox: areaBbox,
-        areaGeojson,
-        quitarNubes,
-        soloAgua,
-        bandasAgua: bandasDelAgua(coleccion),
-        // Rejilla gruesa a proposito: la media sobre miles de hectareas no
-        // cambia por afinar la celda, y el tiempo de espera si.
-        tamano: 128,
-        maxFechas,
-        coberturaMinima: 0.3,
-        onProgreso: (hechas, total, dia) => setProgresoSerie({ hechas, total, dia }),
-        senal: control.signal,
-      })
+      const salida = await pedirSerie(
+        {
+          grupos,
+          coleccion,
+          indice,
+          bbox: areaBbox,
+          areaGeojson,
+          quitarNubes,
+          soloAgua,
+          bandasAgua: bandasDelAgua(coleccion),
+          // Rejilla gruesa a proposito: la media sobre miles de hectareas no
+          // cambia por afinar la celda, y el tiempo de espera si.
+          tamano: 128,
+          maxFechas,
+          coberturaMinima: 0.3,
+        },
+        (hechas, total, dia) => setProgresoSerie({ hechas, total, dia }),
+        control.signal,
+      )
       setSerie(salida)
     } catch (error: unknown) {
       setErrorSerie(error instanceof Error ? error.message : String(error))
@@ -440,8 +484,8 @@ export default function App() {
   const fuente = useMemo<FuenteRaster>(() => {
     // El desplazamiento gana: es un producto aparte que el usuario pidio ver.
     if (desplazamiento) return desplazamiento
-    if (productoResultado) return { tipo: 'memoria', resultado: productoResultado }
-    if (analisis) return { tipo: 'memoria', resultado: analisis }
+    if (productoVista) return productoVista.fuente
+    if (analisis) return { tipo: 'pintado', resultado: analisis }
     // Con dos mallas el atajo no sirve: cada COG trae su propia zona UTM y
     // pintarlos encima no es un mosaico. Ahi hay que pasar por el calculo.
     if (seleccion.length === 1 && modo === 'color' && coleccion.assetColorVerdadero) {
@@ -449,7 +493,7 @@ export default function App() {
       if (asset) return { tipo: 'cog', href: asset.href }
     }
     return null
-  }, [desplazamiento, productoResultado, analisis, seleccion, modo, coleccion])
+  }, [desplazamiento, productoVista, analisis, seleccion, modo, coleccion])
 
   const errorRaster = errorAnalisis ?? estadoRaster.error
 
@@ -505,11 +549,11 @@ export default function App() {
             activo={producto}
             cargando={cargandoProducto}
             error={errorProducto}
-            resultado={productoResultado}
+            resultado={productoVista}
             onCargar={lanzarProducto}
             onQuitar={() => {
               setProducto(null)
-              setProductoResultado(null)
+              setProductoVista(null)
             }}
           />
 

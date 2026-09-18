@@ -281,3 +281,9 @@ input[type='date']::-webkit-calendar-picker-indicator {
   border-color: var(--color-filete) !important;
   border-radius: 0 !important;
 }
+
+/* Resultados pintados como imagen: cada celda de la rejilla se ve nitida,
+   sin el suavizado que inventaria valores entre celdas. */
+.capa-pixelada {
+  image-rendering: pixelated;
+}

@@ -1,4 +1,4 @@
-import type { ResultadoAnalisis } from '../servicios/analisis'
+import type { EntradaLeyenda } from '../servicios/analisis'
 import { PRODUCTOS, type IdProducto } from '../servicios/productos'
 
 interface Props {
@@ -7,7 +7,7 @@ interface Props {
   error: string | null
   /** Leyenda y notas del producto cargado; se muestran aqui y no en el panel
    *  de analisis, porque este no existe hasta elegir una escena. */
-  resultado: ResultadoAnalisis | null
+  resultado: { leyenda: EntradaLeyenda[]; notas: string[] } | null
   onCargar: (id: IdProducto) => void
   onQuitar: () => void
 }
@@ -89,7 +89,8 @@ export default function PanelProductos({
       )}
 
       <p className="mt-2 text-xs leading-snug text-rotulo">
-        Vienen de Planetary Computer, ya procesadas. No dependen de la búsqueda de escenas.
+        Precalculadas al construir el sitio a partir de Planetary Computer: aparecen al
+        instante y no dependen de la búsqueda de escenas.
       </p>
     </section>
   )

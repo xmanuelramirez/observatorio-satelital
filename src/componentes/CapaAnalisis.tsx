@@ -1,14 +1,19 @@
 import { useEffect, useRef } from 'react'
 import { useMap } from 'react-leaflet'
+import { imageOverlay, type ImageOverlay, type Layer } from 'leaflet'
 import parseGeoraster from 'georaster'
 import GeoRasterLayer from 'georaster-layer-for-leaflet'
-import type { ResultadoAnalisis } from '../servicios/analisis'
+import { pixelesAImagen } from '../servicios/imagen'
+import type { ResultadoPintado } from '../servicios/pintura'
 import { colorDeCambio } from '../servicios/paletas'
 
 export type FuenteRaster =
   | { tipo: 'cog'; href: string }
   | { tipo: 'insar'; href: string; limite: number }
-  | { tipo: 'memoria'; resultado: ResultadoAnalisis }
+  /** Resultado de un calculo, ya pintado por el worker. */
+  | { tipo: 'pintado'; resultado: ResultadoPintado }
+  /** Imagen ya pintada, precalculada en el despliegue. */
+  | { tipo: 'imagen'; url: string; limites: [[number, number], [number, number]]; clave: string }
   | null
 
 interface Props {
@@ -17,20 +22,30 @@ interface Props {
   onEstado: (estado: { cargando: boolean; error: string | null }) => void
 }
 
-/** georaster espera banda por banda y fila por fila, no un TypedArray plano. */
-function aFilas(banda: Float32Array, ancho: number, alto: number): number[][] {
-  const filas: number[][] = new Array(alto)
-  for (let y = 0; y < alto; y++) {
-    const fila = new Array<number>(ancho)
-    for (let x = 0; x < ancho; x++) fila[x] = banda[y * ancho + x]
-    filas[y] = fila
-  }
-  return filas
+interface CapaMontada {
+  capa: Layer & { setOpacity: (opacidad: number) => unknown }
+  /** Direccion de un blob que hay que liberar al quitar la capa. */
+  urlPropia: string | null
+}
+
+/**
+ * Pinta cada resultado como una sola imagen y deja georaster solo para lo que
+ * de verdad lo necesita: leer un COG completo (color verdadero) o un GeoTIFF
+ * externo (InSAR), que no pasan por la rejilla de analisis.
+ */
+function comoImagen(url: string, limites: [[number, number], [number, number]], opacidad: number): ImageOverlay {
+  return imageOverlay(url, limites, {
+    pane: 'overlayPane',
+    opacity: opacidad,
+    interactive: false,
+    // Sin suavizado: cada celda de la rejilla se ve como lo que es.
+    className: 'capa-pixelada',
+  })
 }
 
 export default function CapaAnalisis({ fuente, opacidad, onEstado }: Props) {
   const mapa = useMap()
-  const capaRef = useRef<GeoRasterLayer | null>(null)
+  const montadaRef = useRef<CapaMontada | null>(null)
 
   const clave =
     fuente === null
@@ -39,16 +54,19 @@ export default function CapaAnalisis({ fuente, opacidad, onEstado }: Props) {
         ? `cog:${fuente.href}`
         : fuente.tipo === 'insar'
           ? `insar:${fuente.href}:${fuente.limite}`
-          : `mem:${fuente.resultado.sello}`
+          : fuente.tipo === 'imagen'
+            ? `img:${fuente.clave}`
+            : `pix:${fuente.resultado.sello}`
 
   useEffect(() => {
     let cancelado = false
 
     const limpiar = () => {
-      if (capaRef.current) {
-        mapa.removeLayer(capaRef.current)
-        capaRef.current = null
-      }
+      const montada = montadaRef.current
+      if (!montada) return
+      mapa.removeLayer(montada.capa)
+      if (montada.urlPropia) URL.revokeObjectURL(montada.urlPropia)
+      montadaRef.current = null
     }
 
     if (!fuente) {
@@ -59,23 +77,35 @@ export default function CapaAnalisis({ fuente, opacidad, onEstado }: Props) {
 
     onEstado({ cargando: true, error: null })
 
-    const preparar = async (): Promise<GeoRasterLayer> => {
-      if (fuente.tipo === 'cog') {
-        const georaster = await parseGeoraster(fuente.href)
-        return new GeoRasterLayer({
-          georaster,
-          // overlayPane va por encima del mapa base; en tilePane el fondo lo tapa.
-          pane: 'overlayPane',
-          resolution: 256,
-          opacity: opacidad,
-        })
+    const preparar = async (): Promise<CapaMontada> => {
+      if (fuente.tipo === 'imagen') {
+        return { capa: comoImagen(fuente.url, fuente.limites, opacidad), urlPropia: null }
       }
 
-      if (fuente.tipo === 'insar') {
-        const georaster = await parseGeoraster(fuente.href)
-        const limite = fuente.limite
+      if (fuente.tipo === 'pintado') {
+        const url = await pixelesAImagen(fuente.resultado)
+        return { capa: comoImagen(url, fuente.resultado.limites, opacidad), urlPropia: url }
+      }
 
-        return new GeoRasterLayer({
+      if (fuente.tipo === 'cog') {
+        const georaster = await parseGeoraster(fuente.href)
+        return {
+          capa: new GeoRasterLayer({
+            georaster,
+            // overlayPane va por encima del mapa base; en tilePane el fondo lo tapa.
+            pane: 'overlayPane',
+            resolution: 256,
+            opacity: opacidad,
+          }),
+          urlPropia: null,
+        }
+      }
+
+      const georaster = await parseGeoraster(fuente.href)
+      const limite = fuente.limite
+
+      return {
+        capa: new GeoRasterLayer({
           georaster,
           pane: 'overlayPane',
           resolution: 256,
@@ -86,36 +116,20 @@ export default function CapaAnalisis({ fuente, opacidad, onEstado }: Props) {
             if (valor === 0) return undefined
             return colorDeCambio(valor, limite)
           },
-        })
+        }),
+        urlPropia: null,
       }
-
-      const { rejilla, bandas, colorear } = fuente.resultado
-      const valores = bandas.map((banda) => aFilas(banda, rejilla.ancho, rejilla.alto))
-
-      const georaster = await parseGeoraster(valores, {
-        noDataValue: Number.NaN,
-        projection: rejilla.epsg,
-        xmin: rejilla.xmin,
-        ymax: rejilla.ymax,
-        pixelWidth: rejilla.pixelAncho,
-        pixelHeight: rejilla.pixelAlto,
-      })
-
-      return new GeoRasterLayer({
-        georaster,
-        pane: 'overlayPane',
-        resolution: 256,
-        opacity: opacidad,
-        pixelValuesToColorFn: colorear,
-      })
     }
 
     preparar()
-      .then((capa) => {
-        if (cancelado) return
+      .then((montada) => {
+        if (cancelado) {
+          if (montada.urlPropia) URL.revokeObjectURL(montada.urlPropia)
+          return
+        }
         limpiar()
-        capa.addTo(mapa)
-        capaRef.current = capa
+        montada.capa.addTo(mapa)
+        montadaRef.current = montada
         onEstado({ cargando: false, error: null })
       })
       .catch((error: unknown) => {
@@ -135,12 +149,15 @@ export default function CapaAnalisis({ fuente, opacidad, onEstado }: Props) {
   }, [clave])
 
   useEffect(() => {
-    capaRef.current?.setOpacity(opacidad)
+    montadaRef.current?.capa.setOpacity(opacidad)
   }, [opacidad])
 
   useEffect(() => {
     return () => {
-      if (capaRef.current) mapa.removeLayer(capaRef.current)
+      const montada = montadaRef.current
+      if (!montada) return
+      mapa.removeLayer(montada.capa)
+      if (montada.urlPropia) URL.revokeObjectURL(montada.urlPropia)
     }
   }, [mapa])
 

@@ -1,0 +1,59 @@
+{
+  "producto": "cobertura",
+  "area": "LIMITE_URBANO",
+  "limites": [
+    [
+      21.04417699000803,
+      -101.78286365168053
+    ],
+    [
+      21.224156465316526,
+      -101.5554100166687
+    ]
+  ],
+  "leyenda": [
+    {
+      "color": "#fa0000",
+      "etiqueta": "Construido",
+      "detalle": "15,924 ha (69.1 por ciento)"
+    },
+    {
+      "color": "#f096ff",
+      "etiqueta": "Agrícola",
+      "detalle": "2,146 ha (9.3 por ciento)"
+    },
+    {
+      "color": "#ffbb22",
+      "etiqueta": "Matorral",
+      "detalle": "1,926 ha (8.4 por ciento)"
+    },
+    {
+      "color": "#ffff4c",
+      "etiqueta": "Pastizal",
+      "detalle": "1,595 ha (6.9 por ciento)"
+    },
+    {
+      "color": "#006400",
+      "etiqueta": "Arbolado",
+      "detalle": "856 ha (3.7 por ciento)"
+    },
+    {
+      "color": "#b4b4b4",
+      "etiqueta": "Suelo desnudo",
+      "detalle": "381 ha (1.7 por ciento)"
+    },
+    {
+      "color": "#0064c8",
+      "etiqueta": "Agua permanente",
+      "detalle": "228 ha (1.0 por ciento)"
+    }
+  ],
+  "notas": [
+    "ESA WorldCover 10 m v200 (2021), resolución nativa de 10 m. Año 2021.",
+    "Recortado al polígono de Límite urbano: 23,057 ha, sobre rejilla de 1024 por 1024.",
+    "Clasificación de 2021, no de hoy: para ver qué cambió desde entonces, el modo Obra compara dos fechas de Sentinel-2.",
+    "Los colores son los oficiales del producto, para que la leyenda coincida con su documentación."
+  ],
+  "generado": "2026-09-18T03:10:05.939Z",
+  "fuente": "ESA WorldCover 10 m v200 (2021)"
+}

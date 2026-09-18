@@ -1,0 +1,59 @@
+{
+  "producto": "cobertura",
+  "area": "CUENCA_PALOTE",
+  "limites": [
+    [
+      21.164513207805605,
+      -101.75448113062936
+    ],
+    [
+      21.338640257711965,
+      -101.51173740888004
+    ]
+  ],
+  "leyenda": [
+    {
+      "color": "#ffbb22",
+      "etiqueta": "Matorral",
+      "detalle": "19,277 ha (66.3 por ciento)"
+    },
+    {
+      "color": "#006400",
+      "etiqueta": "Arbolado",
+      "detalle": "3,978 ha (13.7 por ciento)"
+    },
+    {
+      "color": "#ffff4c",
+      "etiqueta": "Pastizal",
+      "detalle": "2,926 ha (10.1 por ciento)"
+    },
+    {
+      "color": "#fa0000",
+      "etiqueta": "Construido",
+      "detalle": "1,491 ha (5.1 por ciento)"
+    },
+    {
+      "color": "#f096ff",
+      "etiqueta": "Agrícola",
+      "detalle": "921 ha (3.2 por ciento)"
+    },
+    {
+      "color": "#0064c8",
+      "etiqueta": "Agua permanente",
+      "detalle": "275 ha (0.9 por ciento)"
+    },
+    {
+      "color": "#b4b4b4",
+      "etiqueta": "Suelo desnudo",
+      "detalle": "191 ha (0.7 por ciento)"
+    }
+  ],
+  "notas": [
+    "ESA WorldCover 10 m v200 (2021), resolución nativa de 10 m. Año 2021.",
+    "Recortado al polígono de Cuenca Palote: 29,060 ha, sobre rejilla de 1024 por 1024.",
+    "Clasificación de 2021, no de hoy: para ver qué cambió desde entonces, el modo Obra compara dos fechas de Sentinel-2.",
+    "Los colores son los oficiales del producto, para que la leyenda coincida con su documentación."
+  ],
+  "generado": "2026-09-18T03:10:24.966Z",
+  "fuente": "ESA WorldCover 10 m v200 (2021)"
+}

@@ -1,0 +1,39 @@
+{
+  "producto": "agua-historica",
+  "area": "CUENCA_PALOTE",
+  "limites": [
+    [
+      21.164513207805605,
+      -101.75448113062936
+    ],
+    [
+      21.338640257711965,
+      -101.51173740888004
+    ]
+  ],
+  "leyenda": [
+    {
+      "color": "rgb(48,130,193)",
+      "etiqueta": "Permanente (90 a 100 % de las veces)",
+      "detalle": "92 ha"
+    },
+    {
+      "color": "rgb(85,155,207)",
+      "etiqueta": "Estacional (50 a 90 %)",
+      "detalle": "147 ha"
+    },
+    {
+      "color": "rgb(153,200,231)",
+      "etiqueta": "Ocasional (menos de 50 %)",
+      "detalle": "124 ha"
+    }
+  ],
+  "notas": [
+    "JRC Global Surface Water (Pekel et al.), resolución nativa de 30 m. Año 2020.",
+    "Recortado al polígono de Cuenca Palote: 29,060 ha, sobre rejilla de 1024 por 1024.",
+    "Frecuencia con la que Landsat vio agua en cada punto entre 1984 y 2021. Sirve para ver hasta dónde llegó el vaso en su mejor año, no para saber cómo está hoy.",
+    "El agua permanente del área suma 92 ha; la estacional, 147 ha."
+  ],
+  "generado": "2026-09-18T03:10:19.232Z",
+  "fuente": "JRC Global Surface Water (Pekel et al.)"
+}

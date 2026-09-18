@@ -1,0 +1,37 @@
+{
+  "producto": "evapotranspiracion",
+  "area": "CUENCA_PALOTE",
+  "limites": [
+    [
+      21.164513207805605,
+      -101.75448113062936
+    ],
+    [
+      21.338640257711965,
+      -101.51173740888004
+    ]
+  ],
+  "leyenda": [
+    {
+      "color": "rgb(240,230,200)",
+      "etiqueta": "187 mm al año"
+    },
+    {
+      "color": "rgb(150,200,140)",
+      "etiqueta": "356 mm al año"
+    },
+    {
+      "color": "rgb(60,170,80)",
+      "etiqueta": "525 mm al año"
+    }
+  ],
+  "notas": [
+    "MODIS MOD16A3GF v061, resolución nativa de 500 m. Año 2024.",
+    "Recortado al polígono de Cuenca Palote: 29,061 ha, sobre rejilla de 256 por 256.",
+    "Media de 345 mm al año sobre el área, entre 187 y 525 (percentiles 2 y 98) en 28,800 ha con dato.",
+    "A 500 m de resolución, una celda mezcla ciudad y campo: sirve para el balance del municipio, no para un predio.",
+    "Es el producto anual ya rellenado (gap-filled). OpenET, que sería el estándar fino, no cubre México."
+  ],
+  "generado": "2026-09-18T03:10:30.811Z",
+  "fuente": "MODIS MOD16A3GF v061"
+}

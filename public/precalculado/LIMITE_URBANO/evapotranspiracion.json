@@ -1,0 +1,37 @@
+{
+  "producto": "evapotranspiracion",
+  "area": "LIMITE_URBANO",
+  "limites": [
+    [
+      21.04417699000803,
+      -101.78286365168053
+    ],
+    [
+      21.224156465316526,
+      -101.5554100166687
+    ]
+  ],
+  "leyenda": [
+    {
+      "color": "rgb(240,230,200)",
+      "etiqueta": "157 mm al año"
+    },
+    {
+      "color": "rgb(150,200,140)",
+      "etiqueta": "261 mm al año"
+    },
+    {
+      "color": "rgb(60,170,80)",
+      "etiqueta": "366 mm al año"
+    }
+  ],
+  "notas": [
+    "MODIS MOD16A3GF v061, resolución nativa de 500 m. Año 2024.",
+    "Recortado al polígono de Límite urbano: 23,064 ha, sobre rejilla de 256 por 256.",
+    "Media de 215 mm al año sobre el área, entre 157 y 366 (percentiles 2 y 98) en 15,246 ha con dato.",
+    "A 500 m de resolución, una celda mezcla ciudad y campo: sirve para el balance del municipio, no para un predio.",
+    "Es el producto anual ya rellenado (gap-filled). OpenET, que sería el estándar fino, no cubre México."
+  ],
+  "generado": "2026-09-18T03:10:12.065Z",
+  "fuente": "MODIS MOD16A3GF v061"
+}

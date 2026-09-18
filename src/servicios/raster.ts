@@ -220,14 +220,31 @@ async function leerVentanaNativa(
    */
   const sinDato = asset.sinDato ?? 0
 
-  const leidas = (await tiff.readRasters({
+  const opciones = {
     bbox: [xmin, ymin, xmax, ymax],
     width: destino.ancho,
     height: destino.alto,
-    interleave: false,
+    interleave: false as const,
     resampleMethod: 'nearest',
     fillValue: sinDato,
-  })) as unknown as ArrayLike<number>[]
+  }
+
+  let leidas: ArrayLike<number>[]
+  try {
+    leidas = (await tiff.readRasters(opciones)) as unknown as ArrayLike<number>[]
+  } catch (error) {
+    /*
+     * Un bloque que llega truncado por la red hace fallar al descompresor
+     * ("buffer error", "invalid ..."). Se vio de forma intermitente al leer
+     * desde el worker. Reabrir el archivo descarta los bloques en cache, y un
+     * reintento basta; si vuelve a fallar, el error es real y se propaga.
+     */
+    const mensaje = error instanceof Error ? error.message : String(error)
+    if (!/buffer error|invalid|incorrect header|unexpected end|data error/i.test(mensaje)) throw error
+
+    const deNuevo = await fromUrl(asset.href)
+    leidas = (await deNuevo.readRasters(opciones)) as unknown as ArrayLike<number>[]
+  }
 
   const crudos = leidas[0]
   const valores = new Float32Array(destino.ancho * destino.alto)

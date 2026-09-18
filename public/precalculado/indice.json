@@ -1,0 +1,17 @@
+{
+  "LIMITE": {
+    "agua-historica": "LIMITE/agua-historica",
+    "cobertura": "LIMITE/cobertura",
+    "evapotranspiracion": "LIMITE/evapotranspiracion"
+  },
+  "LIMITE_URBANO": {
+    "agua-historica": "LIMITE_URBANO/agua-historica",
+    "cobertura": "LIMITE_URBANO/cobertura",
+    "evapotranspiracion": "LIMITE_URBANO/evapotranspiracion"
+  },
+  "CUENCA_PALOTE": {
+    "agua-historica": "CUENCA_PALOTE/agua-historica",
+    "cobertura": "CUENCA_PALOTE/cobertura",
+    "evapotranspiracion": "CUENCA_PALOTE/evapotranspiracion"
+  }
+}
