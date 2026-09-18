@@ -191,7 +191,30 @@ interface VentanaNativa {
   pixelAlto: number
 }
 
-async function leerVentanaNativa(
+/**
+ * Fallas de red o de un bloque que llego truncado: el servidor cerro la
+ * conexion a media lectura ("fetch failed", "other side closed") o el
+ * descompresor recibio medio bloque ("buffer error", "invalid ..."). Se ven
+ * de forma intermitente, sobre todo con muchas lecturas en paralelo como las
+ * del resumen semanal. Un error de otro tipo es real y no se reintenta.
+ */
+const ERROR_PASAJERO =
+  /fetch failed|other side closed|socket|network|ECONNRESET|buffer error|invalid|incorrect header|unexpected end|data error/i
+
+async function leerVentanaNativa(asset: AssetBanda, destino: Rejilla): Promise<VentanaNativa> {
+  for (let intento = 1; ; intento++) {
+    try {
+      // Cada intento reabre el archivo para descartar los bloques en cache.
+      return await leerVentanaUnaVez(asset, destino)
+    } catch (error) {
+      const mensaje = error instanceof Error ? `${error.message} ${String(error.cause ?? '')}` : String(error)
+      if (intento >= 3 || !ERROR_PASAJERO.test(mensaje)) throw error
+      await new Promise((seguir) => setTimeout(seguir, 1000 * intento))
+    }
+  }
+}
+
+async function leerVentanaUnaVez(
   asset: AssetBanda,
   destino: Rejilla,
 ): Promise<VentanaNativa> {
@@ -229,22 +252,7 @@ async function leerVentanaNativa(
     fillValue: sinDato,
   }
 
-  let leidas: ArrayLike<number>[]
-  try {
-    leidas = (await tiff.readRasters(opciones)) as unknown as ArrayLike<number>[]
-  } catch (error) {
-    /*
-     * Un bloque que llega truncado por la red hace fallar al descompresor
-     * ("buffer error", "invalid ..."). Se vio de forma intermitente al leer
-     * desde el worker. Reabrir el archivo descarta los bloques en cache, y un
-     * reintento basta; si vuelve a fallar, el error es real y se propaga.
-     */
-    const mensaje = error instanceof Error ? error.message : String(error)
-    if (!/buffer error|invalid|incorrect header|unexpected end|data error/i.test(mensaje)) throw error
-
-    const deNuevo = await fromUrl(asset.href)
-    leidas = (await deNuevo.readRasters(opciones)) as unknown as ArrayLike<number>[]
-  }
+  const leidas = (await tiff.readRasters(opciones)) as unknown as ArrayLike<number>[]
 
   const crudos = leidas[0]
   const valores = new Float32Array(destino.ancho * destino.alto)

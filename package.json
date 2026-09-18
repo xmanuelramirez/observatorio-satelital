@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "desplegar": "npm run build && wrangler deploy",
     "local": "npm run build && wrangler dev --port 8787",
-    "precalcular": "tsx herramientas/precalcular-productos.ts"
+    "precalcular": "tsx herramientas/precalcular-productos.ts",
+    "semanal": "tsx herramientas/resumen-semanal.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

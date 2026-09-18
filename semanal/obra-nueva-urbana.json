@@ -1,0 +1,80 @@
+{
+  "producto": "obra-nueva",
+  "area": {
+    "id": "LIMITE_URBANO",
+    "etiqueta": "Zona urbana"
+  },
+  "generado": "2026-09-18T13:37:17.607Z",
+  "coleccion": "Sentinel-2 L2A",
+  "fechaActual": "2026-09-05",
+  "fechaBase": "2026-08-01",
+  "separacionDias": 35,
+  "nubesActual": 3.0759175,
+  "nubesBase": 3.184475,
+  "mallas": [
+    "13QHD",
+    "14QKJ"
+  ],
+  "parametros": {
+    "umbralNdbi": 0.08,
+    "areaMinimaHa": 1,
+    "rejilla": 1024
+  },
+  "zonas": 13,
+  "hectareas": 28.4,
+  "principales": [
+    {
+      "hectareas": 4.8,
+      "lat": 21.13579,
+      "lon": -101.61993
+    },
+    {
+      "hectareas": 3.8,
+      "lat": 21.06943,
+      "lon": -101.59094
+    },
+    {
+      "hectareas": 3.5,
+      "lat": 21.04681,
+      "lon": -101.59942
+    },
+    {
+      "hectareas": 3.2,
+      "lat": 21.06291,
+      "lon": -101.67921
+    },
+    {
+      "hectareas": 2,
+      "lat": 21.0858,
+      "lon": -101.5819
+    }
+  ],
+  "limites": [
+    [
+      21.04417699000803,
+      -101.78286365168053
+    ],
+    [
+      21.224156465316526,
+      -101.5554100166687
+    ]
+  ],
+  "imagen": "obra-nueva-urbana.png",
+  "notas": [
+    "Separación temporal: 35 días entre 2026-08-01 y 2026-09-05. Sentinel-2 L2A revisita cada 5 días, así que es el paso más fino disponible.",
+    "Rejilla 1024 por 1024 sobre el área, celda de 23 por 19 m (sensor nativo 10 m).",
+    "Recortado al polígono de Zona urbana: 23,057 ha dentro del área.",
+    "Mosaico de 2 escenas del 2026-09-05: 13QHD 100 por ciento, 14QKJ 0 por ciento.",
+    "Máscara de nubes de la fecha actual (scl): 13QHD con 0.0 por ciento nublado de lo que observa, 14QKJ con 0.0 por ciento nublado de lo que observa.",
+    "El área queda cubierta por completo.",
+    "Máscara de nubes de la fecha base (scl): 13QHD con 0.0 por ciento nublado de lo que observa, 14QKJ con 0.0 por ciento nublado de lo que observa.",
+    "Regla: NDBI sube 0.08 o más, NDVI final bajo 0.30 y MNDWI negativo. 3,128 celdas la cumplieron sobre 513,495 comparables.",
+    "Se descartaron las manchas menores a 1.0 ha, que a esta rejilla son menos de 23 celdas.",
+    "Son zonas candidatas, no un dictamen: un despalme sin construir cumple la misma regla, y a esta resolución una casa sola no se ve.",
+    "Zona 1: 4.8 ha, centro 21.13579, -101.61993",
+    "Zona 2: 3.8 ha, centro 21.06943, -101.59094",
+    "Zona 3: 3.5 ha, centro 21.04681, -101.59942",
+    "Zona 4: 3.2 ha, centro 21.06291, -101.67921",
+    "Zona 5: 2.0 ha, centro 21.08580, -101.58190"
+  ]
+}

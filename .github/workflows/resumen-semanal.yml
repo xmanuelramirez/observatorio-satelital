@@ -1,0 +1,48 @@
+name: Resumen semanal
+
+# Cada lunes calcula la obra nueva en la zona urbana con el mismo codigo de la
+# app y sube el resultado a `semanal/`. El vigia lee de ahi el JSON y lo manda
+# por Telegram. Este flujo no toca Cloudflare ni Telegram: su unico permiso es
+# escribir en este repositorio, con el token que GitHub da a cada corrida.
+
+on:
+  schedule:
+    # Lunes 12:30 UTC, 06:30 en Leon. Queda listo antes de que el vigia lo
+    # busque a las 07:07.
+    - cron: '30 12 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: resumen-semanal
+  cancel-in-progress: false
+
+jobs:
+  resumen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Calcular obra nueva
+        run: npm run semanal
+
+      # Si la escena mas reciente es la misma de la semana pasada, el JSON
+      # cambia solo en la fecha de generacion y se sube igual: el vigia
+      # distingue por fechaActual si hay algo nuevo que contar.
+      - name: Subir resultado
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add semanal
+          git commit -m "Resumen semanal de obra nueva $(date -u +%F)" || exit 0
+          git push
