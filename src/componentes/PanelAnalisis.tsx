@@ -1,6 +1,7 @@
 import type { DefinicionIndice } from '../servicios/indices'
 import type { Coleccion, Escena, GrupoDia, ModoVista, NombreBanda } from '../tipos'
 import { diasEntre } from '../servicios/obranueva'
+import { TituloPaso } from './Paso'
 
 interface Props {
   /** Escenas activas del dia elegido, ya en orden de prioridad del mosaico. */
@@ -39,14 +40,29 @@ interface Props {
   onSoloAgua: (valor: boolean) => void
 }
 
-const MODOS: { id: ModoVista; etiqueta: string }[] = [
-  { id: 'indice', etiqueta: 'Índice' },
-  { id: 'cambio', etiqueta: 'Cambio' },
-  { id: 'obra', etiqueta: 'Obra' },
-  { id: 'calor', etiqueta: 'Calor' },
-  { id: 'agua', etiqueta: 'Agua' },
-  { id: 'clases', etiqueta: 'Clases' },
-  { id: 'color', etiqueta: 'Color' },
+/**
+ * Los siete modos en dos grupos segun cuantas fechas piden. Asi la fila no
+ * queda con huecos y se lee de entrada que Cambio, Obra y Agua van a pedir
+ * una fecha base.
+ */
+const GRUPOS_MODO: { titulo: string; modos: { id: ModoVista; etiqueta: string }[] }[] = [
+  {
+    titulo: 'Una fecha',
+    modos: [
+      { id: 'indice', etiqueta: 'Índice' },
+      { id: 'calor', etiqueta: 'Calor' },
+      { id: 'clases', etiqueta: 'Clases' },
+      { id: 'color', etiqueta: 'Color' },
+    ],
+  },
+  {
+    titulo: 'Dos fechas',
+    modos: [
+      { id: 'cambio', etiqueta: 'Cambio' },
+      { id: 'obra', etiqueta: 'Obra nueva' },
+      { id: 'agua', etiqueta: 'Agua' },
+    ],
+  },
 ]
 
 /** Obra nueva cruza NDBI, NDVI y MNDWI: sin estas cuatro no hay modo. */
@@ -90,13 +106,7 @@ export default function PanelAnalisis({
   soloAgua,
   onSoloAgua,
 }: Props) {
-  if (escenas.length === 0) {
-    return (
-      <p className="px-4 py-4 text-[13px] leading-snug text-tinta-suave">
-        Elige una escena de la lista para analizarla.
-      </p>
-    )
-  }
+  if (escenas.length === 0) return null
 
   const mallas = escenas.map((e) => e.malla || e.plataforma).join(' y ')
   const sinIndices = indices.length === 0
@@ -111,12 +121,18 @@ export default function PanelAnalisis({
     (!comparaFechas || modo === 'agua' || referencia.length > 0)
 
   return (
-    <div className="border-t-2 border-acento">
+    <div>
       <div className="px-4 py-3.5">
-        <h2 className="rotulo mb-2.5">Análisis de la escena</h2>
+        <div className="mb-3">
+          <TituloPaso numero={3} titulo="Análisis" />
+        </div>
 
-        <div className="mb-3.5 grid grid-cols-4 gap-px border border-filete bg-filete" role="tablist">
-          {MODOS.map((opcion) => (
+        <div className="mb-3.5 space-y-2.5" role="tablist">
+          {GRUPOS_MODO.map((grupo) => (
+            <div key={grupo.titulo}>
+              <span className="mb-1 block text-xs text-tinta-suave">{grupo.titulo}</span>
+              <div className="flex gap-px border border-filete bg-filete">
+          {grupo.modos.map((opcion) => (
             <button
               key={opcion.id}
               type="button"
@@ -134,10 +150,13 @@ export default function PanelAnalisis({
                   ? 'La temperatura de superficie viene de la banda térmica de Landsat'
                   : undefined
               }
-              className={`pestana ${modo === opcion.id ? 'pestana-activa' : ''}`}
+              className={`pestana flex-1 basis-0 whitespace-nowrap px-1 ${modo === opcion.id ? 'pestana-activa' : ''}`}
             >
               {opcion.etiqueta}
             </button>
+          ))}
+              </div>
+            </div>
           ))}
         </div>
 

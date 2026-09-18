@@ -1,6 +1,7 @@
 import { COLECCIONES } from '../datos/colecciones'
 import { ETIQUETA_PROVEEDOR } from '../servicios/proveedores'
 import type { Coleccion } from '../tipos'
+import { PasoPlegado, TituloPaso } from './Paso'
 
 interface Props {
   coleccion: Coleccion
@@ -39,23 +40,22 @@ export default function PanelBusqueda({
 }: Props) {
   if (plegado) {
     return (
-      <section className="flex items-center justify-between gap-3 border-b border-filete px-4 py-2.5">
-        <p className="min-w-0 text-xs leading-snug text-tinta-suave">
-          <span className="text-tinta">{coleccion.etiqueta}</span>
-          <span className="cifra block truncate">
-            {desde} a {hasta}
-            {coleccion.filtraNubes ? ` · hasta ${nubesMax} % nubes` : ''}
-          </span>
-        </p>
-        <button type="button" onClick={onDesplegar} className="boton shrink-0">
-          Cambiar
-        </button>
-      </section>
+      <PasoPlegado numero={1} titulo="Búsqueda" onCambiar={onDesplegar}>
+        <span className="text-tinta">{coleccion.etiqueta}</span>
+        <span className="cifra">
+          {' · '}
+          {desde} a {hasta}
+          {coleccion.filtraNubes ? ` · ≤ ${nubesMax} % nubes` : ''}
+        </span>
+      </PasoPlegado>
     )
   }
 
   return (
     <section className="border-b border-filete px-4 py-3.5">
+      <div className="mb-3">
+        <TituloPaso numero={1} titulo="Búsqueda" />
+      </div>
       <label className="block">
         <span className="rotulo mb-1.5 block">Colección</span>
         <select

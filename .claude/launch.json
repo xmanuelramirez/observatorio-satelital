@@ -6,9 +6,13 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
-        "dev"
+        "dev",
+        "--",
+        "--port",
+        "5174",
+        "--strictPort"
       ],
-      "port": 5173
+      "port": 5174
     },
     {
       "name": "observatorio-worker",

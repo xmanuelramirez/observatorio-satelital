@@ -1,12 +1,15 @@
 import type { Escena, GrupoDia } from '../tipos'
+import { PasoPlegado, TituloPaso } from './Paso'
 
 interface Props {
   grupos: GrupoDia[]
   totalCoincidencias: number | null
   /** Escenas activas. Siempre del mismo dia: un mosaico de dos fechas no es una fecha. */
   seleccion: Escena[]
-  onAlternar: (escena: Escena) => void
-  onDiaCompleto: (escenas: Escena[]) => void
+  /** Elegir una malla o el dia completo pliega la lista a su resumen. */
+  onElegir: (escenas: Escena[]) => void
+  plegado: boolean
+  onDesplegar: () => void
   buscando: boolean
   error: string | null
   yaBusco: boolean
@@ -45,8 +48,9 @@ export default function ListaEscenas({
   grupos,
   totalCoincidencias,
   seleccion,
-  onAlternar,
-  onDiaCompleto,
+  onElegir,
+  plegado,
+  onDesplegar,
   buscando,
   error,
   yaBusco,
@@ -68,6 +72,20 @@ export default function ListaEscenas({
     return <Aviso>Sin escenas para esos criterios. Amplía el periodo o sube el límite de nubosidad.</Aviso>
   }
 
+  if (plegado && seleccion.length > 0) {
+    const nubes = grupos.find((grupo) => grupo.dia === seleccion[0].dia)?.nubes
+    return (
+      <PasoPlegado numero={2} titulo="Escena" onCambiar={onDesplegar}>
+        <span className="text-tinta">{fechaLarga(seleccion[0].dia)}</span>
+        <span className="cifra">
+          {' · '}
+          {seleccion.map((e) => e.malla || e.plataforma).join(' + ')}
+          {nubes !== null && nubes !== undefined ? ` · ${nubes.toFixed(1)} % nubes` : ''}
+        </span>
+      </PasoPlegado>
+    )
+  }
+
   const totalEscenas = grupos.reduce((suma, g) => suma + g.escenas.length, 0)
 
   const diaCompleto = (grupo: GrupoDia) =>
@@ -77,14 +95,14 @@ export default function ListaEscenas({
   return (
     <div>
       <div className="border-b border-filete px-4 py-3">
-        <h2 className="rotulo">Escenas</h2>
+        <TituloPaso numero={2} titulo="Escena" />
         <p className="mt-1.5 text-xs leading-snug text-tinta-suave">
           <span className="cifra text-tinta">{grupos.length}</span> fechas,{' '}
           <span className="cifra text-tinta">{totalEscenas}</span> escenas
           {totalCoincidencias !== null && totalCoincidencias > totalEscenas
             ? ` de ${totalCoincidencias} en el periodo`
             : ''}
-          . León cae en el borde de dos mallas: únelas para analizar el municipio completo.
+          . León cae en el borde de dos mallas: usa el mosaico para cubrir el municipio completo.
         </p>
       </div>
 
@@ -100,30 +118,35 @@ export default function ListaEscenas({
               )}
             </div>
 
-            {grupo.escenas.length > 1 && (
-              <div className="px-4 pt-2">
+            {/*
+              Una rejilla pareja: el mosaico del dia primero, porque es lo que
+              cubre el municipio, y despues cada malla sola.
+            */}
+            <div className="grid grid-cols-2 gap-1.5 px-4 pb-3 pt-2">
+              {grupo.escenas.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => onDiaCompleto(grupo.escenas)}
+                  onClick={() => onElegir(grupo.escenas)}
                   aria-pressed={diaCompleto(grupo)}
-                  className={`boton w-full ${diaCompleto(grupo) ? 'boton-activo' : 'border-dashed'}`}
+                  className={`boton col-span-2 text-left ${diaCompleto(grupo) ? 'boton-activo' : ''}`}
                 >
-                  {diaCompleto(grupo)
-                    ? `Mosaico de las ${grupo.escenas.length} mallas`
-                    : `Unir las ${grupo.escenas.length} mallas en un mosaico`}
+                  <span className="block text-[13px] font-medium">
+                    Mosaico de {grupo.escenas.length} mallas
+                  </span>
+                  <span className="cifra block text-xs text-tinta-suave">
+                    {grupo.escenas.map((e) => e.malla || e.plataforma).join(' + ')}
+                  </span>
                 </button>
-              </div>
-            )}
+              )}
 
-            <div className="flex flex-wrap gap-2 px-4 pb-3 pt-2">
               {grupo.escenas.map((escena) => {
-                const activa = seleccion.some((otra) => otra.id === escena.id)
+                const activa = seleccion.length === 1 && seleccion[0].id === escena.id
 
                 return (
                   <button
                     key={escena.id}
                     type="button"
-                    onClick={() => onAlternar(escena)}
+                    onClick={() => onElegir([escena])}
                     title={escena.id}
                     aria-pressed={activa}
                     className={`boton flex items-center gap-2 text-left ${activa ? 'boton-activo' : ''}`}
@@ -136,16 +159,15 @@ export default function ListaEscenas({
                         onError={(evento) => {
                           evento.currentTarget.style.visibility = 'hidden'
                         }}
-                        className="h-10 w-10 bg-panel-hondo object-cover"
+                        className="h-9 w-9 shrink-0 bg-panel-hondo object-cover"
                       />
                     )}
-                    <span className="leading-tight">
+                    <span className="min-w-0 leading-tight">
                       <span className="cifra block text-[13px] font-medium text-tinta">
                         {escena.malla || escena.plataforma}
                       </span>
-                      <span className="block text-xs text-tinta-suave">
-                        {escena.plataforma}
-                        {escena.nubes !== null ? ` · ${escena.nubes.toFixed(1)} %` : ''}
+                      <span className="cifra block text-xs text-tinta-suave">
+                        {escena.nubes !== null ? `${escena.nubes.toFixed(1)} % nubes` : escena.plataforma}
                       </span>
                     </span>
                   </button>

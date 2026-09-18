@@ -138,6 +138,7 @@ export default function App() {
 
   const [pestana, setPestana] = useState<Pestana>('escenas')
   const [busquedaPlegada, setBusquedaPlegada] = useState(false)
+  const [listaPlegada, setListaPlegada] = useState(false)
 
   const [opacidad, setOpacidad] = useState(1)
   const [fondo, setFondo] = useState<IdFondo>('ninguno')
@@ -235,26 +236,6 @@ export default function App() {
     [limpiarAnalisis, modo],
   )
 
-  /**
-   * Alterna una escena dentro del dia. Tocar una escena de otra fecha reinicia
-   * la seleccion: un mosaico que mezclara dos fechas juntaria en una sola capa
-   * terreno visto en momentos distintos, que es justo lo que el modo cambio
-   * existe para separar.
-   */
-  const alternarEscena = useCallback(
-    (escena: Escena) => {
-      setSeleccion((previas) => {
-        if (previas.length > 0 && previas[0].dia !== escena.dia) return [escena]
-        const ya = previas.some((otra) => otra.id === escena.id)
-        if (!ya) return [...previas, escena]
-        return previas.filter((otra) => otra.id !== escena.id)
-      })
-      setReferencia((previa) => (previa.length > 0 && previa[0].dia !== escena.dia ? previa : []))
-      limpiarAnalisis()
-    },
-    [limpiarAnalisis],
-  )
-
   const seleccionarDia = useCallback(
     (escenasDelDia: Escena[]) => {
       setSeleccion(escenasDelDia)
@@ -293,6 +274,7 @@ export default function App() {
       setResultado(salida)
       setSerie(null)
       setBusquedaPlegada(true)
+      setListaPlegada(false)
     } catch (error: unknown) {
       setErrorBusqueda(error instanceof Error ? error.message : String(error))
       setResultado(null)
@@ -586,20 +568,23 @@ export default function App() {
                 onDesplegar={() => setBusquedaPlegada(false)}
               />
 
-              {/* La lista se desplaza sola para que el analisis no quede al fondo. */}
-              <div className="max-h-[32vh] overflow-y-auto border-b border-filete">
-                <ListaEscenas
-                  grupos={grupos}
-                  totalCoincidencias={resultado?.totalCoincidencias ?? null}
-                  seleccion={seleccion}
-                  onAlternar={alternarEscena}
-                  onDiaCompleto={seleccionarDia}
-                  buscando={buscando}
-                  error={errorBusqueda}
-                  yaBusco={resultado !== null || errorBusqueda !== null}
-                />
-              </div>
+              <ListaEscenas
+                grupos={grupos}
+                totalCoincidencias={resultado?.totalCoincidencias ?? null}
+                seleccion={seleccion}
+                onElegir={(escenas) => {
+                  seleccionarDia(escenas)
+                  setListaPlegada(true)
+                }}
+                plegado={listaPlegada}
+                onDesplegar={() => setListaPlegada(false)}
+                buscando={buscando}
+                error={errorBusqueda}
+                yaBusco={resultado !== null || errorBusqueda !== null}
+              />
 
+              {/* El analisis aparece cuando la lista ya se plego a la escena elegida. */}
+              {listaPlegada && (
               <PanelAnalisis
                 escenas={seleccion}
                 coleccion={coleccion}
@@ -661,6 +646,7 @@ export default function App() {
                   limpiarAnalisis()
                 }}
               />
+              )}
             </>
           )}
 
@@ -778,6 +764,7 @@ export default function App() {
                 onClick={() => {
                   setSeleccion([])
                   setReferencia([])
+                  setListaPlegada(false)
                   limpiarAnalisis()
                 }}
                 className="boton mt-2.5 w-full"

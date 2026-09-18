@@ -8,26 +8,26 @@ interface Props {
 }
 
 /**
- * Leyenda y notas del resultado que esta en el mapa, flotando sobre el mapa.
+ * Simbologia y notas del resultado que esta en el mapa, en dos tarjetas
+ * flotantes separadas.
  *
- * Antes vivian al final del panel lateral: para leer las hectareas habia que
- * bajar hasta el fondo y perder de vista los controles. Aqui se ven junto a
- * lo que describen. Las notas van plegadas porque son la letra chica.
+ * La simbologia va sola en la esquina inferior derecha, como en un mapa
+ * impreso, y queda arriba de la atribucion de Leaflet. Las notas del calculo
+ * son la letra chica: van aparte, abajo a la izquierda y plegadas.
  */
 export default function TarjetaResultado({ titulo, leyenda, notas }: Props) {
   const [notasAbiertas, setNotasAbiertas] = useState(false)
 
-  if (leyenda.length === 0 && notas.length === 0) return null
-
   return (
-    <div className="absolute bottom-6 left-3 z-1000 flex max-h-[60vh] w-80 flex-col border border-filete-fuerte bg-panel-hondo/95 text-xs">
-      <div className="border-b border-filete px-3.5 py-2.5">
-        <p className="rotulo">{titulo}</p>
-      </div>
+    <>
+      {leyenda.length > 0 && (
+        <div className="absolute bottom-7 right-3 z-1000 flex max-h-[calc(100vh-15rem)] w-72 flex-col border border-filete-fuerte bg-panel-hondo/95 text-xs">
+          <div className="border-b border-filete px-3.5 py-2.5">
+            <p className="rotulo">Simbología</p>
+            <p className="mt-1 text-[13px] font-semibold text-tinta">{titulo}</p>
+          </div>
 
-      <div className="min-h-0 overflow-y-auto px-3.5 py-3">
-        {leyenda.length > 0 && (
-          <ul className="space-y-2">
+          <ul className="min-h-0 space-y-2 overflow-y-auto px-3.5 py-3">
             {leyenda.map((entrada) => (
               <li key={entrada.etiqueta} className="flex items-start gap-2.5 text-[13px]">
                 <span
@@ -43,30 +43,30 @@ export default function TarjetaResultado({ titulo, leyenda, notas }: Props) {
               </li>
             ))}
           </ul>
-        )}
+        </div>
+      )}
 
-        {notas.length > 0 && (
-          <div className={leyenda.length > 0 ? 'mt-3 border-t border-filete pt-2.5' : ''}>
-            <button
-              type="button"
-              aria-expanded={notasAbiertas}
-              onClick={() => setNotasAbiertas(!notasAbiertas)}
-              className="flex w-full cursor-pointer items-center justify-between text-left"
-            >
-              <span className="rotulo">Notas del cálculo ({notas.length})</span>
-              <span className="cifra text-rotulo">{notasAbiertas ? '−' : '+'}</span>
-            </button>
+      {notas.length > 0 && (
+        <div className="absolute bottom-7 left-3 z-1000 flex max-h-[50vh] w-80 flex-col border border-filete-fuerte bg-panel-hondo/95 text-xs">
+          <button
+            type="button"
+            aria-expanded={notasAbiertas}
+            onClick={() => setNotasAbiertas(!notasAbiertas)}
+            className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2.5 text-left hover:bg-fondo"
+          >
+            <span className="rotulo">Notas del cálculo ({notas.length})</span>
+            <span className="cifra text-rotulo">{notasAbiertas ? '−' : '+'}</span>
+          </button>
 
-            {notasAbiertas && (
-              <ul className="mt-2 space-y-1.5 leading-snug text-tinta-suave">
-                {notas.map((nota) => (
-                  <li key={nota}>{nota}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+          {notasAbiertas && (
+            <ul className="min-h-0 space-y-1.5 overflow-y-auto border-t border-filete px-3.5 py-3 leading-snug text-tinta-suave">
+              {notas.map((nota) => (
+                <li key={nota}>{nota}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </>
   )
 }

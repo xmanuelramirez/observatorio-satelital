@@ -222,10 +222,13 @@ el concreto tambien tiene NDWI alto.
 
 ## Organizacion de la interfaz
 
-El area de interes va arriba y la comparten cuatro pestanas: Escenas (busqueda,
-lista y analisis), Serie, Referencia e Hidrologia (escurrimiento e InSAR). La
-busqueda se pliega a una linea al tener resultados y el boton de calcular queda
-fijo al pie. Capas y fondo, leyenda y notas flotan sobre el mapa. Antes todo
+El area de interes va arriba y la comparten cuatro pestanas: Escenas, Serie,
+Referencia e Hidrologia (escurrimiento e InSAR). Escenas es un flujo de tres
+pasos numerados (busqueda, escena y analisis); cada paso cumplido se pliega a
+una linea con su resumen y un boton Cambiar. Los modos de analisis van en dos
+filas segun cuantas fechas piden. Sobre el mapa flotan cuatro tarjetas: capas
+arriba a la izquierda, escena arriba a la derecha, simbologia abajo a la
+derecha y notas del calculo abajo a la izquierda, plegadas. Antes todo
 iba en una columna de 1,780 px, 2.2 pantallas de alto; ahora cada pestana
 cabe en una.
 
