@@ -236,6 +236,17 @@ la del catalogo (343 px en Sentinel-2): sirve para ver nubes, no para medir.
 A la derecha flotan la escena en el mapa (arriba) y la simbologia con las
 notas del calculo plegadas (abajo).
 
+## Resumen semanal
+
+`.github/workflows/resumen-semanal.yml` corre cada lunes a las 06:30 de Leon
+(`npm run semanal`, tambien a mano desde Actions). Compara la escena
+Sentinel-2 limpia mas reciente de la zona urbana contra la mas cercana a un
+mes antes, con los umbrales con que abre la app (NDBI +0.08, zonas de 1 ha o
+mas, mascara de nubes), y sube a `semanal/` un JSON con las cifras y un PNG en
+color verdadero con las cinco zonas mayores numeradas. El vigia de
+`9. AGENTES` lo lee y lo manda por Telegram; el flujo no tiene mas permiso que
+escribir en este repositorio.
+
 ## Capas de referencia
 
 Productos globales ya calculados que se recortan al area y se miden. No son
