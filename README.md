@@ -238,7 +238,7 @@ notas del calculo plegadas (abajo).
 
 ## Resumen semanal
 
-`.github/workflows/resumen-semanal.yml` corre cada lunes a las 06:30 de Leon
+`.github/workflows/resumen-semanal.yml` corre cada lunes a medianoche de Leon
 (`npm run semanal`, tambien a mano desde Actions). Compara la escena
 Sentinel-2 limpia mas reciente de la zona urbana contra la mas cercana a un
 mes antes, con los umbrales con que abre la app (NDBI +0.08, zonas de 1 ha o
@@ -246,6 +246,17 @@ mas, mascara de nubes), y sube a `semanal/` un JSON con las cifras y un PNG en
 color verdadero con las cinco zonas mayores numeradas. El vigia de
 `9. AGENTES` lo lee y lo manda por Telegram; el flujo no tiene mas permiso que
 escribir en este repositorio.
+
+## Dos catalogos, dos formas de preguntar
+
+Earth Search sirve Sentinel-2 y se le pregunta por POST. A Planetary
+Computer, que sirve Landsat y Sentinel-1, se le pregunta por GET: el 23 de
+septiembre de 2026 su puerta de enlace empezo a contestar 405 al OPTIONS que
+el navegador manda antes de un POST con cuerpo JSON, y las dos colecciones se
+quedaron sin catalogo con "Failed to fetch". El GET no necesita esa consulta
+previa y devuelve lo mismo, con el mismo orden y el mismo filtro de nubes.
+Si algun dia Microsoft lo arregla, esto puede volver a POST, pero no hay
+motivo para hacerlo.
 
 ## Capas de referencia
 

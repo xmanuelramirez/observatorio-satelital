@@ -7,9 +7,13 @@ name: Resumen semanal
 
 on:
   schedule:
-    # Lunes 12:30 UTC, 06:30 en Leon. Queda listo antes de que el vigia lo
-    # busque a las 07:07.
-    - cron: '30 12 * * 1'
+    # Lunes 06:00 UTC, medianoche en Leon.
+    #
+    # Siete horas de margen antes de que el vigia lo busque a las 07:07, y no
+    # media: los horarios de GitHub Actions se encolan y llegan tarde. El
+    # lunes 21 de septiembre de 2026 una cita de las 12:30 UTC arranco a las
+    # 18:17, y el vigia alcanzo a avisar que el calculo no habia corrido.
+    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 permissions:

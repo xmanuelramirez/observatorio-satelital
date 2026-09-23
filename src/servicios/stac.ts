@@ -122,6 +122,34 @@ function agruparPorDia(escenas: Escena[]): GrupoDia[] {
 /** Tope de paginas por busqueda: 8 por 100 son 800 escenas, de sobra para dos anios. */
 const PAGINAS_MAXIMAS = 8
 
+/**
+ * El mismo cuerpo de busqueda, escrito como parametros de direccion.
+ *
+ * Las listas van separadas por comas y lo que es objeto, como el filtro de
+ * nubes, viaja en JSON: asi lo define la API de STAC para las consultas por
+ * GET y asi lo entiende Planetary Computer.
+ */
+function comoParametros(cuerpo: Record<string, unknown>): string {
+  const parametros = new URLSearchParams()
+  for (const [clave, valor] of Object.entries(cuerpo)) {
+    if (valor === undefined || valor === null) continue
+    if (clave === 'sortby') {
+      const orden = valor as { field: string; direction: string }[]
+      parametros.set(
+        'sortby',
+        orden.map((o) => `${o.direction === 'desc' ? '-' : '+'}${o.field}`).join(','),
+      )
+    } else if (Array.isArray(valor)) {
+      parametros.set(clave, valor.join(','))
+    } else if (typeof valor === 'object') {
+      parametros.set(clave, JSON.stringify(valor))
+    } else {
+      parametros.set(clave, String(valor))
+    }
+  }
+  return parametros.toString()
+}
+
 interface RespuestaStac {
   features?: ItemStac[]
   numberMatched?: number
@@ -159,16 +187,31 @@ export async function buscarEscenas(
   const url = `${baseStac(coleccion.proveedor)}/search`
   const items: ItemStac[] = []
   let total: number | null = null
-  let siguiente: Record<string, unknown> | null = cuerpo
   let paginas = 0
 
-  while (siguiente && paginas < PAGINAS_MAXIMAS) {
-    const respuesta: Response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(siguiente),
-      signal: senal,
-    })
+  /*
+   * Planetary Computer se pregunta por GET, no por POST.
+   *
+   * El 23 de septiembre de 2026 su puerta de enlace empezo a contestar 405 al
+   * OPTIONS que el navegador manda antes de un POST con cuerpo JSON, asi que
+   * la busqueda moria con "Failed to fetch" y Landsat y Sentinel-1 se
+   * quedaron sin catalogo. El GET con parametros no necesita esa consulta
+   * previa, devuelve lo mismo y respeta orden y filtro de nubes. Earth Search
+   * sigue por POST, que es lo que mejor pagina.
+   */
+  const porGet = coleccion.proveedor === 'planetary-computer'
+  let siguiente: Record<string, unknown> | null = cuerpo
+  let siguienteUrl: string | null = porGet ? `${url}?${comoParametros(cuerpo)}` : null
+
+  while ((porGet ? siguienteUrl !== null : siguiente !== null) && paginas < PAGINAS_MAXIMAS) {
+    const respuesta: Response = porGet
+      ? await fetch(siguienteUrl as string, { signal: senal })
+      : await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(siguiente),
+          signal: senal,
+        })
 
     if (!respuesta.ok) {
       throw new Error(`El catálogo respondió ${respuesta.status}`)
@@ -180,13 +223,17 @@ export async function buscarEscenas(
     paginas++
 
     // El enlace "next" de POST trae el cuerpo de la siguiente pagina; con
-    // merge, solo las claves que cambian respecto al cuerpo actual.
+    // merge, solo las claves que cambian respecto al cuerpo actual. El de GET
+    // trae la direccion completa y se sigue tal cual.
     const next = datos.links?.find((enlace) => enlace.rel === 'next')
-    const cuerpoNext = next?.body
-    if (!next || !cuerpoNext || (datos.features ?? []).length === 0) {
+    const sinFilas = (datos.features ?? []).length === 0
+
+    if (porGet) {
+      siguienteUrl = !next?.href || sinFilas ? null : next.href
+    } else if (!next?.body || sinFilas) {
       siguiente = null
     } else {
-      siguiente = next.merge ? { ...siguiente, ...cuerpoNext } : cuerpoNext
+      siguiente = next.merge ? { ...siguiente, ...next.body } : next.body
     }
   }
 
