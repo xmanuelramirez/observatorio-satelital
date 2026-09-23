@@ -1,0 +1,146 @@
+[
+  {
+    "fecha": "2026-09-09",
+    "tipo": "capacidad",
+    "titulo": "Primera versión del observatorio: buscar escenas y calcular índices sobre el área",
+    "resumen": "Búsqueda de imágenes de Sentinel-2, Landsat y Sentinel-1 por área, fecha y nubosidad, con índices y agrupación por clases calculados en el navegador. Las dos mallas que cubren León se unen en un mosaico para analizar el municipio completo.",
+    "seccion_manual": "Funciones · Escenas",
+    "evidencia": "1deb1be"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "seguridad",
+    "titulo": "La plataforma cumple la base del departamento",
+    "resumen": "Cabeceras de seguridad, identidad visual de la familia de plataformas, fechas en hora de León y revisión automática en cada cambio. Las capas internas del organismo quedan fuera del sitio público.",
+    "seccion_manual": "Acceso",
+    "evidencia": "05f540e"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "infraestructura",
+    "titulo": "Publicada en observatorio-satelital.sapal.workers.dev",
+    "resumen": "El sitio se publica en Cloudflare Workers con archivos estáticos, como Indicadores Climáticos, porque la cuenta ya no admite proyectos nuevos de Pages.",
+    "seccion_manual": "Identidad",
+    "evidencia": "ac4d8f9"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "correccion",
+    "titulo": "El mapa encuadra el área aunque se abra en una pestaña en segundo plano",
+    "resumen": "Antes, si el mapa nacía sin tamaño, la primera capa de resultado no se dibujaba. Ahora el encuadre espera a que el mapa tenga medidas y se rehace cuando la ventana cambia de tamaño.",
+    "seccion_manual": null,
+    "evidencia": "0e3f735, e89653b"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "capacidad",
+    "titulo": "Detección de obra nueva entre dos fechas, con los días que las separan",
+    "resumen": "Cruza tres condiciones (aumento de superficie construida, vegetación final baja y ausencia de agua), agrupa los píxeles en zonas, descarta las menores al área mínima y reporta hectáreas. El panel muestra cuántos días hay entre las dos imágenes comparadas.",
+    "seccion_manual": "Funciones · Obra nueva",
+    "evidencia": "c2d9710"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "mejora",
+    "titulo": "Descarte de nubes píxel por píxel",
+    "resumen": "Además del filtro de nubosidad de la escena completa, se pueden descartar nubes y sombras celda por celda con la banda de calidad de la misión. Las notas del cálculo informan qué porcentaje del área quedó utilizable.",
+    "seccion_manual": "Funciones · Escenas",
+    "evidencia": "ea35636"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "capacidad",
+    "titulo": "Serie de tiempo de un índice sobre el área",
+    "resumen": "Calcula el promedio de un índice en varias fechas y lo grafica, saltando las fechas con poca cobertura válida por nubes.",
+    "seccion_manual": "Funciones · Serie de tiempo",
+    "evidencia": "b77f578"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "capacidad",
+    "titulo": "Calidad del agua y recorte a la lámina",
+    "resumen": "Índices de clorofila y turbidez relativa, con la opción de calcular solo sobre la superficie de agua para que la orilla no ensucie el promedio.",
+    "seccion_manual": "Funciones · Escenas",
+    "evidencia": "16b4701"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "capacidad",
+    "titulo": "Temperatura de superficie con la banda térmica de Landsat",
+    "resumen": "Mapa de temperatura de superficie en grados Celsius para ver islas de calor urbano.",
+    "seccion_manual": "Funciones · Temperatura",
+    "evidencia": "cf9a13a"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "capacidad",
+    "titulo": "Agua y crecida con radar Sentinel-1",
+    "resumen": "El radar atraviesa la nube, así que sirve durante la temporada de lluvias. Dibuja la lámina de agua y, con una fecha base, separa el agua permanente de la crecida.",
+    "seccion_manual": "Funciones · Agua por radar",
+    "evidencia": "06c5555"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "datos",
+    "titulo": "Capas de referencia: agua histórica, cobertura del suelo y evapotranspiración",
+    "resumen": "Tres productos globales ya calculados por terceros, recortados y medidos sobre el área elegida, sin depender de la búsqueda de escenas.",
+    "seccion_manual": "Funciones · Capas de referencia",
+    "evidencia": "90a2c5c"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "capacidad",
+    "titulo": "Escurrimiento por número de curva ligado a la obra nueva detectada",
+    "resumen": "Estima el escurrimiento de una lluvia y cuánto aumenta si las zonas de obra nueva detectadas se vuelven superficie impermeable.",
+    "seccion_manual": "Funciones · Escurrimiento",
+    "evidencia": "3913828"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "mejora",
+    "titulo": "Las capas de referencia abren al instante y la pantalla deja de trabarse",
+    "resumen": "Las tres capas de referencia se calculan antes de publicar el sitio: la cobertura del municipio pasó de 8.8 segundos a menos de un cuarto de segundo. El resto de los cálculos corre en segundo plano, así que el mapa y los botones responden mientras se calcula.",
+    "seccion_manual": "Funciones · Capas de referencia",
+    "evidencia": "46b8f94"
+  },
+  {
+    "fecha": "2026-09-17",
+    "tipo": "mejora",
+    "titulo": "La ventana se reorganiza por tipo de trabajo",
+    "resumen": "Las herramientas se reparten en secciones (escenas, serie, referencia e hidrología) en lugar de una sola columna de 2.2 pantallas de alto.",
+    "seccion_manual": "Panorama",
+    "evidencia": "4d5285b"
+  },
+  {
+    "fecha": "2026-09-18",
+    "tipo": "mejora",
+    "titulo": "Escenas en tres pasos numerados y simbología en su propia tarjeta",
+    "resumen": "Búsqueda, escena y análisis se numeran y se pliegan al completarse. La simbología del resultado pasa a una tarjeta flotante en la esquina inferior derecha del mapa, con las notas del cálculo al pie.",
+    "seccion_manual": "Funciones · Escenas",
+    "evidencia": "ffb1c34"
+  },
+  {
+    "fecha": "2026-09-18",
+    "tipo": "mejora",
+    "titulo": "Menú flotante en acordeón y galería de imágenes a pantalla completa",
+    "resumen": "El mapa ocupa toda la pantalla y las secciones flotan en el margen izquierdo: al abrir una se pliegan las demás. La galería muestra las imágenes disponibles por fecha con vista previa grande para elegir cuál analizar.",
+    "seccion_manual": "Funciones · Galería de escenas",
+    "evidencia": "03f5e3d"
+  },
+  {
+    "fecha": "2026-09-18",
+    "tipo": "capacidad",
+    "titulo": "Resumen semanal de obra nueva por Telegram",
+    "resumen": "Cada lunes se calcula la obra nueva de la zona urbana comparando la imagen limpia más reciente contra la de un mes antes, y el Vigía manda por Telegram una imagen con las cinco zonas mayores numeradas y sus hectáreas.",
+    "seccion_manual": "Funciones · Resumen semanal",
+    "evidencia": "2ec45c8"
+  },
+  {
+    "fecha": "2026-09-18",
+    "tipo": "correccion",
+    "titulo": "La lectura de imágenes reintenta cuando el servidor corta la conexión",
+    "resumen": "Con muchas lecturas en paralelo, el servidor de imágenes cerraba la conexión y el cálculo fallaba. Ahora reintenta hasta tres veces antes de reportar el error.",
+    "seccion_manual": "Problemas frecuentes",
+    "evidencia": "2ec45c8"
+  }
+]

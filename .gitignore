@@ -43,3 +43,6 @@ public/capas/NUMERO_DE_CURVA.geojson
 
 # Temporales de wrangler pages dev
 .wrangler/
+
+# Ordenes del MASTER: no se versionan (orden del 23/09/2026).
+ORDENES-DEL-MASTER/
