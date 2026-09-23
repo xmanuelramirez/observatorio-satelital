@@ -354,7 +354,15 @@ VITE_CAPAS_INTERNAS=true npm run build
   `nosniff`, `Referrer-Policy` y `Permissions-Policy`. La CSP no lleva
   comodines y cada excepcion esta explicada en el propio archivo. Se probo con
   `npm run local`, que aplica las mismas cabeceras que produccion, recorriendo
-  las tres colecciones y los cuatro modos sin una sola violacion.
+  las tres colecciones y los cuatro modos.
+- **Una violacion de CSP esperada, y esta bien asi.** Al cargar la pagina, la
+  consola registra `script-src eval` desde el bundle. Viene del polyfill de
+  `globalThis` que traen los paquetes ya compilados de georaster
+  (`new Function("return this")` dentro de un try/catch con vuelta a `window`).
+  La CSP lo bloquea, el catch lo atrapa y no se rompe nada: comprobado el
+  23/09/2026 recorriendo busqueda, mosaico y calculo completos en produccion.
+  La forma de callarlo seria agregar `unsafe-eval`, que es justo lo que no se
+  va a hacer por una linea de polyfill que ya tiene su alternativa.
 - **Sin secretos.** La app no usa ninguno. El script de HyP3 lee las
   credenciales de Earthdata de variables de entorno o de `~/.netrc`, nunca de
   un archivo del repositorio.
