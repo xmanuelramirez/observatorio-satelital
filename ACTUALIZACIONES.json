@@ -142,5 +142,29 @@
     "resumen": "Con muchas lecturas en paralelo, el servidor de imágenes cerraba la conexión y el cálculo fallaba. Ahora reintenta hasta tres veces antes de reportar el error.",
     "seccion_manual": "Problemas frecuentes",
     "evidencia": "2ec45c8"
+  },
+  {
+    "fecha": "2026-09-23",
+    "tipo": "correccion",
+    "titulo": "Vuelven a funcionar las imágenes de Landsat y de radar",
+    "resumen": "El catálogo de Microsoft dejó de aceptar la forma en que la app le pedía las búsquedas y, durante unas horas, Temperatura de superficie y Agua por radar quedaron sin escenas. Ahora se le pregunta de otra forma y las tres colecciones responden.",
+    "seccion_manual": "Funciones · Escenas",
+    "evidencia": "609fdb7"
+  },
+  {
+    "fecha": "2026-09-23",
+    "tipo": "mejora",
+    "titulo": "El resumen semanal se calcula a medianoche",
+    "resumen": "Pasó de las 06:30 a medianoche de León para que un retraso de GitHub no dispare el aviso de que el cálculo no corrió, como ocurrió el lunes 21. El mensaje sigue llegando el lunes por la mañana.",
+    "seccion_manual": "Funciones · Resumen semanal",
+    "evidencia": "609fdb7"
+  },
+  {
+    "fecha": "2026-09-24",
+    "tipo": "correccion",
+    "titulo": "El color verdadero vuelve a verse en el sitio publicado",
+    "resumen": "Con una sola imagen de Sentinel-2, el modo Color dejaba el mapa vacío por un choque entre una librería y las reglas de seguridad del sitio. Ahora el color se arma igual que los demás modos: se presiona Calcular sobre el área y aparece en unos diez segundos.",
+    "seccion_manual": "Funciones · Color",
+    "evidencia": "4d0927f"
   }
 ]
