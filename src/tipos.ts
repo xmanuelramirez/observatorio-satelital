@@ -65,6 +65,11 @@ export interface Coleccion {
   /** Banda interna a nombre de asset en el item STAC. */
   bandas: Partial<Record<NombreBanda, string>>
   /** Asset RGB de 8 bits ya listo, si la coleccion lo publica. */
+  /**
+   * Asset de color verdadero del proveedor. Queda como referencia de que trae
+   * cada coleccion: desde el 24/09/2026 el color se calcula de las bandas,
+   * porque georaster no pinta bajo la CSP del sitio.
+   */
   assetColorVerdadero: string | null
   /** Asset que sirve de miniatura en la lista de resultados. */
   assetVistaPrevia: string

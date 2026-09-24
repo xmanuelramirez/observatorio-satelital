@@ -355,6 +355,14 @@ VITE_CAPAS_INTERNAS=true npm run build
   comodines y cada excepcion esta explicada en el propio archivo. Se probo con
   `npm run local`, que aplica las mismas cabeceras que produccion, recorriendo
   las tres colecciones y los cuatro modos.
+- **georaster solo queda para el TIF de InSAR.** El 24 de septiembre de 2026
+  se quito el atajo que pintaba el color verdadero de una malla de Sentinel-2
+  leyendo su COG con georaster: bajo la CSP del sitio esa capa descargaba el
+  archivo y no pintaba nada, porque los paquetes compilados de georaster
+  necesitan `new Function`. Solo fallaba en produccion y en `npm run local`,
+  nunca en `npm run dev`. El color verdadero ahora sale del mismo camino que
+  los demas modos. El visor de InSAR sigue con georaster y esta sin verificar
+  bajo CSP: hace falta un resultado de HyP3 para probarlo.
 - **Una violacion de CSP esperada, y esta bien asi.** Al cargar la pagina, la
   consola registra `script-src eval` desde el bundle. Viene del polyfill de
   `globalThis` que traen los paquetes ya compilados de georaster

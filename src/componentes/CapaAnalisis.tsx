@@ -8,7 +8,6 @@ import type { ResultadoPintado } from '../servicios/pintura'
 import { colorDeCambio } from '../servicios/paletas'
 
 export type FuenteRaster =
-  | { tipo: 'cog'; href: string }
   | { tipo: 'insar'; href: string; limite: number }
   /** Resultado de un calculo, ya pintado por el worker. */
   | { tipo: 'pintado'; resultado: ResultadoPintado }
@@ -50,13 +49,11 @@ export default function CapaAnalisis({ fuente, opacidad, onEstado }: Props) {
   const clave =
     fuente === null
       ? 'vacio'
-      : fuente.tipo === 'cog'
-        ? `cog:${fuente.href}`
-        : fuente.tipo === 'insar'
-          ? `insar:${fuente.href}:${fuente.limite}`
-          : fuente.tipo === 'imagen'
-            ? `img:${fuente.clave}`
-            : `pix:${fuente.resultado.sello}`
+      : fuente.tipo === 'insar'
+        ? `insar:${fuente.href}:${fuente.limite}`
+        : fuente.tipo === 'imagen'
+          ? `img:${fuente.clave}`
+          : `pix:${fuente.resultado.sello}`
 
   useEffect(() => {
     let cancelado = false
@@ -85,20 +82,6 @@ export default function CapaAnalisis({ fuente, opacidad, onEstado }: Props) {
       if (fuente.tipo === 'pintado') {
         const url = await pixelesAImagen(fuente.resultado)
         return { capa: comoImagen(url, fuente.resultado.limites, opacidad), urlPropia: url }
-      }
-
-      if (fuente.tipo === 'cog') {
-        const georaster = await parseGeoraster(fuente.href)
-        return {
-          capa: new GeoRasterLayer({
-            georaster,
-            // overlayPane va por encima del mapa base; en tilePane el fondo lo tapa.
-            pane: 'overlayPane',
-            resolution: 256,
-            opacity: opacidad,
-          }),
-          urlPropia: null,
-        }
       }
 
       const georaster = await parseGeoraster(fuente.href)

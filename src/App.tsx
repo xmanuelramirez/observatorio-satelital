@@ -484,22 +484,24 @@ export default function App() {
   }, [areaBbox, indice, datosCapas, area, grupos, coleccion, quitarNubes, soloAgua, maxFechas])
 
   /**
-   * El color verdadero de Sentinel-2 se lee del COG completo, que da mas
-   * detalle que la rejilla de analisis. Todo lo demas sale de las bandas.
+   * Que se pinta encima del mapa.
+   *
+   * El color verdadero de una sola malla de Sentinel-2 se leia antes del COG
+   * completo con georaster, sin pasar por el calculo. Se quito el 24 de
+   * septiembre de 2026: esos paquetes de georaster usan `new Function` para
+   * su polyfill de globalThis, la CSP del sitio lo bloquea, y la capa
+   * descargaba el COG pero no pintaba nada. Se veia solo en produccion, nunca
+   * en `npm run dev`, que no lleva cabeceras. Ahora el color verdadero sale
+   * del mismo camino que los demas modos: bandas, worker e imagen. Tarda unos
+   * segundos mas y funciona.
    */
   const fuente = useMemo<FuenteRaster>(() => {
     // El desplazamiento gana: es un producto aparte que el usuario pidio ver.
     if (desplazamiento) return desplazamiento
     if (productoVista) return productoVista.fuente
     if (analisis) return { tipo: 'pintado', resultado: analisis }
-    // Con dos mallas el atajo no sirve: cada COG trae su propia zona UTM y
-    // pintarlos encima no es un mosaico. Ahi hay que pasar por el calculo.
-    if (seleccion.length === 1 && modo === 'color' && coleccion.assetColorVerdadero) {
-      const asset = seleccion[0].assets[coleccion.assetColorVerdadero]
-      if (asset) return { tipo: 'cog', href: asset.href }
-    }
     return null
-  }, [desplazamiento, productoVista, analisis, seleccion, modo, coleccion])
+  }, [desplazamiento, productoVista, analisis])
 
   const errorRaster = errorAnalisis ?? estadoRaster.error
 
