@@ -30,7 +30,7 @@ npm run desplegar  # build y publicacion en Cloudflare
 | Conjunto | Nivel | Tratamiento |
 |---|---|---|
 | Limite municipal, limite urbano, cuenca Palote | Publico | Se publican en `capas/` |
-| Estaciones EMA | Interno | Su ubicacion dejo de ser reservada el 24/09/2026, por decision de Carlos. Sigue fuera del repositorio y del build publico: esa decision cambio la clasificacion, no la de publicar la capa |
+| Estaciones EMA | Publicable | Su ubicacion dejo de ser reservada (Carlos, 24 y 25/09/2026). Aqui sigue sin publicarse porque no aporta al analisis de escenas, no porque este prohibida |
 | Sensores en arroyos | Reservado | Ubicacion de instrumentacion. Fuera del repositorio (`.gitignore`), fuera del bundle y podadas de `dist/` |
 | Escenas Sentinel-2, Landsat, Sentinel-1 | Publico | No se guardan: se leen al vuelo del catalogo |
 | Resultados de HyP3 en `public/insar/` | Interno | Fuera del repositorio (`.gitignore`); solo se ven en local |
@@ -316,15 +316,15 @@ Las otras dos, estaciones EMA y sensores en arroyos, estan marcadas
 `publica: false` en `src/datos/capas.ts`. No hacen falta para analizar una
 escena y no salen en un build publico.
 
-La ubicacion de las EMA dejo de ser reservada el 24 de septiembre de 2026, por
-decision de Carlos. Eso cambia como se clasifica el dato, no lo que hace esta
-app: la capa sigue sin publicarse, porque la decision no dijo que se publicara
-y nadie la ha pedido aqui. Para publicarla haria falta sacarla del
-`.gitignore`, moverla al arreglo publico de `capas.ts` y agregarla a la lista
-blanca de `podar-capas.mjs`, y eso lo decide Carlos.
+La ubicacion de las EMA dejo de ser reservada el 24 de septiembre de 2026, y el
+25 Carlos confirmo que tampoco lo son las redes de infraestructura. Eso cambia
+como se clasifica el dato, no lo que hace esta app: la capa de EMA sigue sin
+publicarse porque no aporta al analisis de una escena. Publicarla son tres
+pasos: sacarla del `.gitignore`, moverla al arreglo publico de `capas.ts` y
+agregarla a la lista blanca de `podar-capas.mjs`.
 
-La ubicacion precisa de infraestructura hidraulica (pozos, tanques, cortinas,
-tomas) y el estado del SCADA siguen reservados.
+El padron, el estado del SCADA y el contenido del PSH y PRH no entran a esta
+app en ninguna forma.
 
 ## Despliegue
 
