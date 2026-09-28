@@ -173,6 +173,6 @@
     "titulo": "Ya se pueden sacar los resultados de la plataforma",
     "resumen": "La tarjeta de simbología trae botones para descargar en CSV y JSON lo que está en el mapa, y una herramienta nueva mide muchos polígonos de una vez y entrega una tabla con una fila por polígono. Antes las cifras solo se podían copiar a mano de la pantalla.",
     "seccion_manual": "Cierre · Exportaciones",
-    "evidencia": "pendiente de commit"
+    "evidencia": "b98e323"
   }
 ]
