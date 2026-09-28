@@ -272,6 +272,36 @@ Prueba de que las cifras cierran: sobre `LIMITE_URBANO`, cuyos rasgos traen su s
 propiedad `HAS`, el area medida por la herramienta reprodujo la declarada con diferencias
 menores al 0.2 por ciento (22,756 ha declaradas contra 22,724 medidas en el poligono mayor).
 
+### Suelo desnudo: dos hallazgos que cambian como se usa
+
+El modo `desnudo` mide suelo sin vegetacion y sin edificar, con dos fechas de la misma
+temporada. Autorizado el 28/09/2026 para los criterios de sitio de NBS (una obra de
+infiltracion se colmata si su cuenca aporta sedimento). Umbral NDVI < 0.20, fijado antes de
+medir, de Carlson y Ripley 1997 y Sobrino et al. 2004.
+
+**1. El NDVI bajo no distingue suelo de pavimento.** La primera corrida dio 47 por ciento de
+"suelo desnudo" en plena zona urbana: era la ciudad, no suelo. El asfalto y los techos tienen
+tan poca vegetacion como un despalme. Se corrigio excluyendo la clase Construido de ESA
+WorldCover, ademas del agua por MNDWI. Con eso la misma zona urbana dio 3.3 por ciento, que es
+lo esperable.
+
+**2. La temporada domina el resultado.** Los mismos cinco poligonos, mismo metodo, distinta
+fecha:
+
+| Poligono | Mayo (secas) | Septiembre (lluvias) |
+|---|---|---|
+| Zona urbana principal | 19.0 % (4,307 ha) | 3.3 % (720 ha) |
+| Poligono de 43 ha | 70.7 % | 16.1 % |
+
+Seis veces mas suelo desnudo en secas, sin que el terreno haya cambiado: es el ciclo agricola.
+De ahi la regla que viaja en cada fila de la salida: **el criterio se evalua con dos fechas de
+la misma temporada, y dos mediciones de temporadas distintas no se comparan.** Un barbecho y un
+despalme son los dos suelo sin vegetacion y ninguna banda los separa; el uso se confirma aparte.
+
+Como referencia, el mismo poligono urbano tiene 362 ha de suelo desnudo en WorldCover 2021
+contra 720 ha medidas en septiembre de 2026: el producto global envejece, que es justo el motivo
+de haber agregado esta medida.
+
 ## Resumen semanal
 
 `.github/workflows/resumen-semanal.yml` corre cada lunes a medianoche de Leon

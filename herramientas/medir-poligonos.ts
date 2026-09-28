@@ -44,7 +44,39 @@ import type { Escena, GrupoDia } from '../src/tipos'
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SALIDA = join(RAIZ, 'salidas')
 
-type Modo = 'cobertura' | 'obra' | 'calor' | 'indice'
+type Modo = 'cobertura' | 'obra' | 'calor' | 'indice' | 'desnudo'
+
+/**
+ * Umbral de suelo desnudo, fijado ANTES de medir y con fuente, como pidio el
+ * MASTER el 28/09/2026.
+ *
+ * NDVI por debajo de 0.20 es el valor que la literatura de fraccion de
+ * cobertura vegetal usa como "suelo desnudo" (Carlson y Ripley 1997; Sobrino
+ * et al. 2004, que toman NDVI_suelo = 0.2 y NDVI_vegetacion = 0.5). No se
+ * ajusta por sitio: un umbral movido a conveniencia deja de ser medicion.
+ *
+ * OJO, y esto se descubrio midiendo: el NDVI bajo NO distingue suelo desnudo
+ * de pavimento ni de techo. La primera corrida dio 47 por ciento de "suelo
+ * desnudo" en plena zona urbana, que es la ciudad misma, no suelo. Por eso se
+ * excluyen dos cosas: el agua, con MNDWI positivo, y lo ya construido, con la
+ * clase Construido de ESA WorldCover. Lo que queda es suelo sin vegetacion y
+ * sin edificar, que es lo que aporta sedimento a una obra de infiltracion.
+ */
+const UMBRAL_NDVI_DESNUDO = 0.2
+const FUENTE_UMBRAL = 'Carlson y Ripley 1997; Sobrino et al. 2004 (NDVI_suelo = 0.2)'
+
+/** Codigos de ESA WorldCover que se usan como mascara. */
+const CLASE_CONSTRUIDO = 50
+const CLASE_DESNUDO_2021 = 60
+
+/**
+ * La limitacion que viaja SIEMPRE con esta medida, por orden del MASTER.
+ * No es un defecto del metodo: un barbecho y un despalme son los dos suelo
+ * sin vegetacion, y ninguna banda los distingue.
+ */
+const LIMITACION_DESNUDO =
+  'El suelo agricola en barbecho se mide igual que el suelo desnudo de obra: ' +
+  'confirmar el uso antes de concluir. Medido con dos fechas de la misma temporada.'
 
 interface Opciones {
   capa: string
@@ -69,7 +101,7 @@ function leerOpciones(): Opciones {
   if (!capa) throw new Error('Falta --capa con la ruta del GeoJSON de poligonos')
 
   const modo = (valor('modo') ?? 'cobertura') as Modo
-  if (!['cobertura', 'obra', 'calor', 'indice'].includes(modo)) {
+  if (!['cobertura', 'obra', 'calor', 'indice', 'desnudo'].includes(modo)) {
     throw new Error(`Modo desconocido: ${modo}`)
   }
 
@@ -163,6 +195,23 @@ async function escenasDeLaCapa(opciones: Opciones, bbox: [number, number, number
     )
   }
 
+  if (opciones.modo === 'desnudo') {
+    /*
+     * Dos fechas de la MISMA temporada, nunca una sola imagen.
+     * Con una sola, una nube mal enmascarada o un corte de riego pintan suelo
+     * desnudo donde no lo hay. Se pide separacion de 10 a 75 dias: suficiente
+     * para que no sea la misma pasada, corto para no cruzar de secas a lluvias.
+     */
+    const candidatas = grupos.filter((g) => {
+      const dias = diasEntre(g.dia, actual.dia)
+      return g.dia !== actual.dia && dias >= 10 && dias <= 75
+    })
+    if (candidatas.length === 0) {
+      throw new Error('No hay segunda fecha entre 10 y 75 dias: amplia --desde')
+    }
+    base = candidatas[0]
+  }
+
   return { coleccion, actual, base }
 }
 
@@ -186,6 +235,57 @@ async function main() {
   }
 
   const definicionIndice = INDICES.find((i) => i.id === opciones.indice) ?? null
+
+  /*
+   * El suelo desnudo se calcula UNA vez sobre toda la capa y despues se recorta
+   * por poligono. Son tres lecturas (NDVI de cada fecha y MNDWI de la mas
+   * reciente); hacerlas por poligono multiplicaria el trabajo por el numero de
+   * poligonos para leer las mismas bandas.
+   */
+  const capasDesnudo = await (async () => {
+    if (opciones.modo !== 'desnudo') return null
+    const { coleccion, actual, base } = escenas!
+    const comun = {
+      coleccion,
+      bbox: bboxCapa,
+      areaGeojson: capa,
+      etiquetaArea: 'capa completa',
+      escenasReferencia: [] as Escena[],
+      bandasKmeans: [] as never[],
+      k: 4,
+      tamano: opciones.tamano,
+      umbralCambio: 0.1,
+      umbralObra: 0.08,
+      areaMinimaObra: 1,
+      quitarNubes: true,
+      soloAgua: false,
+      umbralAguaDb: -16,
+      modo: 'indice' as const,
+    }
+    const ndvi = INDICES.find((i) => i.id === 'ndvi')!
+    const mndwi = INDICES.find((i) => i.id === 'mndwi')!
+    console.log('  leyendo NDVI de las dos fechas y MNDWI de la mas reciente...')
+    const a = await ejecutarAnalisis({ ...comun, escenas: actual.escenas as Escena[], indice: ndvi })
+    const b = await ejecutarAnalisis({ ...comun, escenas: base!.escenas as Escena[], indice: ndvi })
+    const agua = await ejecutarAnalisis({ ...comun, escenas: actual.escenas as Escena[], indice: mndwi })
+
+    console.log('  leyendo la cobertura para excluir lo ya construido...')
+    const cobertura = await cargarProducto({
+      producto: PRODUCTOS.find((p) => p.id === 'cobertura')!,
+      bbox: bboxCapa,
+      areaGeojson: capa,
+      etiquetaArea: 'capa completa',
+      tamano: opciones.tamano,
+    })
+
+    return {
+      rejilla: a.rejilla,
+      ndviA: a.bandas[0],
+      ndviB: b.bandas[0],
+      mndwi: agua.bandas[0],
+      clases: cobertura.bandas[0],
+    }
+  })()
   const filas: Record<string, string | number | null>[] = []
   const notasPorFila: Record<string, string[]> = {}
 
@@ -203,7 +303,54 @@ async function main() {
       rejilla: opciones.tamano,
     }
 
-    if (opciones.modo === 'cobertura') {
+    if (opciones.modo === 'desnudo') {
+      const { rejilla, ndviA, ndviB, mndwi, clases } = capasDesnudo!
+      const dentro = mascaraDeArea(rejilla, soloEste)
+      const haCeldaCapa = hectareasPorCelda(bboxCapa, opciones.tamano)
+      let dentroTotal = 0
+      let desnudas = 0
+      let sinDato = 0
+      let construidas = 0
+      let desnudas2021 = 0
+      for (let i = 0; i < ndviA.length; i++) {
+        if (!dentro[i]) continue
+        dentroTotal++
+        if (clases[i] === CLASE_CONSTRUIDO) construidas++
+        if (clases[i] === CLASE_DESNUDO_2021) desnudas2021++
+        if (!Number.isFinite(ndviA[i]) || !Number.isFinite(ndviB[i])) {
+          sinDato++
+          continue
+        }
+        // Sin vegetacion en las DOS fechas, que no sea agua y que no este ya construido.
+        const esAgua = Number.isFinite(mndwi[i]) && mndwi[i] > 0
+        const esConstruido = clases[i] === CLASE_CONSTRUIDO
+        if (
+          !esAgua &&
+          !esConstruido &&
+          ndviA[i] < UMBRAL_NDVI_DESNUDO &&
+          ndviB[i] < UMBRAL_NDVI_DESNUDO
+        ) {
+          desnudas++
+        }
+      }
+      const medibles = dentroTotal - sinDato
+      filas.push({
+        ...comun,
+        fecha_a: escenas!.actual.dia,
+        fecha_b: escenas!.base!.dia,
+        separacion_dias: diasEntre(escenas!.base!.dia, escenas!.actual.dia),
+        umbral_ndvi: UMBRAL_NDVI_DESNUDO,
+        fuente_umbral: FUENTE_UMBRAL,
+        area_ha: redondear(dentroTotal * haCeldaCapa),
+        suelo_desnudo_ha: redondear(desnudas * haCeldaCapa),
+        suelo_desnudo_pct: medibles > 0 ? redondear((desnudas / medibles) * 100) : null,
+        cobertura_valida_pct: dentroTotal > 0 ? redondear((medibles / dentroTotal) * 100) : null,
+        construido_ha: redondear(construidas * haCeldaCapa),
+        desnudo_worldcover_2021_ha: redondear(desnudas2021 * haCeldaCapa),
+        limitacion: LIMITACION_DESNUDO,
+      })
+      notasPorFila[id] = [LIMITACION_DESNUDO, `Umbral NDVI ${UMBRAL_NDVI_DESNUDO}: ${FUENTE_UMBRAL}`]
+    } else if (opciones.modo === 'cobertura') {
       const producto = PRODUCTOS.find((p) => p.id === 'cobertura')!
       const resultado = await cargarProducto({
         producto,
