@@ -181,6 +181,6 @@
     "titulo": "Mide suelo desnudo con imágenes recientes, no con el mapa de 2021",
     "resumen": "Nuevo modo que mide suelo sin vegetación y sin edificar usando dos fechas de la misma temporada. Sirve para saber si la cuenca que alimenta una obra de infiltración está estabilizada. La medición trae declarada su limitación: un barbecho agrícola se ve igual que un despalme.",
     "seccion_manual": "Funciones · Escenas",
-    "evidencia": "pendiente de commit"
+    "evidencia": "e4cbe36"
   }
 ]
