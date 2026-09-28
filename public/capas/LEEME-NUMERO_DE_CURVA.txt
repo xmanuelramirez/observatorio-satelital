@@ -1,0 +1,24 @@
+NUMERO_DE_CURVA.geojson: capa historica, no cruzar por identificador
+====================================================================
+Marcada el 28 de septiembre de 2026.
+
+Las 63 subcuencas de esta capa se trazaron sobre un MDT Copernicus que CAUCE
+retiro. Sus campos VALUE e id NO corresponden a las subcuencas de produccion:
+15 numeros coinciden y ninguno es el mismo poligono. Un cruce por VALUE, por id
+o por numero de fila contra subbasins.geojson, o contra cualquier otra tabla de
+subcuencas, sale mal sin dar error.
+
+Dentro de esta capa se puede seguir usando: el Observatorio reparte la obra
+nueva por geometria, punto en poligono, y el numero solo rotula la fila.
+Tercera trampa, por si alguien intenta el cruce a mano: id y VALUE tampoco
+coinciden entre si en ninguno de los 63 rasgos, y la app rotula con id.
+
+La sustituye el marco v1 de CAUCE (unidad B', ~64 subcuencas sobre el D8 de
+produccion), sobre el que se reagregara el numero de curva con su version_marco.
+Esta se conserva como historica.
+
+Dictamen: 8. CAUCE/ORDENES-DEL-MASTER/2026-09-28-DICTAMEN-JUEZ-UNIDAD-SUBCUENCAS.md
+Aviso:    ORDENES-DEL-MASTER/2026-09-28-aviso-numero-de-curva-ids.md
+
+La capa es interna y no viaja al sitio publico: herramientas/podar-capas.mjs la
+quita del build con lista blanca. Este archivo se va con ella.

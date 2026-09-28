@@ -262,7 +262,10 @@ Dos reglas que vienen del dictamen del juez del 27/09/2026 y no se tocan:
 2. **Cada fila lleva `version_marco`**, que se declara al correr. Conviven dos divisiones de
    subcuencas en el departamento (66 en la app de CAUCE y 63 en la capa de numero de curva, con
    solo 19 identificadores en comun): sin saber con cual se calculo, la cifra no se puede cruzar
-   con nada.
+   con nada. El juez cerro el punto el 28/09/2026: los identificadores de `NUMERO_DE_CURVA`
+   salieron de un MDT Copernicus que CAUCE retiro, asi que **no se cruzan por `VALUE`, `id` ni
+   numero de fila** con `subbasins.geojson` ni con ninguna otra capa de subcuencas. La unidad
+   buena sera el marco v1 de CAUCE, y sobre ella se reagregara el numero de curva.
 
 Las escenas se buscan **una vez para toda la capa**, no por poligono, para que todas las filas
 queden medidas con la misma fecha. Buscar por poligono le daria a cada uno la escena que mejor
@@ -368,6 +371,11 @@ detectadas entre 2024 y 2026.
 
 La capa `NUMERO_DE_CURVA.geojson` es interna y no viaja al sitio publico; el
 podado la excluye y el panel avisa cuando falta.
+
+Sus 63 subcuencas son las de un MDT que CAUCE ya retiro. El reparto de la obra
+nueva no sufre por eso, porque cada zona se asigna por geometria dentro de esa
+misma capa y el numero solo rotula la fila. Lo que no se puede es leer esos
+numeros como los de CAUCE: el panel lo advierte al pie de la tabla.
 
 ## Capas
 

@@ -93,6 +93,16 @@ export function contiene(geometria: Polygon | MultiPolygon, lon: number, lat: nu
   return dentro
 }
 
+/**
+ * `nombre` es rotulo y clave interna de esta capa, nunca clave de cruce.
+ *
+ * El 28 de septiembre de 2026 el juez fijo que los identificadores de
+ * NUMERO_DE_CURVA salieron de un MDT que CAUCE retiro, asi que no son los de
+ * las subcuencas de produccion. Aqui no estorba porque cada zona de obra se
+ * asigna por geometria, punto en poligono dentro de esta misma capa, y el
+ * nombre solo agrupa filas de ella. Lo que no puede hacerse es unir esta
+ * tabla con otra de subcuencas por ese numero.
+ */
 export function leerSubcuencas(datos: FeatureCollection, condicion: CondicionCn): Subcuenca[] {
   return datos.features
     .filter((f): f is Feature<Polygon | MultiPolygon> =>

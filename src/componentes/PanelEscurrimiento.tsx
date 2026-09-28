@@ -151,6 +151,12 @@ export default function PanelEscurrimiento({
                 obra nueva se trata como superficie impermeable y mueve el número de curva en
                 proporción al área que ocupa dentro de cada subcuenca.
               </p>
+
+              <p className="mt-2 text-xs leading-snug text-rotulo">
+                Los números de subcuenca son los de esa capa, hecha sobre un modelo de elevación
+                que ya se retiró. No corresponden a los de CAUCE: no los cruce por número con
+                otras tablas de subcuencas.
+              </p>
             </div>
           )}
         </>
