@@ -35,6 +35,20 @@ práctica: subir a `main` es seguro cuando no se quiere publicar, y subir no bas
 Cada cambio visible para quien usa la plataforma se anota en `ACTUALIZACIONES.json`, en el
 formato del MASTER. De ahí salen la bitácora de SISPLAN y el control de versiones del manual.
 
+## Toda medición nueva declara una cifra de contraste
+
+Antes de dar por buena una medición nueva, hay que decir contra qué cifra conocida debe ser
+plausible, y comprobarlo. No es revisar el código: es mirar el número y preguntarse si puede ser
+cierto.
+
+De dónde salió la regla: el 28 de septiembre de 2026 la primera versión del modo de suelo
+desnudo dio 47 por ciento en plena zona urbana. El código estaba bien; lo que fallaba era el
+método, porque el NDVI bajo no distingue suelo de pavimento. La cifra de contraste (una ciudad
+no puede ser medio suelo desnudo) fue lo que lo detectó. Desde entonces es regla del
+departamento, en `0. MASTER/2. ESTANDARES/AUDITORIA-METODOLOGIAS.md`.
+
+También va escrito el umbral y su fuente antes de medir, no después de ver el resultado.
+
 ## Antes de construir un dato
 
 Buscarlo primero en `0. MASTER/1. CONTEXTO/CATALOGO-CAPACIDADES.md`: dice qué produce cada
