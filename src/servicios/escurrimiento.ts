@@ -61,6 +61,15 @@ export interface Subcuenca {
   areaDeclarada: number
   /** areaKm2 / areaDeclarada. Debajo de FRACCION_MINIMA la fila se marca. */
   fraccionConCn: number
+  /**
+   * Advertencia que trae la propia capa para esa unidad, si la trae.
+   *
+   * Manda sobre la que arma el panel: asi el criterio vive en un solo lugar y
+   * si CAUCE lo cambia, la tabla lo sigue sin tocar codigo. En el marco v1 hay
+   * cuatro unidades con aviso y cobertura por encima del umbral, que sin esto
+   * se leerian como si no tuvieran nada que advertir.
+   */
+  aviso?: string
   cn: number
   anillos: Position[][]
 }
@@ -84,6 +93,7 @@ export interface FilaEscurrimiento {
   areaKm2: number
   areaDeclarada: number
   fraccionConCn: number
+  aviso?: string
   cn: number
   /** Numero de curva despues de sumar la obra nueva detectada. */
   cnNuevo: number
@@ -234,6 +244,8 @@ export function leerSubcuencas(datos: FeatureCollection, condicion: CondicionCn)
       return
     }
 
+    const aviso = String(propiedades.aviso ?? '').trim()
+
     const declarada = Number.isFinite(propiedades.fraccion_con_cn as number)
       ? Number(propiedades.fraccion_con_cn)
       : Number.NaN
@@ -248,6 +260,7 @@ export function leerSubcuencas(datos: FeatureCollection, condicion: CondicionCn)
         : areaDeclarada > 0
           ? areaKm2 / areaDeclarada
           : 1,
+      aviso: aviso.length > 0 ? aviso : undefined,
       cn,
       anillos,
     })
@@ -310,6 +323,7 @@ export function calcularEscurrimiento(
       areaKm2: subcuenca.areaKm2,
       areaDeclarada: subcuenca.areaDeclarada,
       fraccionConCn: subcuenca.fraccionConCn,
+      aviso: subcuenca.aviso,
       cn: subcuenca.cn,
       cnNuevo,
       hectareasNuevas,

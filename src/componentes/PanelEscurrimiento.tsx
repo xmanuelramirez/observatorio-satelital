@@ -156,10 +156,10 @@ export default function PanelEscurrimiento({
                         {fila.laminaNuevaMm.toFixed(1)} mm · {fila.areaKm2.toFixed(1)} km²
                       </span>
                     </div>
-                    {fila.fraccionConCn < FRACCION_MINIMA && (
+                    {(fila.aviso || fila.fraccionConCn < FRACCION_MINIMA) && (
                       <p className="mt-0.5 leading-snug text-aviso">
-                        El número de curva cubre {(fila.fraccionConCn * 100).toFixed(0)} % de sus{' '}
-                        {fila.areaDeclarada.toFixed(1)} km². Solo pesa lo que cubre.
+                        {fila.aviso ??
+                          `El número de curva cubre ${(fila.fraccionConCn * 100).toFixed(0)} % de sus ${fila.areaDeclarada.toFixed(1)} km². Solo pesa lo que cubre.`}
                       </p>
                     )}
                   </li>
@@ -190,10 +190,10 @@ export default function PanelEscurrimiento({
 
               <p className="mt-2 text-xs leading-snug text-rotulo">
                 El volumen sale de la superficie con número de curva, no del área completa de
-                las subcuencas: lo que falta queda fuera del dominio del ráster, que cubre el
-                municipio entero más una franja exterior de 337 km².{' '}
+                las subcuencas. El ráster cubre el municipio completo y una franja exterior; el
+                resto no tiene número de curva medido y no se suma.{' '}
                 {resultado.unidadesParciales > 0 &&
-                  `${resultado.unidadesParciales} unidades tienen el número de curva sobre menos del 90 % de su superficie y van marcadas.`}
+                  `${resultado.unidadesParciales} unidades lo tienen sobre menos del 90 % de su superficie y van marcadas.`}
               </p>
 
               <p className="mt-2 text-xs leading-snug text-rotulo">
