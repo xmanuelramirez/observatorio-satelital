@@ -1,4 +1,4 @@
-import type { Feature, FeatureCollection, Polygon, MultiPolygon, Position } from 'geojson'
+import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import type { ZonaObra } from './obranueva'
 
 /**
@@ -10,10 +10,37 @@ import type { ZonaObra } from './obranueva'
  * modo Obra entrega esas zonas; aqui se reparten por subcuenca, se sube el
  * numero de curva en la proporcion que les toca y se vuelve a correr la
  * lamina. La diferencia es el costo hidrologico del crecimiento.
+ *
+ * Auditado por el juez el 28 de septiembre de 2026
+ * (`ORDENES-DEL-MASTER/2026-09-28-DICTAMEN-JUEZ-ESCURRIMIENTO.md`). Tres reglas
+ * salieron de ahi y no se tocan por separado:
+ *
+ * 1. Ninguna unidad se descarta en silencio. Las GeometryCollection se aplanan,
+ *    y lo que no deja ningun anillo se reporta con su superficie.
+ * 2. La llave de una fila es su posicion en la capa. El rotulo puede repetirse
+ *    o faltar; la llave no, y de ella depende el reparto de hectareas.
+ * 3. **La lamina se multiplica por la superficie con numero de curva, no por el
+ *    area declarada de la subcuenca.** Multiplicar por el area completa aplica
+ *    un CN a terreno que nunca se caracterizo: eso no es medir, es extrapolar.
+ *    Las reglas 1 y 3 van juntas: aplanar sin corregir el area sube el volumen
+ *    un 25.7 por ciento y lo empeora.
  */
 
 /** Numero de curva de una superficie impermeable en condicion media. */
 const CN_IMPERMEABLE = 98
+
+/**
+ * Celda del raster de numero de curva, 10 m.
+ *
+ * La capa vigente no declara `km2_con_cn`, pero si el conteo de celdas con CN.
+ * El juez probo el tamano por geometria: el area de los poligonos entre
+ * `celdas` da entre 1.0009 y 1.0013, que es el factor de escala UTM al
+ * cuadrado. Solo se usa cuando la capa no trae la superficie ya calculada.
+ */
+const CELDA_KM2 = 1e-4
+
+/** Debajo de esta fraccion la fila se marca: su CN describe parte de la unidad. */
+export const FRACCION_MINIMA = 0.9
 
 export type CondicionCn = 'cn_optimo' | 'cn_medio' | 'cn_critico'
 
@@ -24,16 +51,39 @@ export const CONDICIONES: { id: CondicionCn; etiqueta: string; descripcion: stri
 ]
 
 export interface Subcuenca {
-  nombre: string
+  /** Posicion en la capa. Unica por construccion; no depende de los campos. */
+  clave: number
+  /** Solo para mostrar: `id_subcuenca`, `nombre` o `id`, lo que traiga la capa. */
+  rotulo: string
+  /** Superficie con numero de curva, en km2. Es la que multiplica la lamina. */
   areaKm2: number
+  /** Superficie que la capa declara para la unidad completa, en km2. */
+  areaDeclarada: number
+  /** areaKm2 / areaDeclarada. Debajo de FRACCION_MINIMA la fila se marca. */
+  fraccionConCn: number
   cn: number
-  fraccionImpermeable: number
-  geometria: Polygon | MultiPolygon
+  anillos: Position[][]
+}
+
+export interface UnidadDescartada {
+  rotulo: string
+  areaDeclarada: number
+}
+
+export interface Lectura {
+  subcuencas: Subcuenca[]
+  /** Unidades sin geometria poligonal utilizable, con su superficie declarada. */
+  descartadas: UnidadDescartada[]
+  /** De donde salio la superficie con CN. */
+  fuenteArea: 'km2_con_cn' | 'celdas'
 }
 
 export interface FilaEscurrimiento {
-  nombre: string
+  clave: number
+  rotulo: string
   areaKm2: number
+  areaDeclarada: number
+  fraccionConCn: number
   cn: number
   /** Numero de curva despues de sumar la obra nueva detectada. */
   cnNuevo: number
@@ -42,6 +92,21 @@ export interface FilaEscurrimiento {
   laminaMm: number
   laminaNuevaMm: number
   /** Volumen en metros cubicos. */
+  volumenM3: number
+  volumenNuevoM3: number
+}
+
+/**
+ * Lo que aportan solo las unidades que recibieron obra.
+ *
+ * Es el unico subtotal comparable con el area que se analizo en pantalla. El
+ * total recorre todas las unidades de la capa, que es otra cosa. Advertencia
+ * del juez: cubre 240 km2 y la zona urbana 230, parecidos por casualidad; no
+ * son lo mismo y no se rotulan igual.
+ */
+export interface SubtotalReceptoras {
+  unidades: number
+  areaKm2: number
   volumenM3: number
   volumenNuevoM3: number
 }
@@ -55,6 +120,15 @@ export interface ResultadoEscurrimiento {
   hectareasNuevas: number
   /** Zonas de obra que no cayeron en ninguna subcuenca del area. */
   zonasFuera: number
+  /** Superficie con numero de curva sobre la que se calculo, en km2. */
+  km2ConCn: number
+  /** Superficie declarada de esas mismas unidades, en km2. */
+  km2Declarados: number
+  /** Unidades cuyo CN cubre menos de FRACCION_MINIMA de su superficie. */
+  unidadesParciales: number
+  descartadas: UnidadDescartada[]
+  receptoras: SubtotalReceptoras
+  fuenteArea: Lectura['fuenteArea']
 }
 
 /**
@@ -71,17 +145,26 @@ export function laminaEscurrida(lluviaMm: number, cn: number): number {
   return Math.pow(lluviaMm - abstraccion, 2) / (lluviaMm + 0.8 * s)
 }
 
-function anillosDe(geometria: Polygon | MultiPolygon): Position[][] {
-  return geometria.type === 'Polygon'
-    ? geometria.coordinates
-    : geometria.coordinates.flatMap((poligono) => poligono)
+/**
+ * Anillos de cualquier geometria, incluida GeometryCollection.
+ *
+ * Hasta el 28 de septiembre de 2026 solo se leian Polygon y MultiPolygon, y
+ * las 12 GeometryCollection de la capa vigente se caian sin mensaje: 613 km2
+ * declarados que no aparecian en ninguna cifra ni en ningun aviso.
+ */
+export function anillosDe(geometria: Geometry | null | undefined): Position[][] {
+  if (!geometria) return []
+  if (geometria.type === 'Polygon') return geometria.coordinates
+  if (geometria.type === 'MultiPolygon') return geometria.coordinates.flat()
+  if (geometria.type === 'GeometryCollection') return geometria.geometries.flatMap(anillosDe)
+  return []
 }
 
 /** Punto en poligono por conteo de cruces, con los anillos interiores restando. */
-export function contiene(geometria: Polygon | MultiPolygon, lon: number, lat: number): boolean {
+export function contiene(anillos: Position[][], lon: number, lat: number): boolean {
   let dentro = false
 
-  for (const anillo of anillosDe(geometria)) {
+  for (const anillo of anillos) {
     for (let i = 0, j = anillo.length - 1; i < anillo.length; j = i++) {
       const [xi, yi] = anillo[i]
       const [xj, yj] = anillo[j]
@@ -93,37 +176,80 @@ export function contiene(geometria: Polygon | MultiPolygon, lon: number, lat: nu
   return dentro
 }
 
+function rotuloDe(propiedades: Record<string, unknown>, indice: number): string {
+  const candidato = propiedades.id_subcuenca ?? propiedades.nombre ?? propiedades.id
+  return candidato === undefined || candidato === null
+    ? `Unidad ${indice + 1}`
+    : String(candidato)
+}
+
 /**
- * `nombre` es rotulo y clave interna de esta capa, nunca clave de cruce.
+ * Lee la capa y declara de donde sale la superficie con numero de curva.
  *
- * El 28 de septiembre de 2026 el juez fijo que los identificadores de
- * NUMERO_DE_CURVA salieron de un MDT que CAUCE retiro, asi que no son los de
- * las subcuencas de produccion. Aqui no estorba porque cada zona de obra se
- * asigna por geometria, punto en poligono dentro de esta misma capa, y el
- * nombre solo agrupa filas de ella. Lo que no puede hacerse es unir esta
- * tabla con otra de subcuencas por ese numero.
+ * Si la capa no dice cuanta superficie tiene CN, el modo no corre. Caer al
+ * `area_km2` seria justo el error que el dictamen prohibe, y ademas silencioso:
+ * el resultado se veria bien y estaria inflado.
  */
-export function leerSubcuencas(datos: FeatureCollection, condicion: CondicionCn): Subcuenca[] {
-  return datos.features
-    .filter((f): f is Feature<Polygon | MultiPolygon> =>
-      f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon',
-    )
-    .map((f) => {
-      const props = f.properties ?? {}
-      const cn = Number(props[condicion])
-      return {
-        nombre: String(props.nombre ?? props.id ?? 'Subcuenca'),
-        areaKm2: Number(props.area_km2 ?? 0),
-        cn: Number.isFinite(cn) ? cn : Number.NaN,
-        fraccionImpermeable: Number(props.fraccion_impermeable ?? 0),
-        geometria: f.geometry,
-      }
+export function leerSubcuencas(datos: FeatureCollection, condicion: CondicionCn): Lectura {
+  const primera = datos.features[0]?.properties ?? {}
+  const fuenteArea: Lectura['fuenteArea'] =
+    Number.isFinite(Number(primera.km2_con_cn)) ? 'km2_con_cn' : 'celdas'
+
+  const subcuencas: Subcuenca[] = []
+  const descartadas: UnidadDescartada[] = []
+
+  datos.features.forEach((rasgo: Feature, indice) => {
+    const propiedades = (rasgo.properties ?? {}) as Record<string, unknown>
+    const rotulo = rotuloDe(propiedades, indice)
+    const areaDeclarada = Number(propiedades.area_km2 ?? 0)
+    const cn = Number(propiedades[condicion])
+
+    const areaKm2 =
+      fuenteArea === 'km2_con_cn'
+        ? Number(propiedades.km2_con_cn)
+        : Number(propiedades.celdas ?? Number.NaN) * CELDA_KM2
+
+    if (!Number.isFinite(areaKm2)) {
+      throw new Error(
+        'La capa no declara la superficie con número de curva (km2_con_cn o celdas). ' +
+          'Sin ella el volumen sería una extrapolación.',
+      )
+    }
+
+    const anillos = anillosDe(rasgo.geometry)
+    if (anillos.length === 0) {
+      descartadas.push({ rotulo, areaDeclarada })
+      return
+    }
+    if (!Number.isFinite(cn) || areaKm2 <= 0) {
+      descartadas.push({ rotulo, areaDeclarada })
+      return
+    }
+
+    const declarada = Number.isFinite(propiedades.fraccion_con_cn as number)
+      ? Number(propiedades.fraccion_con_cn)
+      : Number.NaN
+
+    subcuencas.push({
+      clave: indice,
+      rotulo,
+      areaKm2,
+      areaDeclarada,
+      fraccionConCn: Number.isFinite(declarada)
+        ? declarada
+        : areaDeclarada > 0
+          ? areaKm2 / areaDeclarada
+          : 1,
+      cn,
+      anillos,
     })
-    .filter((s) => Number.isFinite(s.cn) && s.areaKm2 > 0)
+  })
+
+  return { subcuencas, descartadas, fuenteArea }
 }
 
 export interface ParametrosEscurrimiento {
-  subcuencas: Subcuenca[]
+  lectura: Lectura
   lluviaMm: number
   condicion: CondicionCn
   /** Zonas de obra nueva detectadas, para subir el numero de curva. */
@@ -133,25 +259,26 @@ export interface ParametrosEscurrimiento {
 export function calcularEscurrimiento(
   parametros: ParametrosEscurrimiento,
 ): ResultadoEscurrimiento {
-  const { subcuencas, lluviaMm, condicion, zonasObra } = parametros
+  const { lectura, lluviaMm, condicion, zonasObra } = parametros
+  const { subcuencas } = lectura
 
-  const nuevasPorSubcuenca = new Map<string, number>()
+  const nuevasPorSubcuenca = new Map<number, number>()
   let zonasFuera = 0
 
   for (const zona of zonasObra) {
-    const subcuenca = subcuencas.find((s) => contiene(s.geometria, zona.lon, zona.lat))
+    const subcuenca = subcuencas.find((s) => contiene(s.anillos, zona.lon, zona.lat))
     if (!subcuenca) {
       zonasFuera++
       continue
     }
     nuevasPorSubcuenca.set(
-      subcuenca.nombre,
-      (nuevasPorSubcuenca.get(subcuenca.nombre) ?? 0) + zona.hectareas,
+      subcuenca.clave,
+      (nuevasPorSubcuenca.get(subcuenca.clave) ?? 0) + zona.hectareas,
     )
   }
 
   const filas: FilaEscurrimiento[] = subcuencas.map((subcuenca) => {
-    const hectareasNuevas = nuevasPorSubcuenca.get(subcuenca.nombre) ?? 0
+    const hectareasNuevas = nuevasPorSubcuenca.get(subcuenca.clave) ?? 0
     const areaHa = subcuenca.areaKm2 * 100
 
     /*
@@ -170,8 +297,11 @@ export function calcularEscurrimiento(
     const aVolumen = (mm: number) => mm * subcuenca.areaKm2 * 1000
 
     return {
-      nombre: subcuenca.nombre,
+      clave: subcuenca.clave,
+      rotulo: subcuenca.rotulo,
       areaKm2: subcuenca.areaKm2,
+      areaDeclarada: subcuenca.areaDeclarada,
+      fraccionConCn: subcuenca.fraccionConCn,
       cn: subcuenca.cn,
       cnNuevo,
       hectareasNuevas,
@@ -182,13 +312,27 @@ export function calcularEscurrimiento(
     }
   })
 
+  const conObra = filas.filter((fila) => fila.hectareasNuevas > 0)
+  const suma = (valores: number[]) => valores.reduce((total, valor) => total + valor, 0)
+
   return {
     filas: filas.sort((a, b) => b.volumenNuevoM3 - a.volumenNuevoM3),
     lluviaMm,
     condicion,
-    totalVolumenM3: filas.reduce((suma, fila) => suma + fila.volumenM3, 0),
-    totalVolumenNuevoM3: filas.reduce((suma, fila) => suma + fila.volumenNuevoM3, 0),
-    hectareasNuevas: [...nuevasPorSubcuenca.values()].reduce((suma, ha) => suma + ha, 0),
+    totalVolumenM3: suma(filas.map((f) => f.volumenM3)),
+    totalVolumenNuevoM3: suma(filas.map((f) => f.volumenNuevoM3)),
+    hectareasNuevas: suma([...nuevasPorSubcuenca.values()]),
     zonasFuera,
+    km2ConCn: suma(filas.map((f) => f.areaKm2)),
+    km2Declarados: suma(filas.map((f) => f.areaDeclarada)),
+    unidadesParciales: filas.filter((f) => f.fraccionConCn < FRACCION_MINIMA).length,
+    descartadas: lectura.descartadas,
+    receptoras: {
+      unidades: conObra.length,
+      areaKm2: suma(conObra.map((f) => f.areaKm2)),
+      volumenM3: suma(conObra.map((f) => f.volumenM3)),
+      volumenNuevoM3: suma(conObra.map((f) => f.volumenNuevoM3)),
+    },
+    fuenteArea: lectura.fuenteArea,
   }
 }

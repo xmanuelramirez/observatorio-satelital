@@ -1,4 +1,9 @@
-import { CONDICIONES, type CondicionCn, type ResultadoEscurrimiento } from '../servicios/escurrimiento'
+import {
+  CONDICIONES,
+  FRACCION_MINIMA,
+  type CondicionCn,
+  type ResultadoEscurrimiento,
+} from '../servicios/escurrimiento'
 
 interface Props {
   disponible: boolean
@@ -105,8 +110,10 @@ export default function PanelEscurrimiento({
                   {miles(resultado.totalVolumenNuevoM3)} m³
                 </p>
                 <p className="mt-1 text-xs leading-snug text-tinta-suave">
-                  Con una lluvia de {resultado.lluviaMm} mm sobre{' '}
-                  {miles(resultado.filas.reduce((s, f) => s + f.areaKm2, 0))} km² de subcuencas.
+                  Con una lluvia de {resultado.lluviaMm} mm sobre la superficie con número de
+                  curva: {miles(resultado.km2ConCn)} km² de los{' '}
+                  {miles(resultado.km2Declarados)} km² que declaran las{' '}
+                  {resultado.filas.length} unidades.
                 </p>
                 {resultado.hectareasNuevas > 0 && (
                   <p className="mt-1.5 text-xs leading-snug text-aviso">
@@ -117,11 +124,25 @@ export default function PanelEscurrimiento({
                 )}
               </div>
 
+              {resultado.receptoras.unidades > 0 && (
+                <div className="mt-2 border border-filete bg-panel-hondo p-3">
+                  <p className="rotulo">Unidades que reciben obra</p>
+                  <p className="cifra mt-1 text-[15px] font-semibold text-tinta">
+                    {miles(resultado.receptoras.volumenNuevoM3)} m³
+                  </p>
+                  <p className="mt-1 text-xs leading-snug text-tinta-suave">
+                    {resultado.receptoras.unidades} de {resultado.filas.length} unidades,{' '}
+                    {miles(resultado.receptoras.areaKm2)} km² con número de curva. El total de
+                    arriba recorre todas las unidades de la capa, no solo el área analizada.
+                  </p>
+                </div>
+              )}
+
               <ul className="mt-2.5 max-h-52 overflow-y-auto">
                 {resultado.filas.slice(0, 15).map((fila) => (
-                  <li key={fila.nombre} className="border-b border-filete py-1.5 text-xs">
+                  <li key={fila.clave} className="border-b border-filete py-1.5 text-xs">
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-tinta">{fila.nombre}</span>
+                      <span className="text-tinta">{fila.rotulo}</span>
                       <span className="cifra text-tinta-suave">
                         {miles(fila.volumenNuevoM3)} m³
                       </span>
@@ -135,6 +156,12 @@ export default function PanelEscurrimiento({
                         {fila.laminaNuevaMm.toFixed(1)} mm · {fila.areaKm2.toFixed(1)} km²
                       </span>
                     </div>
+                    {fila.fraccionConCn < FRACCION_MINIMA && (
+                      <p className="mt-0.5 leading-snug text-aviso">
+                        El número de curva cubre {(fila.fraccionConCn * 100).toFixed(0)} % de sus{' '}
+                        {fila.areaDeclarada.toFixed(1)} km². Solo pesa lo que cubre.
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -146,10 +173,27 @@ export default function PanelEscurrimiento({
                 </p>
               )}
 
+              {resultado.descartadas.length > 0 && (
+                <p className="mt-2 text-xs leading-snug text-aviso">
+                  {resultado.descartadas.length} unidades quedaron fuera por no traer geometría
+                  ni número de curva utilizables (
+                  {miles(resultado.descartadas.reduce((s, d) => s + d.areaDeclarada, 0))} km²
+                  declarados): {resultado.descartadas.map((d) => d.rotulo).join(', ')}.
+                </p>
+              )}
+
               <p className="mt-2 text-xs leading-snug text-rotulo">
                 Lámina por el método SCS con el número de curva de la capa del departamento. La
                 obra nueva se trata como superficie impermeable y mueve el número de curva en
                 proporción al área que ocupa dentro de cada subcuenca.
+              </p>
+
+              <p className="mt-2 text-xs leading-snug text-rotulo">
+                El volumen sale de la superficie con número de curva, no del área completa de
+                las subcuencas: lo que falta queda fuera del dominio del ráster, que cubre el
+                municipio entero más una franja exterior de 337 km².{' '}
+                {resultado.unidadesParciales > 0 &&
+                  `${resultado.unidadesParciales} unidades tienen el número de curva sobre menos del 90 % de su superficie y van marcadas.`}
               </p>
 
               <p className="mt-2 text-xs leading-snug text-rotulo">

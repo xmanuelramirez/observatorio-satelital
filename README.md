@@ -360,14 +360,35 @@ responde 429 si se le pide seguido).
 
 ## Escurrimiento
 
-Metodo del numero de curva del SCS sobre las 63 subcuencas del departamento.
-Lo que aporta el satelite no es el numero de curva, que ya existe, sino
-cuanta superficie se impermeabilizo: las zonas del modo Obra se reparten por
-subcuenca y suben el numero de curva en proporcion al area que ocupan.
+Metodo del numero de curva del SCS sobre las 63 unidades de la capa del
+departamento. Lo que aporta el satelite no es el numero de curva, que ya
+existe, sino cuanta superficie se impermeabilizo: las zonas del modo Obra se
+reparten por subcuenca y suben el numero de curva en proporcion al area que
+ocupan.
 
-Corrida con 50 mm de lluvia y condicion media: 45.6 millones de m3 sobre
-2,290 km2, y de esos, 37,669 m3 los agregan las 239 ha de obra nueva
-detectadas entre 2024 y 2026.
+**La lamina se multiplica por la superficie con numero de curva, no por el area
+declarada de la subcuenca: 1,619 km2 de los 2,903 km2 que declaran las 63
+unidades.** Ese dominio es el de la capa de suelos: el municipio completo mas
+una franja exterior de 337 km2. Lo que falta no son huecos internos (1.46 km2
+dentro del municipio): queda fuera del dominio del raster, y ahi no hay numero
+de curva que aplicar. Multiplicar por el area completa aplicaria un CN a
+terreno que nunca se caracterizo, que es extrapolar y no medir. 29 de las 63
+unidades tienen el CN sobre menos del 90 por ciento de su superficie y van
+marcadas en la tabla.
+
+Corrida de contraste, con 50 mm de lluvia, condicion media y las cinco zonas de
+obra del reporte semanal del 22 de septiembre de 2026 (12.5 ha en la zona
+urbana, insumo versionado en `semanal/obra-nueva-urbana.json`): **31,888,667 m3
+sobre 1,619.35 km2, y de esos, 2,128.9 m3 los agrega la obra nueva.** Las tres
+unidades que la reciben suman 4.69 millones de m3 sobre 240.3 km2.
+
+La corrida anterior (45.6 millones de m3 sobre 2,290 km2, con 37,669 m3 de
+239 ha entre 2024 y 2026) se retiro el 28 de septiembre de 2026. La primera
+cifra estaba inflada por dos defectos: 12 unidades que se caian sin mensaje por
+venir como GeometryCollection y la lamina multiplicada por el area completa. La
+segunda no se pudo rehacer porque aquellas zonas de obra no quedaron guardadas
+como insumo; por eso la corrida de contraste ahora sale de un archivo
+versionado. Dictamen del juez del 28/09/2026, condiciones 2 y 4.
 
 La capa `NUMERO_DE_CURVA.geojson` es interna y no viaja al sitio publico; el
 podado la excluye y el panel avisa cuando falta.

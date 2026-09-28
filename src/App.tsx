@@ -349,14 +349,14 @@ export default function App() {
     setErrorEscurrimiento(null)
 
     try {
-      const subcuencas = leerSubcuencas(subcuencasCn, condicionCn)
-      if (subcuencas.length === 0) {
+      const lectura = leerSubcuencas(subcuencasCn, condicionCn)
+      if (lectura.subcuencas.length === 0) {
         throw new Error('La capa no trae número de curva en esa condición')
       }
 
       setEscurrimiento(
         calcularEscurrimiento({
-          subcuencas,
+          lectura,
           lluviaMm,
           condicion: condicionCn,
           zonasObra: analisis?.zonasObra ?? [],
