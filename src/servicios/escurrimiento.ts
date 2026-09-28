@@ -176,8 +176,16 @@ export function contiene(anillos: Position[][], lon: number, lat: number): boole
   return dentro
 }
 
+/**
+ * El rotulo prefiere `nombre` porque se explica solo.
+ *
+ * La capa del marco v1 nombra sus unidades «B' 017» y trae ademas
+ * `id_subcuenca` con el 17 pelado. Mostrar el numero solo invita justo al error
+ * que el aviso del 28/09 pedia evitar: leer un 114 de esta capa como el 114 de
+ * otra. El nombre lleva la unidad encima.
+ */
 function rotuloDe(propiedades: Record<string, unknown>, indice: number): string {
-  const candidato = propiedades.id_subcuenca ?? propiedades.nombre ?? propiedades.id
+  const candidato = propiedades.nombre ?? propiedades.id_subcuenca ?? propiedades.id
   return candidato === undefined || candidato === null
     ? `Unidad ${indice + 1}`
     : String(candidato)
