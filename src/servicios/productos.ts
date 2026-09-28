@@ -49,7 +49,8 @@ function colorDeAgua(porcentaje: number): string {
  * leyenda que cualquiera encuentra en la documentacion del producto, y
  * cambiarla solo confunde a quien ya la conoce.
  */
-const CLASES_COBERTURA: Record<number, { nombre: string; color: string }> = {
+/** Exportadas porque la herramienta de medicion por poligono nombra las clases igual que la app. */
+export const CLASES_COBERTURA: Record<number, { nombre: string; color: string }> = {
   10: { nombre: 'Arbolado', color: '#006400' },
   20: { nombre: 'Matorral', color: '#ffbb22' },
   30: { nombre: 'Pastizal', color: '#ffff4c' },

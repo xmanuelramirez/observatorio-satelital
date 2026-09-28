@@ -237,6 +237,41 @@ la del catalogo (343 px en Sentinel-2): sirve para ver nubes, no para medir.
 A la derecha flotan la escena en el mapa (arriba) y la simbologia con las
 notas del calculo plegadas (abajo).
 
+## Sacar resultados de la plataforma
+
+Hasta el 28 de septiembre de 2026 lo calculado vivia solo en la pantalla y habia que copiarlo a
+mano. Ahora hay dos salidas, y las dos dan lo mismo:
+
+**En la app.** La tarjeta de simbologia trae dos botones, CSV y JSON, que descargan el resultado
+que esta en el mapa con sus clases, sus cifras y las notas del calculo. Se genera en el propio
+navegador; no hay servidor de por medio.
+
+**Desde la linea de comandos**, para medir muchos poligonos de una vez:
+
+```bash
+npm run medir -- --capa public/capas/LIMITE_URBANO.geojson --id HAS   --modo cobertura --version-marco urbano-v1
+```
+
+Modos: `cobertura`, `obra`, `calor` e `indice`. Escribe `salidas/medidas-*.csv` y `.json`, con
+una fila por poligono. `salidas/` no se versiona.
+
+Dos reglas que vienen del dictamen del juez del 27/09/2026 y no se tocan:
+
+1. **El identificador del poligono es el de la capa de origen.** La herramienta no inventa ni
+   renombra identificadores; si la capa trae `id_subcuenca`, ese viaja a la tabla.
+2. **Cada fila lleva `version_marco`**, que se declara al correr. Conviven dos divisiones de
+   subcuencas en el departamento (66 en la app de CAUCE y 63 en la capa de numero de curva, con
+   solo 19 identificadores en comun): sin saber con cual se calculo, la cifra no se puede cruzar
+   con nada.
+
+Las escenas se buscan **una vez para toda la capa**, no por poligono, para que todas las filas
+queden medidas con la misma fecha. Buscar por poligono le daria a cada uno la escena que mejor
+le venga y la tabla dejaria de ser comparable.
+
+Prueba de que las cifras cierran: sobre `LIMITE_URBANO`, cuyos rasgos traen su superficie en la
+propiedad `HAS`, el area medida por la herramienta reprodujo la declarada con diferencias
+menores al 0.2 por ciento (22,756 ha declaradas contra 22,724 medidas en el poligono mayor).
+
 ## Resumen semanal
 
 `.github/workflows/resumen-semanal.yml` corre cada lunes a medianoche de Leon

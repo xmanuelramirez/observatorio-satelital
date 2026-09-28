@@ -46,3 +46,6 @@ public/capas/NUMERO_DE_CURVA.geojson
 
 # Ordenes del MASTER: no se versionan (orden del 23/09/2026).
 ORDENES-DEL-MASTER/
+
+# Tablas que produce medir-poligonos: se generan, no se versionan.
+salidas/

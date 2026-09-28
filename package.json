@@ -12,7 +12,8 @@
     "desplegar": "npm run build && wrangler deploy",
     "local": "npm run build && wrangler dev --port 8787",
     "precalcular": "tsx herramientas/precalcular-productos.ts",
-    "semanal": "tsx herramientas/resumen-semanal.ts"
+    "semanal": "tsx herramientas/resumen-semanal.ts",
+    "medir": "tsx herramientas/medir-poligonos.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
