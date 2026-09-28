@@ -189,6 +189,6 @@
     "titulo": "El mapa de fondo vuelve a verse, y ahora incluye vista satelital",
     "resumen": "El proveedor anterior empezó a devolver una imagen con la leyenda «API KEY REQUIRED» en vez del mapa. Se cambió por OpenStreetMap para calles y por imagen satelital de Esri, ambos sin registro. El fondo sigue apagado al abrir, para no confundirlo con el resultado.",
     "seccion_manual": "Funciones · Capas del mapa",
-    "evidencia": "pendiente de commit"
+    "evidencia": "9d10192"
   }
 ]
