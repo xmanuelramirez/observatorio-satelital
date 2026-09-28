@@ -21,20 +21,28 @@ interface Props {
 }
 
 /**
- * Sin mapa satelital de fondo. La imagen que se analiza ya es satelital, y un
- * mosaico de Esri debajo solo confunde: no se distingue que pixel es del dato
- * y cual del fondo. Las opciones que quedan son de referencia, con calles y
- * nombres, o ninguna.
+ * Mapas de fondo, y por que estos.
+ *
+ * Hasta el 28 de septiembre de 2026 el fondo eran los mosaicos de CARTO. Ese
+ * dia empezaron a devolver una imagen que dice "API KEY REQUIRED", con codigo
+ * 200: el mapa no fallaba, se llenaba de ese cartel. No se crean llaves ni
+ * cuentas por un fondo de referencia, asi que se cambio a dos fuentes que
+ * responden sin registro.
+ *
+ * El fondo sigue en "Ninguno" al abrir. La imagen que se analiza ya es
+ * satelital, y un mosaico debajo confunde que pixel es del dato y cual del
+ * fondo; el fondo se enciende para ubicarse, no para leer el resultado. Por
+ * eso tambien va la advertencia en la tarjeta de capas.
  */
 const FONDOS = {
   ninguno: null,
-  claro: {
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    atribucion: 'OpenStreetMap, CARTO',
+  mapa: {
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    atribucion: '&copy; OpenStreetMap',
   },
-  oscuro: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    atribucion: 'OpenStreetMap, CARTO',
+  satelite: {
+    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    atribucion: 'Imagen: Esri, Maxar, Earthstar Geographics',
   },
 } as const
 

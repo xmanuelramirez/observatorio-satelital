@@ -182,5 +182,13 @@
     "resumen": "Nuevo modo que mide suelo sin vegetación y sin edificar usando dos fechas de la misma temporada. Sirve para saber si la cuenca que alimenta una obra de infiltración está estabilizada. La medición trae declarada su limitación: un barbecho agrícola se ve igual que un despalme.",
     "seccion_manual": "Funciones · Escenas",
     "evidencia": "e4cbe36"
+  },
+  {
+    "fecha": "2026-09-28",
+    "tipo": "correccion",
+    "titulo": "El mapa de fondo vuelve a verse, y ahora incluye vista satelital",
+    "resumen": "El proveedor anterior empezó a devolver una imagen con la leyenda «API KEY REQUIRED» en vez del mapa. Se cambió por OpenStreetMap para calles y por imagen satelital de Esri, ambos sin registro. El fondo sigue apagado al abrir, para no confundirlo con el resultado.",
+    "seccion_manual": "Funciones · Capas del mapa",
+    "evidencia": "pendiente de commit"
   }
 ]

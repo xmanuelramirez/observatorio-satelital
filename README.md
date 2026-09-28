@@ -446,6 +446,13 @@ VITE_CAPAS_INTERNAS=true npm run build
   nunca en `npm run dev`. El color verdadero ahora sale del mismo camino que
   los demas modos. El visor de InSAR sigue con georaster y esta sin verificar
   bajo CSP: hace falta un resultado de HyP3 para probarlo.
+- **Mapas de fondo sin registro.** El 28 de septiembre de 2026 los mosaicos de
+  CARTO empezaron a devolver una imagen que dice "API KEY REQUIRED", con
+  codigo 200: el mapa no fallaba, se llenaba de ese cartel. Se cambiaron por
+  OpenStreetMap para calles y World Imagery de Esri para satelital, las dos sin
+  llave ni cuenta, y se movio la CSP en consecuencia. Si alguna vuelve a pedir
+  registro, el sintoma sera el mismo: teselas que cargan con 200 y no muestran
+  el mapa.
 - **Una violacion de CSP esperada, y esta bien asi.** Al cargar la pagina, la
   consola registra `script-src eval` desde el bundle. Viene del polyfill de
   `globalThis` que traen los paquetes ya compilados de georaster
