@@ -198,5 +198,13 @@
     "resumen": "Auditoría del juez al modo de escurrimiento. Doce unidades de la capa se descartaban sin aviso por venir con geometría mixta, y la lámina se multiplicaba por el área completa de la subcuenca aunque el número de curva viniera de una fracción pequeña. Ahora ninguna unidad se pierde en silencio, el volumen se calcula sobre la superficie que sí tiene número de curva (1,619 de los 2,903 km² que declaran las 63 unidades) y la tabla marca las que están cubiertas a menos del 90 por ciento. El panel agrega el subtotal de las unidades que reciben obra nueva y advierte que el total recorre toda la capa, no el área elegida. La corrida anterior del README se retiró y se reemplazó por una reproducible desde un archivo versionado: 31,888,667 m³ con 50 mm, de los cuales 2,128.9 m³ los agrega la obra nueva.",
     "seccion_manual": "Funciones · Escurrimiento",
     "evidencia": "27abbe6"
+  },
+  {
+    "fecha": "2026-09-30",
+    "tipo": "correccion",
+    "titulo": "La capa de evapotranspiración dice de qué satélite es",
+    "resumen": "La ficha de la capa decía MOD16A3GF, del satélite Terra, y los datos eran MYD16A3GF, de Aqua: la colección trae los dos y el programa tomaba el que la respuesta del catálogo pusiera primero. Ahora el satélite se fija a propósito y la ficha lo declara. Las cifras no cambiaron y las imágenes salieron idénticas, lo que confirma que la capa siempre fue de Aqua y estaba mal rotulada. La ficha aclara además que este producto no es térmico y que sirve por subcuenca, municipio o acuífero, pero no por sector ni por macrocircuito, porque esas unidades son más chicas que su celda de 500 metros.",
+    "seccion_manual": "Funciones · Capas de referencia",
+    "evidencia": "8ad7fb2"
   }
 ]
