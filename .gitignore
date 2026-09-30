@@ -49,3 +49,9 @@ ORDENES-DEL-MASTER/
 
 # Tablas que produce medir-poligonos: se generan, no se versionan.
 salidas/
+
+# Entregables del contrato. El repositorio es publico y estos documentos
+# describen sistemas internos, rutas del portafolio y el estado de insumos que
+# todavia no son publicos. Viven en disco y viajan por los canales del
+# departamento, no por GitHub.
+ENTREGABLES/
