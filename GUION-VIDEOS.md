@@ -4,9 +4,8 @@ Para la grabación automatizada que piden las órdenes `2026-09-24-guion-videos`
 `2026-09-26-guion-videos-con-fecha`. Cada video dura de 30 a 90 s, sin audio y con rótulos.
 Resolución: 1600×900.
 
-**Entregado el 30/09/2026, un día tarde y después de la hora de grabación.** La fecha pedida era
-el 29/09 y la grabación estaba puesta para hoy a las 12:00. Sirve para la regrabación; el retraso
-está anotado en la respuesta de la orden.
+**Entregado el 30/09/2026 a las 07:25, un día tarde contra la fecha pedida pero antes de la
+grabación.** La fecha era el 29/09 y la grabación estaba puesta para hoy a las 12:00.
 
 ---
 
