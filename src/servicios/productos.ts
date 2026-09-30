@@ -35,6 +35,12 @@ interface DefinicionProducto {
   /** Resolucion nativa, para decirla sin adornos. */
   metros: number
   fuente: string
+  /**
+   * Plataforma exigida dentro de la coleccion, cuando la coleccion mezcla
+   * varias. Sin esto manda el orden en que responde el catalogo, que no es
+   * una decision y ademas puede cambiar sin avisar.
+   */
+  plataforma?: string
   interpretar: (valores: Float32Array, hectareasPorCelda: number) => Interpretacion
 }
 
@@ -168,7 +174,16 @@ export const PRODUCTOS: DefinicionProducto[] = [
     coleccion: 'modis-16A3GF-061',
     asset: 'ET_500m',
     metros: 500,
-    fuente: 'MODIS MOD16A3GF v061',
+    /*
+     * La coleccion trae los dos MODIS: MYD16A3GF de Aqua y MOD16A3GF de
+     * Terra, un item por anio y tesela. Hasta el 30/09/2026 se leian los dos
+     * y se mosaicaban, con Aqua primero por el orden del catalogo y Terra
+     * tapando sus huecos: la capa decia Terra y era sobre todo Aqua. El juez
+     * lo encontro el 29/09. Ahora se fija Aqua, que es lo que ya estaba
+     * publicado, y la etiqueta dice lo que es.
+     */
+    plataforma: 'aqua',
+    fuente: 'MODIS MYD16A3GF v061 (Aqua)',
     interpretar: (valores, haPorCelda) => {
       const validos: number[] = []
       for (const valor of valores) {
@@ -208,6 +223,7 @@ export const PRODUCTOS: DefinicionProducto[] = [
         notas: [
           `Media de ${media.toFixed(0)} mm al año sobre el área, entre ${p2.toFixed(0)} y ${p98.toFixed(0)} (percentiles 2 y 98) en ${hectareas(validos.length, haPorCelda)} con dato.`,
           'A 500 m de resolución, una celda mezcla ciudad y campo: sirve para el balance del municipio, no para un predio.',
+          'No es un producto térmico: MOD16 modela la evapotranspiración con Penman-Monteith, no la deriva de la temperatura de superficie. Sirve de contexto por subcuenca, municipio o acuífero; por sector o por macrocircuito no, porque son más chicos que su celda.',
           'Es el producto anual ya rellenado (gap-filled). OpenET, que sería el estándar fino, no cubre México.',
         ],
       }
@@ -221,7 +237,12 @@ interface ItemProducto {
   properties: Record<string, unknown>
 }
 
-async function buscarItems(coleccion: string, bbox: Bbox, senal?: AbortSignal): Promise<ItemProducto[]> {
+async function buscarItems(
+  coleccion: string,
+  bbox: Bbox,
+  plataforma?: string,
+  senal?: AbortSignal,
+): Promise<ItemProducto[]> {
   const respuesta = await fetch(`${baseStac('planetary-computer')}/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -232,8 +253,17 @@ async function buscarItems(coleccion: string, bbox: Bbox, senal?: AbortSignal): 
   if (!respuesta.ok) throw new Error(`El catálogo respondió ${respuesta.status}`)
 
   const datos = (await respuesta.json()) as { features?: ItemProducto[] }
-  const items = datos.features ?? []
-  if (items.length === 0) throw new Error('El producto no tiene cobertura sobre esta área')
+  const todos = datos.features ?? []
+
+  const items =
+    plataforma === undefined
+      ? todos
+      : todos.filter((item) => String(item.properties.platform ?? '').toLowerCase() === plataforma)
+
+  if (todos.length === 0) throw new Error('El producto no tiene cobertura sobre esta área')
+  if (items.length === 0) {
+    throw new Error(`El catálogo no devolvió ningún item de ${plataforma} para esta área`)
+  }
 
   /*
    * Solo el año mas reciente. MODIS publica un item por año y por tesela, y
@@ -273,7 +303,7 @@ export async function cargarProducto(
   let celdasDentro = 0
   for (const marca of dentro) celdasDentro += marca
 
-  const items = await buscarItems(producto.coleccion, bbox, senal)
+  const items = await buscarItems(producto.coleccion, bbox, producto.plataforma, senal)
   const anio = String(
     items[0]?.properties.datetime ?? items[0]?.properties.start_datetime ?? '',
   ).slice(0, 4)

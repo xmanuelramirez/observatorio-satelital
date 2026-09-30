@@ -336,7 +336,23 @@ escenas: no hay fecha que elegir ni nubosidad que filtrar.
 |---|---|---|
 | Agua historica | JRC Global Surface Water | 30 m, 1984 a 2021 |
 | Cobertura del suelo | ESA WorldCover v200 | 10 m, 2021 |
-| Evapotranspiracion anual | MODIS MOD16A3GF v061 | 500 m, anual |
+| Evapotranspiracion anual | MODIS MYD16A3GF v061 (Aqua) | 500 m, anual |
+
+La etiqueta de la ultima decia MOD16A3GF, de Terra, y la capa era de Aqua. La
+coleccion `modis-16A3GF-061` trae los dos satelites, un item por anio y tesela,
+y el codigo leia todos los del anio y los mosaicaba en el orden en que
+respondia el catalogo: Aqua primero, Terra tapando sus huecos. El juez lo
+encontro el 29/09/2026. Desde el 30/09 el producto se fija por plataforma y la
+etiqueta dice Aqua. **Las cifras no cambiaron** y las imagenes salieron
+identicas byte a byte, lo que confirma que Terra no estaba aportando nada: la
+capa siempre fue Aqua, mal rotulada.
+
+MOD16 y MYD16 **no son productos termicos**: modelan la evapotranspiracion con
+Penman-Monteith, no la derivan de la temperatura de superficie. Sirven de
+contexto por subcuenca, municipio o acuifero; por sector o por macrocircuito
+no, porque esas unidades son mas chicas que la celda de 500 m. El contrato pide
+ET «con productos termicos de acceso abierto», asi que esta capa no cumple esa
+linea y no la sustituye.
 
 MODIS obligo a leer la proyeccion desde las geo keys del archivo: su rejilla
 sinusoidal no tiene codigo EPSG, asi que declara 32767 y hay que armar la

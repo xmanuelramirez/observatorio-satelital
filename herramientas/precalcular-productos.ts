@@ -10,6 +10,10 @@
  *
  * Uso:
  *   npm run precalcular
+ *   npm run precalcular -- --producto evapotranspiracion
+ *
+ * El filtro por producto existe para no rehacer capas que nadie toco: una
+ * correccion de una sola capa no tiene por que reescribir las otras seis.
  *
  * Correrlo otra vez cuando cambie un poligono de area o cada que MODIS
  * publique un anio nuevo. La salida va versionada en public/precalculado.
@@ -66,12 +70,20 @@ async function esperar(ms: number) {
 async function main() {
   const indice: Record<string, Record<string, string>> = {}
 
+  const pedido = process.argv.includes('--producto')
+    ? process.argv[process.argv.indexOf('--producto') + 1]
+    : null
+  const productos = pedido ? PRODUCTOS.filter((p) => p.id === pedido) : PRODUCTOS
+  if (productos.length === 0) {
+    throw new Error(`No hay ningún producto que se llame ${pedido}`)
+  }
+
   for (const area of AREAS) {
     const texto = await readFile(join(RAIZ, 'public', 'capas', `${area.id}.geojson`), 'utf-8')
     const areaGeojson = JSON.parse(texto) as FeatureCollection
     const bbox = bboxDe(areaGeojson)
 
-    for (const producto of PRODUCTOS) {
+    for (const producto of productos) {
       const inicio = Date.now()
       const tamano = TAMANO[producto.id]
 
@@ -145,6 +157,19 @@ async function main() {
       // El firmador de Planetary Computer limita las rafagas.
       await esperar(1500)
     }
+  }
+
+  /*
+   * Con filtro no se toca el indice.
+   *
+   * El 30/09/2026 se corrio con `--producto evapotranspiracion` y el indice
+   * quedo con esa sola capa: la app habria dejado de encontrar las otras dos.
+   * Se recupero de git. Las rutas no cambian al rehacer una capa, asi que no
+   * hay nada que actualizar, y lo correcto es no escribirlo.
+   */
+  if (pedido) {
+    console.log(`\nListo: ${pedido} en ${Object.keys(indice).length} areas. El indice no se toca.`)
+    return
   }
 
   await writeFile(join(SALIDA, 'indice.json'), JSON.stringify(indice, null, 2), 'utf-8')
