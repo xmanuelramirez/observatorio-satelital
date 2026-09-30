@@ -64,6 +64,24 @@ cita a la app dueña. Si se calcula aquí, con la misma fuente y el mismo métod
   publicarse porque no aporta al análisis de escenas, no porque esté prohibida.
 - Padrón, SCADA y contenido del PSH y PRH no entran a esta app en ninguna forma.
 
+## Todo detrás de Access (decisión de Carlos, 30/09/2026)
+
+Todas las apps del portafolio pasan detrás de Cloudflare Access y **ninguna información queda
+por fuera**. Para esta app, mientras la migración no ocurra:
+
+- **Nada derivado de la zona federal de arroyos ni de la capa de recarga potencial de Daniel
+  Murrieta se publica mientras el sitio siga abierto.** Esas capas llegan con esa condición.
+- El repositorio pasa a privado, pero **no antes** de que el Vigía deje de depender de que sea
+  público. La trampa: manda la foto a Telegram por URL, así que quien la descarga es Telegram,
+  sin credenciales, y eso no se arregla con un token. Lo cierra el MASTER, después de
+  comprobarlo un lunes real.
+- `ENTREGABLES/` no se versiona: el repositorio todavía es público y esos documentos describen
+  sistemas internos.
+- La app no valida identidad y hoy no puede: es estática, sin Worker con código. Poner un Worker
+  que verifique el JWT y falle cerrado está en el plan T-ACC, **después** de activar Access en el
+  borde. No se empieza antes.
+- Nadie activa Access por su cuenta. El orden lo arma el MASTER con Carlos.
+
 ## Órdenes del MASTER
 
 Viven en `ORDENES-DEL-MASTER/`, que no se versiona. Cada orden se responde en su propio archivo
