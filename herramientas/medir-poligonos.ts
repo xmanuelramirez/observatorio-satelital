@@ -23,7 +23,7 @@
  *   npm run medir -- --capa ruta/subcuencas.geojson --id id_subcuenca \
  *     --modo obra --desde 2026-06-01 --hasta 2026-09-28 --version-marco cauce-v1
  *
- * Modos: cobertura, obra, calor, indice.
+ * Modos: cobertura, obra, calor, indice, desnudo.
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'

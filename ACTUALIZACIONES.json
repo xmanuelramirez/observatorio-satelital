@@ -173,14 +173,14 @@
     "titulo": "Ya se pueden sacar los resultados de la plataforma",
     "resumen": "La tarjeta de simbología trae botones para descargar en CSV y JSON lo que está en el mapa, y una herramienta nueva mide muchos polígonos de una vez y entrega una tabla con una fila por polígono. Antes las cifras solo se podían copiar a mano de la pantalla.",
     "seccion_manual": "Cierre · Exportaciones",
-    "evidencia": "b98e323"
+    "evidencia": "a3367b7"
   },
   {
     "fecha": "2026-09-28",
     "tipo": "capacidad",
-    "titulo": "Mide suelo desnudo con imágenes recientes, no con el mapa de 2021",
-    "resumen": "Nuevo modo que mide suelo sin vegetación y sin edificar usando dos fechas de la misma temporada. Sirve para saber si la cuenca que alimenta una obra de infiltración está estabilizada. La medición trae declarada su limitación: un barbecho agrícola se ve igual que un despalme.",
-    "seccion_manual": "Funciones · Escenas",
+    "titulo": "La herramienta de medición sabe medir suelo desnudo con imágenes recientes",
+    "resumen": "La herramienta que mide muchos polígonos de una vez (npm run medir) suma el modo de suelo desnudo, que mide suelo sin vegetación y sin edificar con dos fechas de la misma temporada, en lugar de leerlo del mapa de cobertura de 2021. Sirve para saber si la cuenca que alimenta una obra de infiltración está estabilizada. La medición trae declarada su limitación: un barbecho agrícola se ve igual que un despalme. No es un modo de la plataforma web: se corre desde la línea de comandos y entrega una tabla.",
+    "seccion_manual": "Cierre · Exportaciones",
     "evidencia": "e4cbe36"
   },
   {
