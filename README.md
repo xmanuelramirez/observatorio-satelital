@@ -394,8 +394,15 @@ que nunca se caracterizo, que es extrapolar y no medir.
 
 Lo que limita esa extension **es la capa de suelos, no el limite urbano**.
 Medido el 01/10/2026 sobre las 68 unidades: la fraccion de cada una con numero
-de curva y la fraccion dentro de `EDAFOLOGIA_PH` coinciden con diferencia media
-de medio punto porcentual. No es un parecido, es la misma frontera.
+de curva y la fraccion dentro de la capa de suelos coinciden con diferencia
+media de medio punto porcentual. No es un parecido, es la misma frontera.
+
+Y esa capa de suelos esta a su vez recortada: su extension es la del area de
+interes de **una division de subcuencas ya retirada**, no la de las 68 unidades
+de ahora. Es decir que el limite de hoy no responde a ninguna razon del suelo
+ni del terreno, sino a por donde pasaba una frontera anterior. **Se amplia en
+el corte del 1 de noviembre de 2026**, y con eso cambiara la superficie con
+numero de curva y, con ella, el volumen.
 
 El CN **no usa uso de suelo**: la cobertura sale de Sentinel-2 y el suelo de
 `EDAFOLOGIA_PH`, dentro y fuera del municipio. La franja exterior no tiene
