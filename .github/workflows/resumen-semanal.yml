@@ -25,6 +25,13 @@ concurrency:
 
 jobs:
   resumen:
+    # Se queda en ubuntu-latest a proposito, aunque el 19/10/2026 pase a
+    # Ubuntu 26. Lo que corre aqui es JavaScript puro sobre la version de Node
+    # que fija setup-node, no binarios del sistema, asi que el cambio de
+    # imagen casi no toca este flujo. Si aun asi se rompiera despues de esa
+    # fecha, este es el primer sitio donde mirar, y la salida es fijar
+    # `ubuntu-24.04`. Avisar a AGENTES si se cambia: el vigia lee lo que este
+    # flujo publica.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
