@@ -149,8 +149,32 @@ export default function PanelEscurrimiento({
                     </div>
                     <div className="cifra mt-0.5 flex items-baseline justify-between gap-2 text-rotulo">
                       <span>
-                        CN {fila.cn.toFixed(1)}
-                        {fila.hectareasNuevas > 0 && ` → ${fila.cnNuevo.toFixed(1)}`}
+                        {fila.cita === 'no-citable' ? (
+                          /*
+                           * El dictamen del 01/10/2026 prohíbe citar el número
+                           * de curva de estas unidades como el de la subcuenca.
+                           * No se oculta la fila: se calcula sobre la parte
+                           * medida y se dice que el valor no se puede atribuir
+                           * a la unidad.
+                           */
+                          <span className="text-aviso">CN no atribuible a la unidad</span>
+                        ) : (
+                          <>
+                            CN {fila.cn.toFixed(1)}
+                            {fila.cita !== 'completa' && ` de la parte cubierta (${(fila.fraccionConCn * 100).toFixed(0)} %)`}
+                            {fila.hectareasNuevas > 0 && ` → ${fila.cnNuevo.toFixed(1)}`}
+                            {fila.cita === 'banda' && fila.intervalo && (
+                              /*
+                               * Intervalo, no un mas menos: el valor publicado
+                               * no esta centrado en el.
+                               */
+                              <span className="block">
+                                la unidad, entre {fila.intervalo[0].toFixed(1)} y{' '}
+                                {fila.intervalo[1].toFixed(1)}
+                              </span>
+                            )}
+                          </>
+                        )}
                       </span>
                       <span>
                         {fila.laminaNuevaMm.toFixed(1)} mm · {fila.areaKm2.toFixed(1)} km²
@@ -193,13 +217,13 @@ export default function PanelEscurrimiento({
                 las subcuencas. El ráster cubre el municipio completo y una franja exterior; el
                 resto no tiene número de curva medido y no se suma.{' '}
                 {resultado.unidadesParciales > 0 &&
-                  `${resultado.unidadesParciales} unidades lo tienen sobre menos del 90 % de su superficie y van marcadas.`}
+                  `${resultado.unidadesParciales} de las ${resultado.filas.length} unidades lo tienen sobre menos del 90 % de su superficie: van marcadas cuando salen en la tabla, que lista las 15 de mayor volumen.`}
               </p>
 
               <p className="mt-2 text-xs leading-snug text-rotulo">
-                Los números de subcuenca son los de esa capa, hecha sobre un modelo de elevación
-                que ya se retiró. No corresponden a los de CAUCE: no los cruce por número con
-                otras tablas de subcuencas.
+                {resultado.marco
+                  ? `Unidades ${resultado.marco} de CAUCE; el número se cruza solo junto con version_marco.`
+                  : 'Los números de subcuenca son los de esa capa, hecha sobre un modelo de elevación que ya se retiró. No corresponden a los de CAUCE: no los cruce por número con otras tablas de subcuencas.'}
               </p>
             </div>
           )}

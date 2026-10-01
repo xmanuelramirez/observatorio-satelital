@@ -255,14 +255,15 @@ npm run medir -- --capa public/capas/LIMITE_URBANO.geojson --id HAS   --modo cob
 Modos: `cobertura`, `obra`, `calor` e `indice`. Escribe `salidas/medidas-*.csv` y `.json`, con
 una fila por poligono. `salidas/` no se versiona.
 
-Dos reglas que vienen del dictamen del juez del 27/09/2026 y no se tocan:
+Dos reglas que vienen de la revision tecnica independiente del 27/09/2026 y no se tocan:
 
 1. **El identificador del poligono es el de la capa de origen.** La herramienta no inventa ni
    renombra identificadores; si la capa trae `id_subcuenca`, ese viaja a la tabla.
 2. **Cada fila lleva `version_marco`**, que se declara al correr. Conviven dos divisiones de
    subcuencas en el departamento (66 en la app de CAUCE y 63 en la capa de numero de curva, con
    solo 19 identificadores en comun): sin saber con cual se calculo, la cifra no se puede cruzar
-   con nada. El juez cerro el punto el 28/09/2026: los identificadores de `NUMERO_DE_CURVA`
+   con nada. La revision tecnica independiente cerro el punto el 28/09/2026: los identificadores
+   de `NUMERO_DE_CURVA`
    salieron de un MDT Copernicus que CAUCE retiro, asi que **no se cruzan por `VALUE`, `id` ni
    numero de fila** con `subbasins.geojson` ni con ninguna otra capa de subcuencas. La unidad
    buena sera el marco v1 de CAUCE, y sobre ella se reagregara el numero de curva.
@@ -341,8 +342,8 @@ escenas: no hay fecha que elegir ni nubosidad que filtrar.
 La etiqueta de la ultima decia MOD16A3GF, de Terra, y la capa era de Aqua. La
 coleccion `modis-16A3GF-061` trae los dos satelites, un item por anio y tesela,
 y el codigo leia todos los del anio y los mosaicaba en el orden en que
-respondia el catalogo: Aqua primero, Terra tapando sus huecos. El juez lo
-encontro el 29/09/2026. Desde el 30/09 el producto se fija por plataforma y la
+respondia el catalogo: Aqua primero, Terra tapando sus huecos. Lo encontro una
+revision tecnica independiente el 29/09/2026. Desde el 30/09 el producto se fija por plataforma y la
 etiqueta dice Aqua. **Las cifras no cambiaron** y las imagenes salieron
 identicas byte a byte, lo que confirma que Terra no estaba aportando nada: la
 capa siempre fue Aqua, mal rotulada.
@@ -376,43 +377,72 @@ responde 429 si se le pide seguido).
 
 ## Escurrimiento
 
-Metodo del numero de curva del SCS sobre las 63 unidades de la capa del
-departamento. Lo que aporta el satelite no es el numero de curva, que ya
-existe, sino cuanta superficie se impermeabilizo: las zonas del modo Obra se
-reparten por subcuenca y suben el numero de curva en proporcion al area que
-ocupan.
+Metodo del numero de curva del SCS sobre las **68 unidades de la unidad B' del
+marco v1 del departamento**, desde el 1 de octubre de 2026. Lo que aporta el
+satelite no es el numero de curva, que ya existe, sino cuanta superficie se
+impermeabilizo: las zonas del modo Obra se reparten por subcuenca y suben el
+numero de curva en proporcion al area que ocupan.
 
 **La lamina se multiplica por la superficie con numero de curva, no por el area
-declarada de la subcuenca: 1,619 km2 de los 2,903 km2 que declaran las 63
-unidades.** Ese dominio es el de la capa de suelos: el municipio completo mas
-una franja exterior de 337 km2. Lo que falta no son huecos internos (1.46 km2
-dentro del municipio): queda fuera del dominio del raster, y ahi no hay numero
-de curva que aplicar. Multiplicar por el area completa aplicaria un CN a
-terreno que nunca se caracterizo, que es extrapolar y no medir. 29 de las 63
-unidades tienen el CN sobre menos del 90 por ciento de su superficie y van
-marcadas en la tabla.
+declarada de la subcuenca: 1,633.85 km2 con CN dentro de las 68 unidades de B',
+de 1,634.15 km2 con CN en total, sobre 3,010.32 km2 que declaran las unidades.**
+Las dos primeras responden preguntas distintas y conviene no mezclarlas: la
+segunda es toda la superficie con numero de curva, y los 0.30 km2 de diferencia
+quedan fuera de toda unidad de B'. El escurrimiento usa la primera, porque
+calcula por unidad. Multiplicar por el area completa aplicaria un CN a terreno
+que nunca se caracterizo, que es extrapolar y no medir.
+
+Lo que limita esa extension **es la capa de suelos, no el limite urbano**.
+Medido el 01/10/2026 sobre las 68 unidades: la fraccion de cada una con numero
+de curva y la fraccion dentro de `EDAFOLOGIA_PH` coinciden con diferencia media
+de medio punto porcentual. No es un parecido, es la misma frontera.
+
+El CN **no usa uso de suelo**: la cobertura sale de Sentinel-2 y el suelo de
+`EDAFOLOGIA_PH`, dentro y fuera del municipio. La franja exterior no tiene
+validacion propia.
+
+**Como se cita el CN de una unidad.** 30 de las 68 no tienen cobertura completa,
+y el 01/10/2026 una revision tecnica independiente fijo una lista nominal para
+ellas: las unidades 51 y 72 se citan con rotulo del porcentaje que cubre su CN;
+106, 110, 114 y 125 con su banda de error, entre 3.7 y 6.7 puntos; y **las otras
+24 no citan su CN como el de la unidad**, ni se rellenan con promedios ni con
+vecinos. En la tabla esas filas dicen «CN no atribuible a la unidad» y siguen
+calculando sobre la parte medida. Eso regula como se cita, no como se calcula.
 
 Corrida de contraste, con 50 mm de lluvia, condicion media y las cinco zonas de
 obra del reporte semanal del 22 de septiembre de 2026 (12.5 ha en la zona
-urbana, insumo versionado en `semanal/obra-nueva-urbana.json`): **31,888,667 m3
-sobre 1,619.35 km2, y de esos, 2,128.9 m3 los agrega la obra nueva.** Las tres
-unidades que la reciben suman 4.69 millones de m3 sobre 240.3 km2.
+urbana, insumo versionado en `semanal/obra-nueva-urbana.json`): **32.17 millones
+de m3 sobre 1,633.85 km2, y de esos, 2,063.6 m3 los agrega la obra nueva.**
 
-La corrida anterior (45.6 millones de m3 sobre 2,290 km2, con 37,669 m3 de
-239 ha entre 2024 y 2026) se retiro el 28 de septiembre de 2026. La primera
-cifra estaba inflada por dos defectos: 12 unidades que se caian sin mensaje por
-venir como GeometryCollection y la lamina multiplicada por el area completa. La
-segunda no se pudo rehacer porque aquellas zonas de obra no quedaron guardadas
-como insumo; por eso la corrida de contraste ahora sale de un archivo
-versionado. Dictamen del juez del 28/09/2026, condiciones 2 y 4.
+Sobre la capa anterior, 63 unidades de una particion trazada sobre un MDT ya
+retirado, la misma corrida daba 31.89 millones de m3 sobre 1,619.35 km2 con
+2,128.9 m3 de obra. Las dos diferencias tienen explicacion y ninguna es un
+cambio de metodo:
+
+- **El volumen base sube 0.9 por ciento por como se cuenta el borde**, no porque
+  haya mas terreno medido: la superficie con CN se cuenta en celdas enteras de
+  100 m, y ese borde suma. Medido sobre la malla de 10 m, la superficie seria
+  practicamente la misma que antes.
+- **Lo que agrega la obra baja 3.1 por ciento por una sola de las cinco zonas.**
+  Esa zona pasa de una subcuenca con CN 81.6 a otra con CN 92.5 y aporta 133.7
+  m3 menos. Cuanto mas alto es el CN de partida, menos agrega una hectarea nueva
+  impermeable, porque queda menos recorrido hasta el 98 de una superficie
+  impermeable. La superficie de la subcuenca **no interviene**: se cancela en el
+  calculo.
+
+La corrida que estuvo publicada hasta el 28 de septiembre de 2026 (45.6 millones
+de m3 sobre 2,290 km2, con 37,669 m3 de 239 ha entre 2024 y 2026) se retiro ese
+dia. La primera cifra estaba inflada por dos defectos: 12 unidades que se caian
+sin mensaje por venir como GeometryCollection y la lamina multiplicada por el
+area completa. La segunda no se pudo rehacer porque aquellas zonas de obra no
+quedaron guardadas como insumo; por eso la corrida de contraste sale ahora de un
+archivo versionado.
 
 La capa `NUMERO_DE_CURVA.geojson` es interna y no viaja al sitio publico; el
-podado la excluye y el panel avisa cuando falta.
-
-Sus 63 subcuencas son las de un MDT que CAUCE ya retiro. El reparto de la obra
-nueva no sufre por eso, porque cada zona se asigna por geometria dentro de esa
-misma capa y el numero solo rotula la fila. Lo que no se puede es leer esos
-numeros como los de CAUCE: el panel lo advierte al pie de la tabla.
+podado la excluye y el panel avisa cuando falta. **Tampoco se versiona, y su
+descripcion viaja con ella**, no en este repositorio. La capa historica de 63
+unidades se conserva fuera de esta app, con su propia marca de procedencia, y
+sus identificadores **no** se cruzan con los de B'.
 
 ## Capas
 

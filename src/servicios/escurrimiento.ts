@@ -11,8 +11,7 @@ import type { ZonaObra } from './obranueva'
  * numero de curva en la proporcion que les toca y se vuelve a correr la
  * lamina. La diferencia es el costo hidrologico del crecimiento.
  *
- * Auditado por el juez el 28 de septiembre de 2026
- * (`ORDENES-DEL-MASTER/2026-09-28-DICTAMEN-JUEZ-ESCURRIMIENTO.md`). Tres reglas
+ * Revisado de forma independiente el 28 de septiembre de 2026. Tres reglas
  * salieron de ahi y no se tocan por separado:
  *
  * 1. Ninguna unidad se descarta en silencio. Las GeometryCollection se aplanan,
@@ -32,8 +31,8 @@ const CN_IMPERMEABLE = 98
 /**
  * Celda del raster de numero de curva, 10 m.
  *
- * La capa vigente no declara `km2_con_cn`, pero si el conteo de celdas con CN.
- * El juez probo el tamano por geometria: el area de los poligonos entre
+ * Una capa puede no declarar `km2_con_cn` y si el conteo de celdas con CN. El
+ * tamano quedo probado por geometria: el area de los poligonos entre
  * `celdas` da entre 1.0009 y 1.0013, que es el factor de escala UTM al
  * cuadrado. Solo se usa cuando la capa no trae la superficie ya calculada.
  */
@@ -41,6 +40,38 @@ const CELDA_KM2 = 1e-4
 
 /** Debajo de esta fraccion la fila se marca: su CN describe parte de la unidad. */
 export const FRACCION_MINIMA = 0.9
+
+/**
+ * Como se puede citar el numero de curva de una unidad.
+ *
+ * El 1 de octubre de 2026 una revision tecnica independiente fijo, para la
+ * unidad B' del marco v1, que unidades pueden citar su CN y cuales no. La
+ * lista es nominal, rasgo por rasgo, y viaja con la capa.
+ *
+ * Lo que regula es **como se cita**, no como se calcula: el calculo siempre
+ * multiplica la lamina por la superficie con CN medido, que ya se habia
+ * declarado defendible el 28/09.
+ */
+export type Cita = 'completa' | 'rotulo' | 'banda' | 'no-citable'
+
+/** Unidades de B' que se citan con rotulo: su CN cubre casi toda la unidad. */
+const ROTULO_BPRIMA = new Set([51, 72])
+
+/**
+ * Unidades de B' cuyo CN se cita con el intervalo en que puede estar el de la
+ * unidad completa.
+ *
+ * **Es un intervalo, no un mas menos.** El valor publicado no esta centrado en
+ * el: la 125 publica 79.8 y su intervalo va de 78.8 a 82.5. Ponerlo como
+ * `± ancho` duplicaba la incertidumbre y la descentraba, que fue el primer
+ * error de esta implementacion.
+ */
+const INTERVALO_BPRIMA = new Map<number, [number, number]>([
+  [106, [82.7, 87.4]],
+  [110, [79.7, 86.4]],
+  [114, [83.0, 86.9]],
+  [125, [78.8, 82.5]],
+])
 
 export type CondicionCn = 'cn_optimo' | 'cn_medio' | 'cn_critico'
 
@@ -70,6 +101,10 @@ export interface Subcuenca {
    * se leerian como si no tuvieran nada que advertir.
    */
   aviso?: string
+  /** Como puede citarse su CN, segun el dictamen del 01/10/2026. */
+  cita: Cita
+  /** Intervalo en que puede estar el CN de la unidad, cuando `cita` es 'banda'. */
+  intervalo?: [number, number]
   cn: number
   anillos: Position[][]
 }
@@ -81,6 +116,8 @@ export interface UnidadDescartada {
 
 export interface Lectura {
   subcuencas: Subcuenca[]
+  /** Unidad y version del marco espacial, si la capa los declara. */
+  marco: string | null
   /** Unidades sin geometria poligonal utilizable, con su superficie declarada. */
   descartadas: UnidadDescartada[]
   /** De donde salio la superficie con CN. */
@@ -94,6 +131,8 @@ export interface FilaEscurrimiento {
   areaDeclarada: number
   fraccionConCn: number
   aviso?: string
+  cita: Cita
+  intervalo?: [number, number]
   cn: number
   /** Numero de curva despues de sumar la obra nueva detectada. */
   cnNuevo: number
@@ -111,8 +150,8 @@ export interface FilaEscurrimiento {
  *
  * Es el unico subtotal comparable con el area que se analizo en pantalla. El
  * total recorre todas las unidades de la capa, que es otra cosa. Advertencia
- * del juez: cubre 240 km2 y la zona urbana 230, parecidos por casualidad; no
- * son lo mismo y no se rotulan igual.
+ * de la revision del 28/09: cubre 240 km2 y la zona urbana 230, parecidos por
+ * casualidad; no son lo mismo y no se rotulan igual.
  */
 export interface SubtotalReceptoras {
   unidades: number
@@ -139,6 +178,7 @@ export interface ResultadoEscurrimiento {
   descartadas: UnidadDescartada[]
   receptoras: SubtotalReceptoras
   fuenteArea: Lectura['fuenteArea']
+  marco: Lectura['marco']
 }
 
 /**
@@ -184,6 +224,31 @@ export function contiene(anillos: Position[][], lon: number, lat: number): boole
   }
 
   return dentro
+}
+
+/**
+ * Decide como puede citarse el CN de una unidad.
+ *
+ * Con la unidad B' del marco v1 manda su lista nominal, fijada rasgo por
+ * rasgo. Con cualquier otra capa, incluida la historica, se cae
+ * al umbral de FRACCION_MINIMA, que es lo que esta publicado desde el 28/09.
+ */
+function citaDe(
+  propiedades: Record<string, unknown>,
+  fraccion: number,
+): { cita: Cita; intervalo?: [number, number] } {
+  const esBprima =
+    String(propiedades.unidad ?? '') === "B'" && String(propiedades.version_marco ?? '') === 'v1'
+
+  if (esBprima) {
+    const id = Number(propiedades.id_subcuenca)
+    if (ROTULO_BPRIMA.has(id)) return { cita: 'rotulo' }
+    const intervalo = INTERVALO_BPRIMA.get(id)
+    if (intervalo !== undefined) return { cita: 'banda', intervalo }
+    return fraccion < FRACCION_MINIMA ? { cita: 'no-citable' } : { cita: 'completa' }
+  }
+
+  return fraccion < FRACCION_MINIMA ? { cita: 'rotulo' } : { cita: 'completa' }
 }
 
 /**
@@ -250,23 +315,30 @@ export function leerSubcuencas(datos: FeatureCollection, condicion: CondicionCn)
       ? Number(propiedades.fraccion_con_cn)
       : Number.NaN
 
+    const fraccionConCn = Number.isFinite(declarada)
+      ? declarada
+      : areaDeclarada > 0
+        ? areaKm2 / areaDeclarada
+        : 1
+
     subcuencas.push({
       clave: indice,
       rotulo,
       areaKm2,
       areaDeclarada,
-      fraccionConCn: Number.isFinite(declarada)
-        ? declarada
-        : areaDeclarada > 0
-          ? areaKm2 / areaDeclarada
-          : 1,
+      fraccionConCn,
       aviso: aviso.length > 0 ? aviso : undefined,
+      ...citaDe(propiedades, fraccionConCn),
       cn,
       anillos,
     })
   })
 
-  return { subcuencas, descartadas, fuenteArea }
+  const unidad = String(primera.unidad ?? '').trim()
+  const version = String(primera.version_marco ?? '').trim()
+  const marco = unidad && version ? `${unidad} del marco ${version}` : null
+
+  return { subcuencas, descartadas, fuenteArea, marco }
 }
 
 export interface ParametrosEscurrimiento {
@@ -324,6 +396,8 @@ export function calcularEscurrimiento(
       areaDeclarada: subcuenca.areaDeclarada,
       fraccionConCn: subcuenca.fraccionConCn,
       aviso: subcuenca.aviso,
+      cita: subcuenca.cita,
+      intervalo: subcuenca.intervalo,
       cn: subcuenca.cn,
       cnNuevo,
       hectareasNuevas,
@@ -356,5 +430,6 @@ export function calcularEscurrimiento(
       volumenNuevoM3: suma(conObra.map((f) => f.volumenNuevoM3)),
     },
     fuenteArea: lectura.fuenteArea,
+    marco: lectura.marco,
   }
 }

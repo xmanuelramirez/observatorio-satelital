@@ -206,5 +206,13 @@
     "resumen": "La ficha de la capa decía MOD16A3GF, del satélite Terra, y los datos eran MYD16A3GF, de Aqua: la colección trae los dos y el programa tomaba el que la respuesta del catálogo pusiera primero. Ahora el satélite se fija a propósito y la ficha lo declara. Las cifras no cambiaron y las imágenes salieron idénticas, lo que confirma que la capa siempre fue de Aqua y estaba mal rotulada. La ficha aclara además que este producto no es térmico y que sirve por subcuenca, municipio o acuífero, pero no por sector ni por macrocircuito, porque esas unidades son más chicas que su celda de 500 metros.",
     "seccion_manual": "Funciones · Capas de referencia",
     "evidencia": "8ad7fb2"
+  },
+  {
+    "fecha": "2026-10-01",
+    "tipo": "datos",
+    "titulo": "El escurrimiento se calcula sobre las subcuencas del marco vigente",
+    "resumen": "Tras una revisión técnica independiente, el escurrimiento se calcula sobre las 68 subcuencas del marco vigente de CAUCE, en lugar de las 63 de una división ya retirada, con el mismo método, y el número de curva de cada subcuenca se cita según cuánto de ella cubre. Con 50 mm y las mismas cinco zonas de obra, el volumen base pasa de 31.89 a 32.17 millones de m³ (+0.9 por ciento, porque el borde de la superficie con número de curva ahora se cuenta en celdas de 100 m) y lo que agrega la obra, de 2,128.9 a 2,063.6 m³ (−3.1 por ciento, porque una de las cinco zonas cae ahora en una subcuenca con número de curva más alto).",
+    "seccion_manual": "Funciones · Escurrimiento",
+    "evidencia": "pendiente"
   }
 ]

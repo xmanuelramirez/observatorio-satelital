@@ -36,6 +36,9 @@ public/insar/
 public/capas/EMA.geojson
 public/capas/SENSORES_ARROYOS.geojson
 public/capas/NUMERO_DE_CURVA.geojson
+# Su descripcion viaja con ella: cita rutas internas del portafolio y no tiene
+# sentido en un repositorio sin la capa que describe.
+public/capas/LEEME-NUMERO_DE_CURVA.txt
 
 # Ningun .env al repositorio, aunque solo traiga banderas.
 .env
