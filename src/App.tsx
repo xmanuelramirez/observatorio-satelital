@@ -548,7 +548,16 @@ export default function App() {
         mapa que funcionan como acordeon. Abrir una pliega la que estaba
         abierta, asi el mapa queda libre salvo por la tarjeta en uso.
       */}
-      <div className="pointer-events-none absolute inset-y-3 left-3 z-1000 flex w-88 flex-col gap-2">
+      {/*
+        El id no es decorativo: el medidor de traslapes del departamento nombra
+        cada elemento por su id o, si no tiene, por su primera clase. Sin esto
+        la columna salia en los reportes como «.pointer-events-none», que no
+        dice nada a quien lee.
+      */}
+      <div
+        id="menu-flotante"
+        className="pointer-events-none absolute inset-y-3 left-3 z-1000 flex w-88 flex-col gap-2"
+      >
         <div className="pointer-events-auto shrink-0 border border-filete-fuerte bg-panel/95 shadow-lg shadow-black/40">
           <header className="px-4 pt-3">
             <p className="rotulo">Planeación Hídrica · León</p>
