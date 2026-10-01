@@ -213,6 +213,6 @@
     "titulo": "El escurrimiento se calcula sobre las subcuencas del marco vigente",
     "resumen": "Tras una revisión técnica independiente, el escurrimiento se calcula sobre las 68 subcuencas del marco vigente de CAUCE, en lugar de las 63 de una división ya retirada, con el mismo método, y el número de curva de cada subcuenca se cita según cuánto de ella cubre. Con 50 mm y las mismas cinco zonas de obra, el volumen base pasa de 31.89 a 32.17 millones de m³ (+0.9 por ciento, porque el borde de la superficie con número de curva ahora se cuenta en celdas de 100 m) y lo que agrega la obra, de 2,128.9 a 2,063.6 m³ (−3.1 por ciento, porque una de las cinco zonas cae ahora en una subcuenca con número de curva más alto).",
     "seccion_manual": "Funciones · Escurrimiento",
-    "evidencia": "pendiente"
+    "evidencia": "923f2dc"
   }
 ]
