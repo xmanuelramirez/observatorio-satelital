@@ -35,6 +35,12 @@ práctica: subir a `main` es seguro cuando no se quiere publicar, y subir no bas
 Cada cambio visible para quien usa la plataforma se anota en `ACTUALIZACIONES.json`, en el
 formato del MASTER. De ahí salen la bitácora de SISPLAN y el control de versiones del manual.
 
+**Después de cada push se confirma que «Verificar» salió en verde**, con `gh run list` o
+`gh run watch`, antes de dar el cambio por hecho. Es estándar del departamento desde el
+01/10/2026. El motivo: ese flujo estuvo siete corridas en rojo desde el 30/09 y quien lo vio
+primero fue Carlos, en su correo. Un push sin mirar la corrida es un cambio que uno cree hecho
+y no lo está.
+
 ## Toda medición nueva declara una cifra de contraste
 
 Antes de dar por buena una medición nueva, hay que decir contra qué cifra conocida debe ser
