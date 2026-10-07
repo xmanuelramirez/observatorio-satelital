@@ -168,7 +168,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    cargarGeojson('capas/NUMERO_DE_CURVA.geojson')
+    cargarGeojson('capas/NUMERO_DE_CURVA_MARCO_V1.geojson')
       .then(setSubcuencasCn)
       .catch(() => setSubcuencasCn(null))
   }, [])
@@ -350,6 +350,15 @@ export default function App() {
 
     try {
       const lectura = leerSubcuencas(subcuencasCn, condicionCn)
+      // La politica va aqui y no en el servicio: el servicio tiene que poder
+      // leer cualquier capa cuando se le pide. Una capa sin marco declarado es
+      // la particion retirada copiada con el nombre nuevo, y sus cifras no
+      // se cruzan con nada.
+      if (!lectura.marco) {
+        throw new Error(
+          'La capa de número de curva no declara su marco (unidad y version_marco). No se calcula: puede ser la división retirada.',
+        )
+      }
       if (lectura.subcuencas.length === 0) {
         throw new Error('La capa no trae número de curva en esa condición')
       }

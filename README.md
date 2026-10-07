@@ -445,7 +445,7 @@ area completa. La segunda no se pudo rehacer porque aquellas zonas de obra no
 quedaron guardadas como insumo; por eso la corrida de contraste sale ahora de un
 archivo versionado.
 
-La capa `NUMERO_DE_CURVA.geojson` es interna y no viaja al sitio publico; el
+La capa `NUMERO_DE_CURVA_MARCO_V1.geojson` es interna y no viaja al sitio publico; el
 podado la excluye y el panel avisa cuando falta. **Tampoco se versiona, y su
 descripcion viaja con ella**, no en este repositorio. La capa historica de 63
 unidades se conserva fuera de esta app, con su propia marca de procedencia, y

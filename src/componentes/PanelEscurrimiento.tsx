@@ -22,6 +22,19 @@ function miles(valor: number): string {
   return valor.toLocaleString('es-MX', { maximumFractionDigits: 0 })
 }
 
+/**
+ * Los totales van en millones: el calculo no distingue metros cubicos sueltos
+ * y dar ocho cifras seria precision falsa. Las filas de la tabla siguen en m³,
+ * porque ahi los volumenes son chicos y la unidad si dice algo.
+ */
+function millones(valorM3: number): string {
+  const enMillones = (valorM3 / 1e6).toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return `${enMillones} millones de m³`
+}
+
 export default function PanelEscurrimiento({
   disponible,
   lluviaMm,
@@ -107,7 +120,7 @@ export default function PanelEscurrimiento({
               <div className="border border-filete bg-panel-hondo p-3">
                 <p className="rotulo">Volumen escurrido</p>
                 <p className="cifra mt-1 text-[17px] font-semibold text-tinta">
-                  {miles(resultado.totalVolumenNuevoM3)} m³
+                  {millones(resultado.totalVolumenNuevoM3)}
                 </p>
                 <p className="mt-1 text-xs leading-snug text-tinta-suave">
                   Con una lluvia de {resultado.lluviaMm} mm sobre la superficie con número de
@@ -128,7 +141,7 @@ export default function PanelEscurrimiento({
                 <div className="mt-2 border border-filete bg-panel-hondo p-3">
                   <p className="rotulo">Unidades que reciben obra</p>
                   <p className="cifra mt-1 text-[15px] font-semibold text-tinta">
-                    {miles(resultado.receptoras.volumenNuevoM3)} m³
+                    {millones(resultado.receptoras.volumenNuevoM3)}
                   </p>
                   <p className="mt-1 text-xs leading-snug text-tinta-suave">
                     {resultado.receptoras.unidades} de {resultado.filas.length} unidades,{' '}
