@@ -221,6 +221,6 @@
     "titulo": "El volumen escurrido se da en millones de metros cúbicos",
     "resumen": "La cifra grande del escurrimiento y el subtotal de las unidades que reciben obra pasan a millones de m³ con dos decimales, por ejemplo 32.17 millones de m³ en lugar de 32,166,224 m³: el cálculo no distingue metros cúbicos sueltos. La tabla por unidad sigue en m³. La cifra no cambia, solo cómo se escribe.",
     "seccion_manual": "Funciones · Escurrimiento",
-    "evidencia": "2a433cb"
+    "evidencia": "98fab42"
   }
 ]
