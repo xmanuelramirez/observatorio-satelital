@@ -87,7 +87,7 @@ Enable Access, scope «All traffic», equipo `sapal`), y cubre producción y vis
 - **El repositorio pasa a privado y lo cierra el MASTER**, cuando el Vigía ya no dependa de
   leer `semanal/` desde `raw.githubusercontent.com`. Esta sesión no toca la visibilidad.
   Mientras siga público, `ENTREGABLES/` no se versiona y nada derivado de la zona federal de
-  arroyos ni de la capa de recarga potencial de Daniel Murrieta entra al repositorio.
+  arroyos ni de las zonas de recarga potencial (capa de la CEAG, resguardada en `insumos-sapal/`) entra al repositorio.
 - La app no valida identidad: es estática, sin Worker con código. El Worker que verifique el JWT
   y falle cerrado sigue en el plan T-ACC y se hace solo con orden del MASTER.
 - El enlace del mensaje semanal de Telegram pide login a quien no tenga cuenta de Access.
