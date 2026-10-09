@@ -79,8 +79,11 @@ Enable Access, scope «All traffic», equipo `sapal`), y cubre producción y vis
 
 - **Comprobar producción ya no es abrirla.** Sin sesión, todo responde 302 al login de
   `sapal.cloudflareaccess.com`. Un script que reciba esa página no ve un error, ve una página que
-  no es la suya. Tras cada despliegue se comprueba con `curl` que la raíz siga dando 302, y lo de
-  adentro se verifica en la copia local, o en producción solo con token de servicio.
+  no es la suya. Tras cada despliegue se comprueban las dos cosas: sin token la raíz da 302, y con
+  el token de servicio `observatorio-verificacion` (política «verification», Service Auth) da
+  200 y trae el cambio. Sus cabeceras viven en `C:\Users\xmanu\.secretos\observatorio-access.headers`,
+  fuera del repositorio y de OneDrive, y se usan con `curl -H @<ese archivo>`. Nunca se imprimen ni
+  se copian al repositorio. Vence el 08/10/2027.
 - **El repositorio pasa a privado y lo cierra el MASTER**, cuando el Vigía ya no dependa de
   leer `semanal/` desde `raw.githubusercontent.com`. Esta sesión no toca la visibilidad.
   Mientras siga público, `ENTREGABLES/` no se versiona y nada derivado de la zona federal de
