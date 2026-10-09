@@ -62,3 +62,7 @@ salidas/
 # todavia no son publicos. Viven en disco y viajan por los canales del
 # departamento, no por GitHub.
 ENTREGABLES/
+
+# Insumos que entrega SAPAL o el departamento (p. ej. zonas de recarga potencial). Se guardan
+# con su huella para trabajar en local, nunca en el repositorio.
+insumos-sapal/
