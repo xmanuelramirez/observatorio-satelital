@@ -104,6 +104,7 @@ export default function PanelEscurrimiento({
             type="button"
             onClick={onCalcular}
             disabled={calculando}
+            data-testid="calcular-escurrimiento"
             className="boton-principal"
           >
             {calculando ? 'Calculando...' : 'Calcular escurrimiento'}

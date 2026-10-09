@@ -34,6 +34,7 @@ export default function PanelProductos({
               <button
                 type="button"
                 aria-pressed={estaActivo}
+                data-testid={`producto-${producto.id}`}
                 disabled={cargando !== null}
                 onClick={() => (estaActivo ? onQuitar() : onCargar(producto.id))}
                 className={`boton w-full text-left ${estaActivo ? 'boton-activo' : ''}`}

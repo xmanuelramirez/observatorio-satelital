@@ -27,6 +27,7 @@ export default function SelectorArea({ area, onArea }: Props) {
             key={capa.id}
             type="button"
             role="radio"
+            data-testid={`area-${capa.id}`}
             aria-checked={area === capa.id}
             onClick={() => onArea(capa.id)}
             title={capa.etiqueta}

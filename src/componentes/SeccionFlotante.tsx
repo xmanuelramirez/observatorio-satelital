@@ -6,6 +6,8 @@ interface Props {
   resumen: string
   abierta: boolean
   onAlternar: () => void
+  /** Para que el grabador de videos ubique el encabezado sin depender del texto. */
+  testId?: string
   children: ReactNode
 }
 
@@ -15,7 +17,7 @@ interface Props {
  * La abierta toma el alto que le sobre a la columna y desplaza por dentro,
  * asi el mapa nunca queda tapado por mas de una tarjeta larga.
  */
-export default function SeccionFlotante({ titulo, resumen, abierta, onAlternar, children }: Props) {
+export default function SeccionFlotante({ titulo, resumen, abierta, onAlternar, testId, children }: Props) {
   return (
     <section
       className={`pointer-events-auto flex flex-col border bg-panel/95 shadow-lg shadow-black/40 ${
@@ -26,6 +28,7 @@ export default function SeccionFlotante({ titulo, resumen, abierta, onAlternar, 
         type="button"
         aria-expanded={abierta}
         onClick={onAlternar}
+        data-testid={testId}
         className={`flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left ${
           abierta ? 'bg-acento-suave' : 'hover:bg-fondo'
         }`}

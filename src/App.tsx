@@ -587,6 +587,7 @@ export default function App() {
           resumen={resumenEscenas}
           abierta={seccion === 'escenas'}
           onAlternar={() => alternarSeccion('escenas')}
+          testId="seccion-escenas"
         >
               <>
                 <PanelBusqueda
@@ -692,6 +693,7 @@ export default function App() {
           resumen={resumenSerie}
           abierta={seccion === 'serie'}
           onAlternar={() => alternarSeccion('serie')}
+          testId="seccion-serie"
         >
               <PanelSerie
                 indice={indice}
@@ -712,6 +714,7 @@ export default function App() {
           resumen={resumenReferencia}
           abierta={seccion === 'referencia'}
           onAlternar={() => alternarSeccion('referencia')}
+          testId="seccion-referencia"
         >
               <PanelProductos
                 activo={producto}
@@ -730,6 +733,7 @@ export default function App() {
           resumen={'Escurrimiento por número de curva y subsidencia InSAR'}
           abierta={seccion === 'hidrologia'}
           onAlternar={() => alternarSeccion('hidrologia')}
+          testId="seccion-hidrologia"
         >
               <>
                 <PanelEscurrimiento
@@ -762,6 +766,7 @@ export default function App() {
           resumen={resumenCapas}
           abierta={seccion === 'capas'}
           onAlternar={() => alternarSeccion('capas')}
+          testId="seccion-capas"
         >
             <ControlMapa visibles={visibles} onVisible={alternarVisible} fondo={fondo} onFondo={setFondo} />
         </SeccionFlotante>

@@ -60,6 +60,7 @@ export default function PanelBusqueda({
         <span className="rotulo mb-1.5 block">Colección</span>
         <select
           className="campo"
+          data-testid="coleccion"
           value={coleccion.id}
           onChange={(evento) => onColeccion(evento.target.value)}
         >
@@ -80,6 +81,7 @@ export default function PanelBusqueda({
           <input
             type="date"
             className="campo cifra"
+            data-testid="fecha-desde"
             value={desde}
             onChange={(e) => onDesde(e.target.value)}
           />
@@ -89,6 +91,7 @@ export default function PanelBusqueda({
           <input
             type="date"
             className="campo cifra"
+            data-testid="fecha-hasta"
             value={hasta}
             onChange={(e) => onHasta(e.target.value)}
           />
@@ -106,6 +109,7 @@ export default function PanelBusqueda({
             min={0}
             max={100}
             step={5}
+            data-testid="nubosidad-max"
             value={nubesMax}
             onChange={(e) => onNubesMax(Number(e.target.value))}
             className="w-full"
@@ -120,6 +124,7 @@ export default function PanelBusqueda({
       <button
         type="button"
         onClick={onBuscar}
+        data-testid="buscar-escenas"
         disabled={buscando}
         className="boton-principal mt-3"
       >

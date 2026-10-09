@@ -137,6 +137,7 @@ export default function PanelAnalisis({
               key={opcion.id}
               type="button"
               role="tab"
+              data-testid={`modo-${opcion.id}`}
               aria-selected={modo === opcion.id}
               onClick={() => onModo(opcion.id)}
               disabled={
@@ -208,6 +209,7 @@ export default function PanelAnalisis({
               <Etiqueta>Comparar contra</Etiqueta>
               <select
                 className="campo"
+                data-testid="comparar-contra"
                 value={referencia[0]?.dia ?? ''}
                 onChange={(evento) => onDiaReferencia(evento.target.value)}
               >
@@ -426,6 +428,7 @@ export default function PanelAnalisis({
             type="button"
             onClick={onCalcular}
             disabled={!puedeCalcular}
+            data-testid="calcular"
             className="boton-principal"
           >
             {calculando ? 'Leyendo bandas y calculando...' : 'Calcular sobre el área'}

@@ -63,7 +63,7 @@ export default function GaleriaEscenas({ grupos, seleccion, coleccion, onElegir,
             <span className="cifra">{totalEscenas}</span> escenas
           </p>
         </div>
-        <button type="button" onClick={onCerrar} className="boton">
+        <button type="button" onClick={onCerrar} className="boton" data-testid="galeria-cerrar">
           Cerrar <span className="cifra text-rotulo">(Esc)</span>
         </button>
       </header>

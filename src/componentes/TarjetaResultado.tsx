@@ -69,7 +69,7 @@ export default function TarjetaResultado({ titulo, leyenda, notas }: Props) {
   }
 
   return (
-    <div className="absolute bottom-7 right-3 z-1000 flex max-h-[calc(100vh-15rem)] w-72 flex-col border border-filete-fuerte bg-panel/95 text-xs shadow-lg shadow-black/40">
+    <div className="absolute bottom-7 right-3 z-1000 flex max-h-[calc(100vh-15rem)] w-72 flex-col border border-filete-fuerte bg-panel/95 text-xs shadow-lg shadow-black/40" data-testid="simbologia">
       <div className="shrink-0 border-b border-filete px-3.5 py-2.5">
         <p className="rotulo">Simbología</p>
         <p className="mt-1 text-[13px] font-semibold text-tinta">{titulo}</p>
@@ -77,10 +77,10 @@ export default function TarjetaResultado({ titulo, leyenda, notas }: Props) {
         {leyenda.length > 0 && (
           <div className="mt-2 flex items-center gap-2">
             <span className="text-xs text-rotulo">Descargar</span>
-            <button type="button" onClick={comoCsv} className="boton py-1">
+            <button type="button" onClick={comoCsv} className="boton py-1" data-testid="descargar-csv">
               CSV
             </button>
-            <button type="button" onClick={comoJson} className="boton py-1">
+            <button type="button" onClick={comoJson} className="boton py-1" data-testid="descargar-json">
               JSON
             </button>
           </div>
@@ -113,6 +113,7 @@ export default function TarjetaResultado({ titulo, leyenda, notas }: Props) {
               type="button"
               aria-expanded={notasAbiertas}
               onClick={() => setNotasAbiertas(!notasAbiertas)}
+              data-testid="notas-calculo"
               className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2 text-left hover:bg-fondo"
             >
               <span className="rotulo">Notas del cálculo ({notas.length})</span>

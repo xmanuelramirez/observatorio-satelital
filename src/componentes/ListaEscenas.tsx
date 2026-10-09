@@ -99,7 +99,7 @@ export default function ListaEscenas({
       <div className="border-b border-filete px-4 py-3">
         <div className="flex items-center justify-between gap-2">
           <TituloPaso numero={2} titulo="Escena" />
-          <button type="button" onClick={onPantallaCompleta} className="boton py-1">
+          <button type="button" onClick={onPantallaCompleta} className="boton py-1" data-testid="galeria-abrir">
             Ver en pantalla completa
           </button>
         </div>
@@ -115,7 +115,7 @@ export default function ListaEscenas({
 
       <ul>
         {grupos.map((grupo) => (
-          <li key={grupo.dia} className="border-b border-filete">
+          <li key={grupo.dia} className="border-b border-filete" data-testid={`escena-dia-${grupo.dia}`}>
             <div className="flex items-baseline justify-between gap-2 px-4 pt-3">
               <span className="text-[13px] font-semibold">{fechaLarga(grupo.dia)}</span>
               {grupo.nubes !== null && (
@@ -134,6 +134,7 @@ export default function ListaEscenas({
                 <button
                   type="button"
                   onClick={() => onElegir(grupo.escenas)}
+                  data-testid={`escena-mosaico-${grupo.dia}`}
                   aria-pressed={diaCompleto(grupo)}
                   className={`boton col-span-2 text-left ${diaCompleto(grupo) ? 'boton-activo' : ''}`}
                 >
@@ -154,6 +155,7 @@ export default function ListaEscenas({
                     key={escena.id}
                     type="button"
                     onClick={() => onElegir([escena])}
+                    data-testid={grupo.escenas.length === 1 ? `escena-mosaico-${grupo.dia}` : undefined}
                     title={escena.id}
                     aria-pressed={activa}
                     className={`boton flex items-center gap-2 text-left ${activa ? 'boton-activo' : ''}`}
