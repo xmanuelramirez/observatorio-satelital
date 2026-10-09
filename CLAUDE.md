@@ -2,7 +2,8 @@
 
 Línea B del contrato SAPAL 2026-2027. Lee catálogos abiertos de satélite y mide cambios del
 territorio de León: obra nueva, índices, temperatura de superficie, agua por radar, series y
-capas de referencia. Publicada en https://observatorio-satelital.sapal.workers.dev
+capas de referencia. Publicada en https://observatorio-satelital.sapal.workers.dev, detrás de
+Cloudflare Access desde el 08/10/2026.
 
 El detalle técnico y el porqué de cada decisión están en `README.md`. Aquí van solo las reglas
 de trabajo de esta sesión.
@@ -70,23 +71,23 @@ cita a la app dueña. Si se calcula aquí, con la misma fuente y el mismo métod
   publicarse porque no aporta al análisis de escenas, no porque esté prohibida.
 - Padrón, SCADA y contenido del PSH y PRH no entran a esta app en ninguna forma.
 
-## Todo detrás de Access (decisión de Carlos, 30/09/2026)
+## Detrás de Access (decisión de Carlos, 30/09/2026; activo desde el 08/10/2026)
 
-Todas las apps del portafolio pasan detrás de Cloudflare Access y **ninguna información queda
-por fuera**. Para esta app, mientras la migración no ocurra:
+Todas las apps del portafolio van detrás de Cloudflare Access y **ninguna información queda por
+fuera**. Esta lo está desde el 08/10/2026: Carlos lo activó en el panel (Domains > workers.dev >
+Enable Access, scope «All traffic», equipo `sapal`), y cubre producción y vistas previas.
 
-- **Nada derivado de la zona federal de arroyos ni de la capa de recarga potencial de Daniel
-  Murrieta se publica mientras el sitio siga abierto.** Esas capas llegan con esa condición.
-- El repositorio pasa a privado, pero **no antes** de que el Vigía deje de depender de que sea
-  público. La trampa: manda la foto a Telegram por URL, así que quien la descarga es Telegram,
-  sin credenciales, y eso no se arregla con un token. Lo cierra el MASTER, después de
-  comprobarlo un lunes real.
-- `ENTREGABLES/` no se versiona: el repositorio todavía es público y esos documentos describen
-  sistemas internos.
-- La app no valida identidad y hoy no puede: es estática, sin Worker con código. Poner un Worker
-  que verifique el JWT y falle cerrado está en el plan T-ACC, **después** de activar Access en el
-  borde. No se empieza antes.
-- Nadie activa Access por su cuenta. El orden lo arma el MASTER con Carlos.
+- **Comprobar producción ya no es abrirla.** Sin sesión, todo responde 302 al login de
+  `sapal.cloudflareaccess.com`. Un script que reciba esa página no ve un error, ve una página que
+  no es la suya. Tras cada despliegue se comprueba con `curl` que la raíz siga dando 302, y lo de
+  adentro se verifica en la copia local, o en producción solo con token de servicio.
+- **El repositorio pasa a privado y lo cierra el MASTER**, cuando el Vigía ya no dependa de
+  leer `semanal/` desde `raw.githubusercontent.com`. Esta sesión no toca la visibilidad.
+  Mientras siga público, `ENTREGABLES/` no se versiona y nada derivado de la zona federal de
+  arroyos ni de la capa de recarga potencial de Daniel Murrieta entra al repositorio.
+- La app no valida identidad: es estática, sin Worker con código. El Worker que verifique el JWT
+  y falle cerrado sigue en el plan T-ACC y se hace solo con orden del MASTER.
+- El enlace del mensaje semanal de Telegram pide login a quien no tenga cuenta de Access.
 
 ## Órdenes del MASTER
 
