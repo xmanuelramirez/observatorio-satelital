@@ -238,5 +238,13 @@
     "resumen": "Mientras la cifra de obra nueva siga suspendida, el escurrimiento por número de curva no sube sobre las zonas detectadas: con pares de octubre a mayo las subía sobre parcelas que solo se secaron. Además, la detección ahora exige que el cambio parta de suelo sin vegetación; lo que partía verde queda como pérdida de vegetación a confirmar y no se suma. Prueba de 22 de septiembre a 20 de octubre de 2026: de 111.7 a 7.8 ha en la rejilla de la app. La cifra sigue sin mostrarse.",
     "seccion_manual": "Funciones · Obra nueva",
     "evidencia": "ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-OBRA-NUEVA-ESTACIONAL.md, adenda"
+  },
+  {
+    "fecha": "2026-10-30",
+    "tipo": "correccion",
+    "titulo": "Fuera de julio a octubre no se pintan zonas de obra, y el escurrimiento lo avisa",
+    "resumen": "El modo Obra nueva ya no pinta zonas si alguna de las dos fechas cae fuera de julio a octubre: en esos meses el método deja pasar parcelas que se secan. El modo Cambio avisa cuando el verdor cambió fuera de lo construido. El escurrimiento avisa que sale sin obra: con 50 mm, el volumen base sigue en 32.17 millones de m³, y lo que agregaba la obra (2,063.6 m³ con cinco zonas) deja de sumarse. Se agrega la atribución de Copernicus Sentinel y «Powered by Esri».",
+    "seccion_manual": "Funciones · Obra nueva",
+    "evidencia": "ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-OBRA-NUEVA-ESTACIONAL.md, adenda"
   }
 ]

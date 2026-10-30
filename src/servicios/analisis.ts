@@ -15,8 +15,11 @@ import {
   AVISO_CIFRA_SUSPENDIDA,
   CIFRA_OBRA_SUSPENDIDA,
   NDVI_MAXIMO_BASE,
+  avisoFenologia,
   detectarObraNueva,
   diasEntre,
+  medirFenologia,
+  parConfiable,
   type Fenologia,
   type ZonaObra,
 } from './obranueva'
@@ -130,7 +133,13 @@ function bandasQuePide(
 ): NombreBanda[] {
   if (modo === 'indice' || modo === 'cambio') {
     if (!indice) throw new Error('Falta elegir el índice')
-    return [indice.a, indice.b] as NombreBanda[]
+    const delIndice = [indice.a, indice.b] as NombreBanda[]
+    if (modo === 'indice') return delIndice
+    // Cambio mide ademas el verdor fuera de lo construido, si la coleccion lo permite.
+    const deFenologia: NombreBanda[] = ['nir', 'rojo', 'swir1']
+    return deFenologia.every((banda) => coleccion.bandas[banda])
+      ? [...new Set([...delIndice, ...deFenologia])]
+      : delIndice
   }
   // Obra nueva cruza NDBI, NDVI y MNDWI, asi que pide sus cuatro bandas.
   if (modo === 'obra') {
@@ -376,16 +385,27 @@ export async function ejecutarAnalisis(
     }
 
     const { fenologia, perdidaVegetacion } = resultado
-    if (fenologia.aviso && fenologia.medianaDndvi !== null) {
-      notas.unshift(
-        `El verdor cambió fuera de lo construido (mediana de ${fenologia.medianaDndvi >= 0 ? '+' : ''}${fenologia.medianaDndvi.toFixed(3)} en NDVI): parte de lo detectado puede ser temporada y no obra.`,
-      )
-    }
+    const avisoVerdor = avisoFenologia(fenologia)
+    if (avisoVerdor) notas.unshift(avisoVerdor)
     if (CIFRA_OBRA_SUSPENDIDA) notas.unshift(AVISO_CIFRA_SUSPENDIDA)
 
+    // De noviembre a junio la regla deja pasar secado, y una zona pintada se lee
+    // como obra igual que una cifra.
+    const pintaZonas = parConfiable(escenasReferencia[0].dia, escenas[0].dia)
+    if (!pintaZonas) {
+      notas.unshift(
+        'Las zonas no se pintan: el método solo es confiable con las dos fechas entre julio y octubre.',
+      )
+    }
+
     notas.push(
-      `Regla: NDBI sube ${umbralObra.toFixed(2)} o más, NDVI final bajo 0.30, MNDWI negativo y NDVI base de ${NDVI_MAXIMO_BASE.toFixed(2)} o menos. ${resultado.celdasCrudas.toLocaleString('es-MX')} celdas la cumplieron sobre ${resultado.celdasComparables.toLocaleString('es-MX')} comparables.`,
+      `Regla: NDBI sube ${umbralObra.toFixed(2)} o más, NDVI final bajo 0.30, MNDWI negativo y NDVI base de ${NDVI_MAXIMO_BASE.toFixed(2)} o menos.`,
     )
+    if (!CIFRA_OBRA_SUSPENDIDA) {
+      notas.push(
+        `${resultado.celdasCrudas.toLocaleString('es-MX')} celdas cumplieron la regla sobre ${resultado.celdasComparables.toLocaleString('es-MX')} comparables.`,
+      )
+    }
     notas.push(
       `Se descartaron las manchas menores a ${areaMinimaObra.toFixed(1)} ha, que a esta rejilla son menos de ${Math.max(1, Math.ceil(areaMinimaObra / haPixel))} celdas.`,
     )
@@ -404,9 +424,11 @@ export async function ejecutarAnalisis(
       }
     }
 
-    const leyenda: EntradaLeyenda[] = [
+    const leyenda: EntradaLeyenda[] = !pintaZonas
+      ? []
+      : [
       CIFRA_OBRA_SUSPENDIDA
-        ? { color: COLOR_OBRA, etiqueta: 'Obra probable: cifra en corrección' }
+        ? { color: COLOR_OBRA, etiqueta: 'Zonas detectadas' }
         : {
             color: COLOR_OBRA,
             // Redondeada a la hectarea: una zona que pasa o no el minimo la mueve unas 2 ha.
@@ -421,13 +443,13 @@ export async function ejecutarAnalisis(
     return {
       rejilla,
       bandas: [resultado.mascara],
-      colorear: ([valor]) => (Number.isNaN(valor) ? undefined : COLOR_OBRA),
+      colorear: ([valor]) => (!pintaZonas || Number.isNaN(valor) ? undefined : COLOR_OBRA),
       leyenda,
       notas,
       zonasObra: resultado.zonas,
       perdidaVegetacion,
       fenologia,
-      marcas: resultado.zonas.map((zona, i) => ({
+      marcas: (pintaZonas ? resultado.zonas : []).map((zona, i) => ({
         lat: zona.lat,
         lon: zona.lon,
         hectareas: zona.hectareas,
@@ -453,6 +475,18 @@ export async function ejecutarAnalisis(
 
     const despues = calcularIndice(pila, indice!)
     const antes = calcularIndice(pilaReferencia, indice!)
+
+    const porId = (id: string) => INDICES.find((definicion) => definicion.id === id)!
+    const fenologia =
+      pila.bandas.nir && pila.bandas.rojo && pila.bandas.swir1
+        ? medirFenologia(
+            calcularIndice(pilaReferencia, porId('ndbi')).valores,
+            calcularIndice(pilaReferencia, porId('ndvi')).valores,
+            calcularIndice(pila, porId('ndvi')).valores,
+          )
+        : undefined
+    const avisoVerdor = fenologia ? avisoFenologia(fenologia) : null
+    if (avisoVerdor) notas.unshift(avisoVerdor)
 
     const delta = new Float32Array(despues.valores.length)
     let baja = 0
@@ -524,6 +558,7 @@ export async function ejecutarAnalisis(
       },
       leyenda,
       notas,
+      fenologia,
       sello,
     }
   }

@@ -135,7 +135,6 @@ export function detectarObraNueva(parametros: ParametrosObra): ResultadoObra {
   const total = ancho * alto
   const marcada = new Uint8Array(total)
   const conBaseVerde = new Uint8Array(total)
-  const cambiosFuera: number[] = []
 
   let celdasCrudas = 0
   let celdasComparables = 0
@@ -148,8 +147,6 @@ export function detectarObraNueva(parametros: ParametrosObra): ResultadoObra {
 
     if (Number.isNaN(nbA) || Number.isNaN(nbD) || Number.isNaN(nvA) || Number.isNaN(nvD)) continue
     celdasComparables++
-
-    if (nbA < NDBI_NO_CONSTRUIDO) cambiosFuera.push(nvD - nvA)
 
     const subeConstruido = nbD - nbA >= umbralNdbi
     const quedaSinVegetacion = nvD <= ndviMaximoDespues
@@ -168,21 +165,43 @@ export function detectarObraNueva(parametros: ParametrosObra): ResultadoObra {
   const obra = agruparZonas(marcada, rejilla, hectareasPorCelda, areaMinimaHa)
   const perdida = agruparZonas(conBaseVerde, rejilla, hectareasPorCelda, areaMinimaHa)
 
-  cambiosFuera.sort((a, b) => a - b)
-  const medianaDndvi = cambiosFuera.length > 0 ? cambiosFuera[Math.floor(cambiosFuera.length / 2)] : null
-
   return {
     mascara: obra.mascara,
     zonas: obra.zonas,
     hectareasTotales: sumaHectareas(obra.zonas),
     perdidaVegetacion: { zonas: perdida.zonas, hectareas: sumaHectareas(perdida.zonas) },
-    fenologia: {
-      medianaDndvi,
-      aviso: medianaDndvi !== null && Math.abs(medianaDndvi) > UMBRAL_FENOLOGIA,
-    },
+    fenologia: medirFenologia(ndbiAntes, ndviAntes, ndviDespues),
     celdasCrudas,
     celdasComparables,
   }
+}
+
+/**
+ * Mediana del cambio de NDVI fuera de lo construido. El modo Cambio la usa tambien:
+ * le aplica el mismo artefacto estacional.
+ */
+export function medirFenologia(
+  ndbiAntes: Float32Array,
+  ndviAntes: Float32Array,
+  ndviDespues: Float32Array,
+): Fenologia {
+  const cambios: number[] = []
+  for (let i = 0; i < ndbiAntes.length; i++) {
+    const d = ndviDespues[i] - ndviAntes[i]
+    if (ndbiAntes[i] < NDBI_NO_CONSTRUIDO && !Number.isNaN(d)) cambios.push(d)
+  }
+  cambios.sort((a, b) => a - b)
+  const medianaDndvi = cambios.length > 0 ? cambios[Math.floor(cambios.length / 2)] : null
+  return {
+    medianaDndvi,
+    aviso: medianaDndvi !== null && Math.abs(medianaDndvi) > UMBRAL_FENOLOGIA,
+  }
+}
+
+/** El mismo texto en todos los modos que comparan dos fechas. */
+export function avisoFenologia(fenologia: Fenologia): string | null {
+  if (!fenologia.aviso || fenologia.medianaDndvi === null) return null
+  return `El verdor cambió fuera de lo construido (mediana de ${fenologia.medianaDndvi >= 0 ? '+' : ''}${fenologia.medianaDndvi.toFixed(3)} en NDVI): parte de lo detectado puede ser temporada y no un cambio real.`
 }
 
 function sumaHectareas(zonas: ZonaObra[]): number {

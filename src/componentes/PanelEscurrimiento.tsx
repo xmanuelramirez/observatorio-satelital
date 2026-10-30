@@ -1,3 +1,4 @@
+import { CIFRA_OBRA_SUSPENDIDA } from '../servicios/obranueva'
 import {
   CONDICIONES,
   FRACCION_MINIMA,
@@ -59,9 +60,9 @@ export default function PanelEscurrimiento({
       ) : (
         <>
           <p className="mb-2.5 text-xs leading-snug text-tinta-suave">
-            Método del número de curva sobre las subcuencas del departamento. El satélite aporta
-            la superficie que se impermeabilizó: las zonas del modo Obra suben el número de curva
-            donde caen.
+            Método del número de curva sobre las subcuencas del departamento.
+            {!CIFRA_OBRA_SUSPENDIDA &&
+              ' El satélite aporta la superficie que se impermeabilizó: las zonas del modo Obra suben el número de curva donde caen.'}
           </p>
 
           <label className="mb-2.5 block">
@@ -95,7 +96,9 @@ export default function PanelEscurrimiento({
           </label>
 
           <p className="mb-2.5 text-xs leading-snug text-rotulo">
-            {zonasObra > 0
+            {CIFRA_OBRA_SUSPENDIDA
+              ? 'Mientras la cifra de obra nueva esté en corrección, el número de curva no se ajusta por obra detectada: el volumen sale sin obra.'
+              : zonasObra > 0
               ? `Se usarán las ${zonasObra} zonas de obra nueva del último cálculo.`
               : 'Sin zonas de obra cargadas: corre el modo Obra primero para ver cuánto agregó el crecimiento.'}
           </p>
@@ -221,9 +224,9 @@ export default function PanelEscurrimiento({
               )}
 
               <p className="mt-2 text-xs leading-snug text-rotulo">
-                Lámina por el método SCS con el número de curva de la capa del departamento. La
-                obra nueva se trata como superficie impermeable y mueve el número de curva en
-                proporción al área que ocupa dentro de cada subcuenca.
+                Lámina por el método SCS con el número de curva de la capa del departamento.
+                {!CIFRA_OBRA_SUSPENDIDA &&
+                  ' La obra nueva se trata como superficie impermeable y mueve el número de curva en proporción al área que ocupa dentro de cada subcuenca.'}
               </p>
 
               <p className="mt-2 text-xs leading-snug text-rotulo">

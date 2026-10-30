@@ -409,7 +409,7 @@ export default function App() {
             leyenda: datos.leyenda,
             notas: [
               ...datos.notas,
-              `Precalculado al construir el sitio (${datos.generado.slice(0, 10)}), no en tu navegador.`,
+              `Precalculado al construir el sitio (${diaLocal(datos.generado)}), no en tu navegador.`,
             ],
           })
         } else {

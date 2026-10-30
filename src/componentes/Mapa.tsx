@@ -42,7 +42,7 @@ const FONDOS = {
   },
   satelite: {
     url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    atribucion: 'Imagen: Esri, Maxar, Earthstar Geographics',
+    atribucion: 'Powered by Esri. Imagen: Esri, Maxar, Earthstar Geographics',
   },
 } as const
 
@@ -54,6 +54,21 @@ export type IdFondo = keyof typeof FONDOS
  * luego crece, se queda con el tamano viejo. Observar el contenedor lo
  * mantiene al dia y dispara el resize que AjustarA espera para encuadrar.
  */
+/** Atribucion de las imagenes que se analizan; el fondo de referencia trae la suya. */
+function AtribucionFuentes() {
+  const mapa = useMap()
+
+  useEffect(() => {
+    const texto = 'Contiene datos modificados de Copernicus Sentinel 2026'
+    mapa.attributionControl?.addAttribution(texto)
+    return () => {
+      mapa.attributionControl?.removeAttribution(texto)
+    }
+  }, [mapa])
+
+  return null
+}
+
 function SeguirTamano() {
   const mapa = useMap()
 
@@ -215,6 +230,7 @@ export default function Mapa({
         </CircleMarker>
       ))}
 
+      <AtribucionFuentes />
       <SeguirTamano />
       <AjustarA bbox={areaBbox} />
     </MapContainer>
