@@ -230,5 +230,13 @@
     "resumen": "Una revisión técnica independiente confirmó que, al terminar las lluvias, el método contaba como obra las parcelas que se secan: de lo marcado entre el 15 de octubre y el 9 de noviembre de 2025, el 98.9 por ciento volvió a verdear un año después. El modo Obra nueva sigue pintando las zonas en el mapa, pero no da hectáreas ni número de zonas hasta que la corrección esté verificada.",
     "seccion_manual": "Funciones · Obra nueva",
     "evidencia": "ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-OBRA-NUEVA-ESTACIONAL.md"
+  },
+  {
+    "fecha": "2026-10-30",
+    "tipo": "correccion",
+    "titulo": "El escurrimiento deja de sumar la obra detectada y la detección se corrige",
+    "resumen": "Mientras la cifra de obra nueva siga suspendida, el escurrimiento por número de curva no sube sobre las zonas detectadas: con pares de octubre a mayo las subía sobre parcelas que solo se secaron. Además, la detección ahora exige que el cambio parta de suelo sin vegetación; lo que partía verde queda como pérdida de vegetación a confirmar y no se suma. Prueba de 22 de septiembre a 20 de octubre de 2026: de 111.7 a 7.8 ha en la rejilla de la app. La cifra sigue sin mostrarse.",
+    "seccion_manual": "Funciones · Obra nueva",
+    "evidencia": "ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-OBRA-NUEVA-ESTACIONAL.md, adenda"
   }
 ]

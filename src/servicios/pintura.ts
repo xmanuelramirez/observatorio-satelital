@@ -18,6 +18,8 @@ export interface ResultadoPintado {
   notas: string[]
   marcas?: MarcaMapa[]
   zonasObra?: ZonaObra[]
+  perdidaVegetacion?: ResultadoAnalisis['perdidaVegetacion']
+  fenologia?: ResultadoAnalisis['fenologia']
   sello: string
 }
 
@@ -87,6 +89,8 @@ export function pintarResultado(resultado: ResultadoAnalisis): ResultadoPintado 
     notas: resultado.notas,
     marcas: resultado.marcas,
     zonasObra: resultado.zonasObra,
+    perdidaVegetacion: resultado.perdidaVegetacion,
+    fenologia: resultado.fenologia,
     sello: resultado.sello,
   }
 }

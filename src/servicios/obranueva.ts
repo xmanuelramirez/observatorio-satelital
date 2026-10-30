@@ -15,10 +15,56 @@ import type { Rejilla } from './raster'
  *   3. No es agua (MNDWI negativo). Un vaso que baja de nivel deja suelo
  *      humedo que tambien mueve el NDBI.
  *
+ * Esas tres no separan obra de secado: al terminar las lluvias nada reverdece
+ * dentro de la ventana, y del 15/10 al 09/11/2025 dieron 774.7 ha, de las que el
+ * 98.9 % volvio a verdear un ano despues (dictamen del juez, 30/10/2026). Por eso
+ * hay una cuarta, que decide el nivel y no si la celda cuenta:
+ *
+ *   4. Partir de suelo sin vegetacion (NDVI base de 0.35 o menos). Lo que cumple
+ *      es obra probable, la unica cifra que se suma. Lo que partia verde va aparte
+ *      como perdida de vegetacion a confirmar y nunca se suma: pasa a obra si en
+ *      las lluvias siguientes (ago-sep) sigue con NDVI de 0.25 o menos.
+ *
  * Aun asi es un CANDIDATO, no un dictamen: a 10 m una casa sola no se ve, y
- * un despalme sin construir cumple las tres condiciones. Por eso el resultado
- * se agrupa en zonas con area minima y se reporta como zonas a verificar.
+ * un despalme sin construir cumple las condiciones. Por eso el resultado se
+ * agrupa en zonas con area minima y se reporta como zonas a verificar. Tampoco es
+ * el total urbanizado: unas 5 ha al mes contra unas 22 ha al mes del construido
+ * de Esri.
+ *
+ * Y la regla solo es confiable con las dos fechas entre julio y octubre: de
+ * noviembre a febrero la vegetacion ya seca sigue secandose sin mover el NDVI, y
+ * C2 no lo ve (16/11 a 19/12/2025: 234 ha, de las que el 97 % volvio a verdear).
+ * De marzo a mayo vuelve a verdear del 56 al 62 %. Hay que resolverlo antes de
+ * marzo de 2027 (adenda del dictamen del 30/10/2026).
  */
+
+/** NDVI maximo de la fecha base para contar como obra probable. Estable entre 0.30 y 0.40. */
+export const NDVI_MAXIMO_BASE = 0.35
+
+/** Mediana de cambio de NDVI fuera de lo construido a partir de la cual se avisa. */
+export const UMBRAL_FENOLOGIA = 0.03
+
+/** NDBI base debajo del cual una celda se toma como no construida al medir la fenologia. */
+export const NDBI_NO_CONSTRUIDO = -0.05
+
+/**
+ * Suspendida por el dictamen al menos hasta junio de 2027, salvo que antes un
+ * metodo pase la validacion retrospectiva mes por mes. El mapa pinta las zonas,
+ * pero la leyenda y las notas no dan hectareas, y el escurrimiento no las usa.
+ */
+export const CIFRA_OBRA_SUSPENDIDA = true
+
+/** La cifra solo se puede reanudar para pares con las dos fechas entre julio y octubre. */
+export function parConfiable(diaBase: string, diaActual: string): boolean {
+  const enVentana = (dia: string) => {
+    const mes = Number(dia.split('-')[1])
+    return mes >= 7 && mes <= 10
+  }
+  return enVentana(diaBase) && enVentana(diaActual)
+}
+
+export const AVISO_CIFRA_SUSPENDIDA =
+  'Cifra en corrección: al terminar las lluvias el método contaba como obra las parcelas que se secan.'
 
 export interface ZonaObra {
   /** Numero de celdas de la zona. */
@@ -32,12 +78,24 @@ export interface ZonaObra {
 export interface ResultadoObra {
   /** 1 en las celdas de una zona que sobrevivio al area minima, NaN en el resto. */
   mascara: Float32Array
+  /** Obra probable: parte de suelo sin vegetacion. Es lo unico que se suma. */
   zonas: ZonaObra[]
   hectareasTotales: number
-  /** Celdas que cumplieron la regla antes de descartar zonas chicas. */
+  /** Cumple la regla pero la base estaba verde. Lista aparte, nunca sumada a obra. */
+  perdidaVegetacion: { zonas: ZonaObra[]; hectareas: number }
+  fenologia: Fenologia
+  /** Celdas de obra probable antes de descartar zonas chicas. */
   celdasCrudas: number
   /** Celdas comparables, es decir con dato valido en las dos fechas. */
   celdasComparables: number
+}
+
+/** Cuanto cambio el verdor fuera de lo construido: la medida del secado o el rebrote. */
+export interface Fenologia {
+  /** Mediana del cambio de NDVI en las celdas no construidas; null si no hay celdas. */
+  medianaDndvi: number | null
+  /** Si pasa de UMBRAL_FENOLOGIA, una parte de lo detectado es temporada y hay que decirlo. */
+  aviso: boolean
 }
 
 export interface ParametrosObra {
@@ -52,19 +110,12 @@ export interface ParametrosObra {
   umbralNdbi: number
   /** NDVI maximo que puede quedar despues para considerarlo construido. */
   ndviMaximoDespues: number
+  /** NDVI maximo de la fecha base para contar como obra probable. */
+  ndviMaximoBase?: number
   /** Zonas menores a esto se descartan por ruido. */
   areaMinimaHa: number
 }
 
-/**
- * Agrupa las celdas marcadas en zonas conexas por vecindad de 8 y descarta
- * las que no llegan al area minima. Sin este paso el mapa se llena de celdas
- * sueltas, que a 100 m de lado son una hectarea cada una y no un desarrollo.
- *
- * El recorrido es iterativo con una pila propia: una version recursiva
- * desborda la pila de JavaScript en cuanto una zona pasa de unos miles de
- * celdas, y aqui una mancha urbana grande las tiene.
- */
 export function detectarObraNueva(parametros: ParametrosObra): ResultadoObra {
   const {
     ndbiAntes,
@@ -76,12 +127,15 @@ export function detectarObraNueva(parametros: ParametrosObra): ResultadoObra {
     hectareasPorCelda,
     umbralNdbi,
     ndviMaximoDespues,
+    ndviMaximoBase = NDVI_MAXIMO_BASE,
     areaMinimaHa,
   } = parametros
 
   const { ancho, alto } = rejilla
   const total = ancho * alto
   const marcada = new Uint8Array(total)
+  const conBaseVerde = new Uint8Array(total)
+  const cambiosFuera: number[] = []
 
   let celdasCrudas = 0
   let celdasComparables = 0
@@ -95,16 +149,63 @@ export function detectarObraNueva(parametros: ParametrosObra): ResultadoObra {
     if (Number.isNaN(nbA) || Number.isNaN(nbD) || Number.isNaN(nvA) || Number.isNaN(nvD)) continue
     celdasComparables++
 
+    if (nbA < NDBI_NO_CONSTRUIDO) cambiosFuera.push(nvD - nvA)
+
     const subeConstruido = nbD - nbA >= umbralNdbi
     const quedaSinVegetacion = nvD <= ndviMaximoDespues
     const noEsAgua = mndwiDespues === null || !(mndwiDespues[i] >= 0)
 
     if (subeConstruido && quedaSinVegetacion && noEsAgua) {
-      marcada[i] = 1
-      celdasCrudas++
+      if (nvA <= ndviMaximoBase) {
+        marcada[i] = 1
+        celdasCrudas++
+      } else {
+        conBaseVerde[i] = 1
+      }
     }
   }
 
+  const obra = agruparZonas(marcada, rejilla, hectareasPorCelda, areaMinimaHa)
+  const perdida = agruparZonas(conBaseVerde, rejilla, hectareasPorCelda, areaMinimaHa)
+
+  cambiosFuera.sort((a, b) => a - b)
+  const medianaDndvi = cambiosFuera.length > 0 ? cambiosFuera[Math.floor(cambiosFuera.length / 2)] : null
+
+  return {
+    mascara: obra.mascara,
+    zonas: obra.zonas,
+    hectareasTotales: sumaHectareas(obra.zonas),
+    perdidaVegetacion: { zonas: perdida.zonas, hectareas: sumaHectareas(perdida.zonas) },
+    fenologia: {
+      medianaDndvi,
+      aviso: medianaDndvi !== null && Math.abs(medianaDndvi) > UMBRAL_FENOLOGIA,
+    },
+    celdasCrudas,
+    celdasComparables,
+  }
+}
+
+function sumaHectareas(zonas: ZonaObra[]): number {
+  return zonas.reduce((suma, zona) => suma + zona.hectareas, 0)
+}
+
+/**
+ * Agrupa las celdas marcadas en zonas conexas por vecindad de 8 y descarta
+ * las que no llegan al area minima. Sin este paso el mapa se llena de celdas
+ * sueltas, que a 100 m de lado son una hectarea cada una y no un desarrollo.
+ *
+ * El recorrido es iterativo con una pila propia: una version recursiva
+ * desborda la pila de JavaScript en cuanto una zona pasa de unos miles de
+ * celdas, y aqui una mancha urbana grande las tiene.
+ */
+function agruparZonas(
+  marcada: Uint8Array,
+  rejilla: Rejilla,
+  hectareasPorCelda: number,
+  areaMinimaHa: number,
+): { mascara: Float32Array; zonas: ZonaObra[] } {
+  const { ancho, alto } = rejilla
+  const total = ancho * alto
   const mascara = new Float32Array(total).fill(Number.NaN)
   const zonas: ZonaObra[] = []
   const celdasMinimas = Math.max(1, Math.ceil(areaMinimaHa / hectareasPorCelda))
@@ -166,13 +267,7 @@ export function detectarObraNueva(parametros: ParametrosObra): ResultadoObra {
 
   zonas.sort((a, b) => b.hectareas - a.hectareas)
 
-  return {
-    mascara,
-    zonas,
-    hectareasTotales: zonas.reduce((suma, zona) => suma + zona.hectareas, 0),
-    celdasCrudas,
-    celdasComparables,
-  }
+  return { mascara, zonas }
 }
 
 /**
@@ -187,17 +282,4 @@ export function diasEntre(diaA: string, diaB: string): number {
     return Date.UTC(ano, mes - 1, d, 12)
   }
   return Math.round(Math.abs(aFecha(diaB) - aFecha(diaA)) / 86_400_000)
-}
-
-/**
- * Comparar seca contra lluvias infla el cambio: la vegetacion anual aparece y
- * desaparece sola. Se avisa cuando las dos fechas caen en temporadas
- * distintas de Leon, donde las lluvias van de junio a octubre.
- */
-export function mismaTemporada(diaA: string, diaB: string): boolean {
-  const lluviosa = (dia: string) => {
-    const mes = Number(dia.split('-')[1])
-    return mes >= 6 && mes <= 10
-  }
-  return lluviosa(diaA) === lluviosa(diaB)
 }

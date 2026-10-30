@@ -7,6 +7,7 @@ import { buscarEscenas, type ResultadoBusqueda } from './servicios/stac'
 import { bandasDelAgua, type EntradaLeyenda } from './servicios/analisis'
 import { pedirAnalisis, pedirSerie } from './servicios/calculo'
 import { pintarResultado, type ResultadoPintado } from './servicios/pintura'
+import { CIFRA_OBRA_SUSPENDIDA } from './servicios/obranueva'
 import { INDICES, indicesDisponibles, type DefinicionIndice } from './servicios/indices'
 import type { Bbox, Escena, GrupoDia, IdCapa, ModoVista, NombreBanda } from './tipos'
 import { diaLocal } from './lib/fecha'
@@ -368,7 +369,8 @@ export default function App() {
           lectura,
           lluviaMm,
           condicion: condicionCn,
-          zonasObra: analisis?.zonasObra ?? [],
+          // Con la cifra suspendida, el numero de curva no sube sobre lo detectado.
+          zonasObra: CIFRA_OBRA_SUSPENDIDA ? [] : (analisis?.zonasObra ?? []),
         }),
       )
     } catch (error: unknown) {
@@ -742,7 +744,7 @@ export default function App() {
                   onLluviaMm={setLluviaMm}
                   condicion={condicionCn}
                   onCondicion={setCondicionCn}
-                  zonasObra={analisis?.zonasObra?.length ?? 0}
+                  zonasObra={CIFRA_OBRA_SUSPENDIDA ? 0 : (analisis?.zonasObra?.length ?? 0)}
                   calculando={calculandoEscurrimiento}
                   resultado={escurrimiento}
                   error={errorEscurrimiento}

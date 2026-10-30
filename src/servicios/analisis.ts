@@ -11,7 +11,15 @@ import { kmeans } from './kmeans'
 import { aplicarMascara, mascaraDeArea } from './mascara'
 import { aportacionEnArea, coberturaDelArea } from './mosaico'
 import { colorDeCalor, colorDeCambio, colorDeClase, colorDeGris, colorDeIndice } from './paletas'
-import { detectarObraNueva, diasEntre, mismaTemporada, type ZonaObra } from './obranueva'
+import {
+  AVISO_CIFRA_SUSPENDIDA,
+  CIFRA_OBRA_SUSPENDIDA,
+  NDVI_MAXIMO_BASE,
+  detectarObraNueva,
+  diasEntre,
+  type Fenologia,
+  type ZonaObra,
+} from './obranueva'
 import { nubosidadEnArea } from './nubes'
 import { INDICES } from './indices'
 import type { Bbox, Coleccion, Escena, ModoVista, NombreBanda } from '../tipos'
@@ -45,6 +53,9 @@ export interface ResultadoAnalisis {
   marcas?: MarcaMapa[]
   /** Zonas de obra nueva, que el escurrimiento usa para subir el numero de curva. */
   zonasObra?: ZonaObra[]
+  /** Base verde: lista aparte que nunca se suma a obra. */
+  perdidaVegetacion?: { zonas: ZonaObra[]; hectareas: number }
+  fenologia?: Fenologia
   /** Cambia con cada corrida para que la capa del mapa se reconstruya. */
   sello: string
 }
@@ -326,11 +337,6 @@ export async function ejecutarAnalisis(
     notas.unshift(
       `Separación temporal: ${dias} días entre ${escenasReferencia[0].dia} y ${escenas[0].dia}. ${coleccion.etiqueta} revisita cada ${coleccion.revisitaDias} días, así que es el paso más fino disponible.`,
     )
-    if (!mismaTemporada(escenasReferencia[0].dia, escenas[0].dia)) {
-      notas.push(
-        'Las dos fechas caen en temporadas distintas (las lluvias van de junio a octubre). El cambio incluye vegetación que aparece y desaparece sola; para obra nueva conviene comparar el mismo mes de dos años.',
-      )
-    }
   }
 
   if (modo === 'obra') {
@@ -369,8 +375,16 @@ export async function ejecutarAnalisis(
       throw new Error('Las dos fechas no comparten píxeles válidos dentro del área')
     }
 
+    const { fenologia, perdidaVegetacion } = resultado
+    if (fenologia.aviso && fenologia.medianaDndvi !== null) {
+      notas.unshift(
+        `El verdor cambió fuera de lo construido (mediana de ${fenologia.medianaDndvi >= 0 ? '+' : ''}${fenologia.medianaDndvi.toFixed(3)} en NDVI): parte de lo detectado puede ser temporada y no obra.`,
+      )
+    }
+    if (CIFRA_OBRA_SUSPENDIDA) notas.unshift(AVISO_CIFRA_SUSPENDIDA)
+
     notas.push(
-      `Regla: NDBI sube ${umbralObra.toFixed(2)} o más, NDVI final bajo 0.30 y MNDWI negativo. ${resultado.celdasCrudas.toLocaleString('es-MX')} celdas la cumplieron sobre ${resultado.celdasComparables.toLocaleString('es-MX')} comparables.`,
+      `Regla: NDBI sube ${umbralObra.toFixed(2)} o más, NDVI final bajo 0.30, MNDWI negativo y NDVI base de ${NDVI_MAXIMO_BASE.toFixed(2)} o menos. ${resultado.celdasCrudas.toLocaleString('es-MX')} celdas la cumplieron sobre ${resultado.celdasComparables.toLocaleString('es-MX')} comparables.`,
     )
     notas.push(
       `Se descartaron las manchas menores a ${areaMinimaObra.toFixed(1)} ha, que a esta rejilla son menos de ${Math.max(1, Math.ceil(areaMinimaObra / haPixel))} celdas.`,
@@ -379,14 +393,30 @@ export async function ejecutarAnalisis(
       'Son zonas candidatas, no un dictamen: un despalme sin construir cumple la misma regla, y a esta resolución una casa sola no se ve.',
     )
 
-    // La cifra queda suspendida por el dictamen del juez del 30/10/2026 hasta la
-    // correccion del metodo: el mapa sigue pintando las zonas, pero aqui no se dan
-    // hectareas ni numero de zonas. La orden de reanudar la da el MASTER.
-    notas.unshift(
-      'Cifra en corrección: al terminar las lluvias el método contaba como obra las parcelas que se secan. De octubre a diciembre el secado de parcelas se cuenta como obra.',
-    )
+    if (!CIFRA_OBRA_SUSPENDIDA) {
+      notas.push(
+        `Pérdida de vegetación a confirmar, que no se suma a obra: ${perdidaVegetacion.zonas.length} zonas, ${perdidaVegetacion.hectareas.toLocaleString('es-MX', { maximumFractionDigits: 1 })} ha. Pasa a obra si en las lluvias siguientes (ago-sep) sigue con NDVI de 0.25 o menos.`,
+      )
+      for (const [i, zona] of resultado.zonas.slice(0, 5).entries()) {
+        notas.push(
+          `Zona ${i + 1}: ${zona.hectareas.toFixed(1)} ha, centro ${zona.lat.toFixed(5)}, ${zona.lon.toFixed(5)}`,
+        )
+      }
+    }
 
-    const leyenda: EntradaLeyenda[] = [{ color: COLOR_OBRA, etiqueta: 'Zonas detectadas: cifra en corrección' }]
+    const leyenda: EntradaLeyenda[] = [
+      CIFRA_OBRA_SUSPENDIDA
+        ? { color: COLOR_OBRA, etiqueta: 'Obra probable: cifra en corrección' }
+        : {
+            color: COLOR_OBRA,
+            // Redondeada a la hectarea: una zona que pasa o no el minimo la mueve unas 2 ha.
+            etiqueta: `Obra probable: ${resultado.hectareasTotales.toLocaleString('es-MX', { maximumFractionDigits: 0 })} ha`,
+            detalle:
+              resultado.zonas.length > 0
+                ? `${resultado.zonas.length} zonas, la mayor de ${resultado.zonas[0].hectareas.toFixed(1)} ha. No es el total urbanizado.`
+                : 'No es el total urbanizado.',
+          },
+    ]
 
     return {
       rejilla,
@@ -395,11 +425,13 @@ export async function ejecutarAnalisis(
       leyenda,
       notas,
       zonasObra: resultado.zonas,
+      perdidaVegetacion,
+      fenologia,
       marcas: resultado.zonas.map((zona, i) => ({
         lat: zona.lat,
         lon: zona.lon,
         hectareas: zona.hectareas,
-        etiqueta: `Zona ${i + 1}`,
+        etiqueta: CIFRA_OBRA_SUSPENDIDA ? `Zona ${i + 1}` : `Zona ${i + 1}: ${zona.hectareas.toFixed(1)} ha`,
       })),
       sello,
     }

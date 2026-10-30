@@ -21,7 +21,7 @@ import { bboxDe } from '../src/servicios/geojson'
 import { buscarEscenas } from '../src/servicios/stac'
 import { ejecutarAnalisis } from '../src/servicios/analisis'
 import { pintarResultado } from '../src/servicios/pintura'
-import { diasEntre } from '../src/servicios/obranueva'
+import { diasEntre, parConfiable } from '../src/servicios/obranueva'
 import { obtenerMosaico } from '../src/servicios/pilas'
 import { mascaraDeArea } from '../src/servicios/mascara'
 import { rejillaDe } from '../src/servicios/raster'
@@ -258,6 +258,18 @@ async function main() {
     parametros: { umbralNdbi: UMBRAL_OBRA, areaMinimaHa: AREA_MINIMA_HA, rejilla: TAMANO },
     zonas: zonas.length,
     hectareas: redondear(hectareas, 1),
+    // Fuera de julio a octubre el resumen sale sin hectareas (condicion 6 del dictamen).
+    cifraConfiable: parConfiable(base.dia, actual.dia),
+    // Base verde: lista aparte, nunca sumada a `hectareas` (dictamen del 30/10/2026).
+    perdidaVegetacion: {
+      zonas: resultado.perdidaVegetacion?.zonas.length ?? 0,
+      hectareas: redondear(resultado.perdidaVegetacion?.hectareas ?? 0, 1),
+    },
+    // Campo propio para que el vigia lo muestre: las notas no le llegan al mensaje.
+    avisoFenologia: {
+      activo: resultado.fenologia?.aviso ?? false,
+      medianaDndvi: redondear(resultado.fenologia?.medianaDndvi ?? 0, 3),
+    },
     principales: zonas.slice(0, 5).map((z) => ({
       hectareas: redondear(z.hectareas, 1),
       lat: redondear(z.lat, 5),

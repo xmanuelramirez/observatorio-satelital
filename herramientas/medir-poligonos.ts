@@ -420,6 +420,7 @@ async function main() {
         fila.zonas_obra = zonas.length
         fila.obra_ha = redondear(zonas.reduce((suma, z) => suma + z.hectareas, 0))
         fila.obra_mayor_ha = redondear(zonas.reduce((mayor, z) => Math.max(mayor, z.hectareas), 0))
+        fila.perdida_vegetacion_ha = redondear(resultado.perdidaVegetacion?.hectareas ?? 0)
       } else if (opciones.modo === 'calor') {
         const media = promedioDentro(resultado.bandas[0], dentro)
         fila.temperatura_media_c = media === null ? null : redondear(media)
