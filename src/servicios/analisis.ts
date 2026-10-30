@@ -395,10 +395,16 @@ export async function ejecutarAnalisis(
 
     // De noviembre a junio la regla deja pasar secado, y una zona pintada se lee
     // como obra igual que una cifra.
-    const pintaZonas = parConfiable(escenasReferencia[0].dia, escenas[0].dia)
-    if (!pintaZonas) {
+    const enVentana = parConfiable(escenasReferencia[0].dia, escenas[0].dia)
+    // Tampoco con el verdor en movimiento: ahi lo detectado puede ser secado aun en ventana.
+    const pintaZonas = enVentana && !fenologia.aviso
+    if (!enVentana) {
       notas.unshift(
         'Las zonas no se pintan: el método solo es confiable con las dos fechas entre julio y octubre.',
+      )
+    } else if (!pintaZonas) {
+      notas.unshift(
+        'Las zonas no se pintan: el verdor cambió fuera de lo construido, y lo detectado puede ser secado.',
       )
     }
 

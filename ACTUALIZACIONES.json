@@ -254,5 +254,13 @@
     "resumen": "Sentinel-1 pasa en franjas, y una pasada puede rozar el área: la del 20 de octubre de 2026 cubría el 41 por ciento del municipio y dejaba fuera la presa de El Palote. La búsqueda de radar ya solo ofrece pasadas que cubren el área. Al comparar dos fechas, la tarjeta avisa que la variación entre pasadas puede deberse al viento sobre el agua. El aviso de la cifra de obra nueva pasa de las notas plegadas a la vista.",
     "seccion_manual": "Funciones · Agua por radar",
     "evidencia": "Orden del MASTER del 30/10/2026 tras el diagnóstico de Agua por radar"
+  },
+  {
+    "fecha": "2026-10-30",
+    "tipo": "correccion",
+    "titulo": "Obra nueva tampoco pinta zonas cuando el verdor está cambiando",
+    "resumen": "Aunque las dos fechas caigan entre julio y octubre, el modo Obra nueva no pinta zonas si el verdor cambió fuera de lo construido, porque lo detectado puede ser secado. Con 22 de septiembre a 30 de octubre de 2026 la mediana de NDVI fuera de lo construido baja 0.107 y no se pinta; con 13 de agosto a 5 de septiembre baja 0.008 y sí. La cifra sigue suspendida.",
+    "seccion_manual": "Funciones · Obra nueva",
+    "evidencia": "Orden del MASTER del 30/10/2026"
   }
 ]

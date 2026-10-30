@@ -258,8 +258,8 @@ async function main() {
     parametros: { umbralNdbi: UMBRAL_OBRA, areaMinimaHa: AREA_MINIMA_HA, rejilla: TAMANO },
     zonas: zonas.length,
     hectareas: redondear(hectareas, 1),
-    // Fuera de julio a octubre el resumen sale sin hectareas (condicion 6 del dictamen).
-    cifraConfiable: parConfiable(base.dia, actual.dia),
+    // Fuera de julio a octubre, o con el verdor en movimiento, el resumen sale sin hectareas.
+    cifraConfiable: parConfiable(base.dia, actual.dia) && !(resultado.fenologia?.aviso ?? false),
     // Base verde: lista aparte, nunca sumada a `hectareas` (dictamen del 30/10/2026).
     perdidaVegetacion: {
       zonas: resultado.perdidaVegetacion?.zonas.length ?? 0,
