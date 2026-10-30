@@ -3,6 +3,8 @@ import type { EntradaLeyenda } from '../servicios/analisis'
 
 interface Props {
   titulo: string
+  /** Aviso del que depende leer bien el resultado: va a la vista, no plegado. */
+  aviso?: string
   leyenda: EntradaLeyenda[]
   notas: string[]
 }
@@ -42,7 +44,7 @@ function descargar(nombre: string, contenido: string, tipo: string) {
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-export default function TarjetaResultado({ titulo, leyenda, notas }: Props) {
+export default function TarjetaResultado({ titulo, aviso, leyenda, notas }: Props) {
   const [notasAbiertas, setNotasAbiertas] = useState(false)
 
   if (leyenda.length === 0 && notas.length === 0) return null
@@ -73,6 +75,7 @@ export default function TarjetaResultado({ titulo, leyenda, notas }: Props) {
       <div className="shrink-0 border-b border-filete px-3.5 py-2.5">
         <p className="rotulo">Simbología</p>
         <p className="mt-1 text-[13px] font-semibold text-tinta">{titulo}</p>
+        {aviso && <p className="mt-1 text-xs leading-snug text-aviso">{aviso}</p>}
 
         {leyenda.length > 0 && (
           <div className="mt-2 flex items-center gap-2">

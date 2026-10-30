@@ -20,6 +20,7 @@ export interface ResultadoPintado {
   zonasObra?: ZonaObra[]
   perdidaVegetacion?: ResultadoAnalisis['perdidaVegetacion']
   fenologia?: ResultadoAnalisis['fenologia']
+  aviso?: string
   sello: string
 }
 
@@ -91,6 +92,7 @@ export function pintarResultado(resultado: ResultadoAnalisis): ResultadoPintado 
     zonasObra: resultado.zonasObra,
     perdidaVegetacion: resultado.perdidaVegetacion,
     fenologia: resultado.fenologia,
+    aviso: resultado.aviso,
     sello: resultado.sello,
   }
 }

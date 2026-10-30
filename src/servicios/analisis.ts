@@ -27,6 +27,9 @@ import { nubosidadEnArea } from './nubes'
 import { INDICES } from './indices'
 import type { Bbox, Coleccion, Escena, ModoVista, NombreBanda } from '../tipos'
 
+const AVISO_AGUA_VIENTO =
+  'La variación entre pasadas puede deberse al viento sobre el agua; no se sostiene sin filtro.'
+
 /** Un solo color para la obra nueva: es una alerta, no una escala. */
 const COLOR_OBRA = '#fb7185'
 
@@ -59,6 +62,8 @@ export interface ResultadoAnalisis {
   /** Base verde: lista aparte que nunca se suma a obra. */
   perdidaVegetacion?: { zonas: ZonaObra[]; hectareas: number }
   fenologia?: Fenologia
+  /** Aviso del que depende leer bien el resultado: va junto a el, no en las notas. */
+  aviso?: string
   /** Cambia con cada corrida para que la capa del mapa se reconstruya. */
   sello: string
 }
@@ -387,7 +392,6 @@ export async function ejecutarAnalisis(
     const { fenologia, perdidaVegetacion } = resultado
     const avisoVerdor = avisoFenologia(fenologia)
     if (avisoVerdor) notas.unshift(avisoVerdor)
-    if (CIFRA_OBRA_SUSPENDIDA) notas.unshift(AVISO_CIFRA_SUSPENDIDA)
 
     // De noviembre a junio la regla deja pasar secado, y una zona pintada se lee
     // como obra igual que una cifra.
@@ -449,6 +453,7 @@ export async function ejecutarAnalisis(
       zonasObra: resultado.zonas,
       perdidaVegetacion,
       fenologia,
+      aviso: CIFRA_OBRA_SUSPENDIDA ? AVISO_CIFRA_SUSPENDIDA : undefined,
       marcas: (pintaZonas ? resultado.zonas : []).map((zona, i) => ({
         lat: zona.lat,
         lon: zona.lon,
@@ -690,6 +695,7 @@ export async function ejecutarAnalisis(
         { color: COLOR_RETIRADA, etiqueta: 'Agua que desapareció', detalle: ha(perdida) },
       ],
       notas,
+      aviso: AVISO_AGUA_VIENTO,
       sello,
     }
   }

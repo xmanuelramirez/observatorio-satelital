@@ -246,5 +246,13 @@
     "resumen": "El modo Obra nueva ya no pinta zonas si alguna de las dos fechas cae fuera de julio a octubre: en esos meses el método deja pasar parcelas que se secan. El modo Cambio avisa cuando el verdor cambió fuera de lo construido. El escurrimiento avisa que sale sin obra: con 50 mm, el volumen base sigue en 32.17 millones de m³, y lo que agregaba la obra (2,063.6 m³ con cinco zonas) deja de sumarse. Se agrega la atribución de Copernicus Sentinel y «Powered by Esri».",
     "seccion_manual": "Funciones · Obra nueva",
     "evidencia": "ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-OBRA-NUEVA-ESTACIONAL.md, adenda"
+  },
+  {
+    "fecha": "2026-10-30",
+    "tipo": "correccion",
+    "titulo": "Agua por radar solo ofrece pasadas que cubren el área y avisa del viento",
+    "resumen": "Sentinel-1 pasa en franjas, y una pasada puede rozar el área: la del 20 de octubre de 2026 cubría el 41 por ciento del municipio y dejaba fuera la presa de El Palote. La búsqueda de radar ya solo ofrece pasadas que cubren el área. Al comparar dos fechas, la tarjeta avisa que la variación entre pasadas puede deberse al viento sobre el agua. El aviso de la cifra de obra nueva pasa de las notas plegadas a la vista.",
+    "seccion_manual": "Funciones · Agua por radar",
+    "evidencia": "Orden del MASTER del 30/10/2026 tras el diagnóstico de Agua por radar"
   }
 ]

@@ -11,6 +11,7 @@ import { CIFRA_OBRA_SUSPENDIDA } from './servicios/obranueva'
 import { INDICES, indicesDisponibles, type DefinicionIndice } from './servicios/indices'
 import type { Bbox, Escena, GrupoDia, IdCapa, ModoVista, NombreBanda } from './tipos'
 import { diaLocal } from './lib/fecha'
+import { pasadasUtiles } from './lib/cobertura'
 import type { FuenteRaster } from './componentes/CapaAnalisis'
 import Mapa, { type IdFondo } from './componentes/Mapa'
 import PanelBusqueda from './componentes/PanelBusqueda'
@@ -270,7 +271,7 @@ export default function App() {
         nubesMax,
         limite: 100,
       })
-      setResultado(salida)
+      setResultado({ ...salida, grupos: pasadasUtiles(coleccion.id, salida.grupos, areaBbox) })
       setSerie(null)
       setBusquedaPlegada(true)
       setListaPlegada(false)
@@ -774,7 +775,12 @@ export default function App() {
         </SeccionFlotante>
       </div>
 
-      <TarjetaResultado titulo={tituloResultado} leyenda={leyendaEnMapa} notas={notasEnMapa} />
+      <TarjetaResultado
+        titulo={tituloResultado}
+        aviso={productoVista ? undefined : analisis?.aviso}
+        leyenda={leyendaEnMapa}
+        notas={notasEnMapa}
+      />
 
         {seleccion.length > 0 && (
           <div className="absolute right-3 top-3 z-1000 w-76 border border-filete-fuerte bg-panel-hondo/95 text-xs">
