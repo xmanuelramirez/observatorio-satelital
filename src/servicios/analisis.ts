@@ -379,21 +379,14 @@ export async function ejecutarAnalisis(
       'Son zonas candidatas, no un dictamen: un despalme sin construir cumple la misma regla, y a esta resolución una casa sola no se ve.',
     )
 
-    for (const [i, zona] of resultado.zonas.slice(0, 5).entries()) {
-      notas.push(
-        `Zona ${i + 1}: ${zona.hectareas.toFixed(1)} ha, centro ${zona.lat.toFixed(5)}, ${zona.lon.toFixed(5)}`,
-      )
-    }
+    // La cifra queda suspendida por el dictamen del juez del 30/10/2026 hasta la
+    // correccion del metodo: el mapa sigue pintando las zonas, pero aqui no se dan
+    // hectareas ni numero de zonas. La orden de reanudar la da el MASTER.
+    notas.unshift(
+      'Cifra en corrección: al terminar las lluvias el método contaba como obra las parcelas que se secan. De octubre a diciembre el secado de parcelas se cuenta como obra.',
+    )
 
-    const leyenda: EntradaLeyenda[] = [
-      {
-        color: COLOR_OBRA,
-        etiqueta: `Obra nueva probable: ${resultado.zonas.length} zonas`,
-        detalle: `${resultado.hectareasTotales.toLocaleString('es-MX', { maximumFractionDigits: 1 })} ha en total${
-          resultado.zonas.length > 0 ? `, la mayor de ${resultado.zonas[0].hectareas.toFixed(1)} ha` : ''
-        }`,
-      },
-    ]
+    const leyenda: EntradaLeyenda[] = [{ color: COLOR_OBRA, etiqueta: 'Zonas detectadas: cifra en corrección' }]
 
     return {
       rejilla,
@@ -406,7 +399,7 @@ export async function ejecutarAnalisis(
         lat: zona.lat,
         lon: zona.lon,
         hectareas: zona.hectareas,
-        etiqueta: `Zona ${i + 1}: ${zona.hectareas.toFixed(1)} ha`,
+        etiqueta: `Zona ${i + 1}`,
       })),
       sello,
     }

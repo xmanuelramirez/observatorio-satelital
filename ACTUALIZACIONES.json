@@ -222,5 +222,13 @@
     "resumen": "La cifra grande del escurrimiento y el subtotal de las unidades que reciben obra pasan a millones de m³ con dos decimales, por ejemplo 32.17 millones de m³ en lugar de 32,166,224 m³: el cálculo no distingue metros cúbicos sueltos. La tabla por unidad sigue en m³. La cifra no cambia, solo cómo se escribe.",
     "seccion_manual": "Funciones · Escurrimiento",
     "evidencia": "98fab42"
+  },
+  {
+    "fecha": "2026-10-30",
+    "tipo": "correccion",
+    "titulo": "La cifra de obra nueva queda suspendida mientras se corrige el método",
+    "resumen": "Una revisión técnica independiente confirmó que, al terminar las lluvias, el método contaba como obra las parcelas que se secan: de lo marcado entre el 15 de octubre y el 9 de noviembre de 2025, el 98.9 por ciento volvió a verdear un año después. El modo Obra nueva sigue pintando las zonas en el mapa, pero no da hectáreas ni número de zonas hasta que la corrección esté verificada.",
+    "seccion_manual": "Funciones · Obra nueva",
+    "evidencia": "ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-OBRA-NUEVA-ESTACIONAL.md"
   }
 ]
