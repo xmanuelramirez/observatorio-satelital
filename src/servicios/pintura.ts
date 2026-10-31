@@ -44,6 +44,9 @@ export function aRgb(color: string): [number, number, number] {
   throw new Error(`Color que la pintura no sabe traducir: ${color}`)
 }
 
+/** Pixeles por lado de cada celda cuando el modo lleva entramado. */
+const CELDAS_POR_RAYA = 4
+
 export function pintarResultado(resultado: ResultadoAnalisis): ResultadoPintado {
   const { rejilla, bandas, colorear, entramado } = resultado
   const { ancho, alto } = rejilla
@@ -52,7 +55,11 @@ export function pintarResultado(resultado: ResultadoAnalisis): ResultadoPintado 
     throw new Error(`La pintura solo sabe de rejillas en grados, llegó EPSG:${rejilla.epsg}`)
   }
 
-  const rgba = new Uint8ClampedArray(ancho * alto * 4)
+  // El entramado va dentro de cada celda: rayar celda por celda borraria la mitad de las
+  // sueltas, y el mapa mostraria menos de lo que dice la leyenda.
+  const factor = entramado ? CELDAS_POR_RAYA : 1
+  const anchoFinal = ancho * factor
+  const rgba = new Uint8ClampedArray(anchoFinal * alto * factor * 4)
   const cache = new Map<string, [number, number, number]>()
   const valores = new Array<number>(bandas.length)
 
@@ -62,8 +69,9 @@ export function pintarResultado(resultado: ResultadoAnalisis): ResultadoPintado 
     const color = colorear(valores)
     if (!color) continue
 
-    // Rayas diagonales de dos celdas: lo que no se pinta deja ver el fondo.
-    if (entramado?.(valores) && ((i % ancho) + Math.floor(i / ancho)) % 4 >= 2) continue
+    const rayada = entramado?.(valores) === true
+    const columna = i % ancho
+    const fila = Math.floor(i / ancho)
 
     let rgb = cache.get(color)
     if (!rgb) {
@@ -71,11 +79,17 @@ export function pintarResultado(resultado: ResultadoAnalisis): ResultadoPintado 
       cache.set(color, rgb)
     }
 
-    const k = i * 4
-    rgba[k] = rgb[0]
-    rgba[k + 1] = rgb[1]
-    rgba[k + 2] = rgb[2]
-    rgba[k + 3] = 255
+    for (let sy = 0; sy < factor; sy++) {
+      for (let sx = 0; sx < factor; sx++) {
+        // Rayas diagonales: lo que no se pinta deja ver el fondo.
+        if (rayada && (sx + sy) % CELDAS_POR_RAYA >= CELDAS_POR_RAYA / 2) continue
+        const k = ((fila * factor + sy) * anchoFinal + columna * factor + sx) * 4
+        rgba[k] = rgb[0]
+        rgba[k + 1] = rgb[1]
+        rgba[k + 2] = rgb[2]
+        rgba[k + 3] = 255
+      }
+    }
   }
 
   const este = rejilla.xmin + ancho * rejilla.pixelAncho
@@ -83,8 +97,8 @@ export function pintarResultado(resultado: ResultadoAnalisis): ResultadoPintado 
 
   return {
     rgba,
-    ancho,
-    alto,
+    ancho: anchoFinal,
+    alto: alto * factor,
     limites: [
       [sur, rejilla.xmin],
       [rejilla.ymax, este],
