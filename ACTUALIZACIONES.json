@@ -285,6 +285,6 @@
     "titulo": "La plataforma se rediseña y suma una línea de tiempo mensual desde 2017",
     "resumen": "Nueva estructura: panel con tarjetas de imagen y nombres simples, logo de SAPAL y recorte neto al límite municipal. Cambiar de área o de modo ya no calcula: cada combinación viene lista con la última escena limpia. La línea de tiempo muestra una imagen limpia por mes desde 2017 en Color y Vegetación, 100 de 118 meses, con una sola escala, y cambia en seco entre fechas. No indica tendencia de un año a otro: el verdor sube y baja con las lluvias y con el día de la toma, y así lo dice el rótulo a la vista. Los meses sin imagen no tuvieron ninguna con 10 por ciento de nubes o menos. Otra fecha u otros ajustes siguen calculándose en vivo.",
     "seccion_manual": "Funciones · Interfaz",
-    "evidencia": "Aprobada por Carlos el 30/10/2026; maqueta de DISEÑO en 16. DISEÑO/plataformas/observatorio-satelital"
+    "evidencia": "a3e13fb, versión 4ab9cef7. Aprobada por Carlos el 30/10/2026; maqueta de DISEÑO en 16. DISEÑO/plataformas/observatorio-satelital"
   }
 ]

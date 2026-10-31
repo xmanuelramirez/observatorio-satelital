@@ -38,6 +38,12 @@ por cada modo y la línea de tiempo mensual desde 2017. Tarda; una corrección u
 desde un worktree limpio de `main` con `npm run build` y `npx wrangler deploy`, pero sin ese
 precálculo la app calcula en vivo: copia antes `public/apertura/` al worktree.
 
+**La línea de tiempo no se regenera desde cero sin la guarda por escena** (a más tardar el
+01/12/2026): seis escenas de la colección vieja, del 29/01 al 23/02/2022, traen el +1000 sin restar.
+Una corrida normal de `npm run historia` solo revisa el mes en curso y no corre ese riesgo. Si se
+borra `public/apertura/evolucion/historia/`, sí. Dictamen en
+`ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-LINEA-DE-TIEMPO.md`.
+
 Cada cambio visible para quien usa la plataforma se anota en `ACTUALIZACIONES.json`, en el
 formato del MASTER. De ahí salen la bitácora de SISPLAN y el control de versiones del manual.
 
