@@ -33,6 +33,11 @@ Verificado el 25/09/2026 contra `wrangler deployments list`: dos pushes sin desp
 cuatro despliegues que coinciden minuto a minuto con un `npm run desplegar`. Consecuencia
 práctica: subir a `main` es seguro cuando no se quiere publicar, y subir no basta cuando sí.
 
+`npm run desplegar` también genera lo precalculado (`public/apertura/`, no versionado): cada área
+por cada modo y la línea de tiempo mensual desde 2017. Tarda; una corrección urgente se despliega
+desde un worktree limpio de `main` con `npm run build` y `npx wrangler deploy`, pero sin ese
+precálculo la app calcula en vivo: copia antes `public/apertura/` al worktree.
+
 Cada cambio visible para quien usa la plataforma se anota en `ACTUALIZACIONES.json`, en el
 formato del MASTER. De ahí salen la bitácora de SISPLAN y el control de versiones del manual.
 

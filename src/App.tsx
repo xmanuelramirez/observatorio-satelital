@@ -9,17 +9,19 @@ import { pedirAnalisis, pedirSerie } from './servicios/calculo'
 import { pintarResultado, type ResultadoPintado } from './servicios/pintura'
 import { INDICES, indicesDisponibles, type DefinicionIndice } from './servicios/indices'
 import { CIFRA_OBRA_SUSPENDIDA, avisoFenologia, diasEntre } from './servicios/obranueva'
+import { colorDeIndice } from './servicios/paletas'
 import type { Bbox, Escena, GrupoDia, IdCapa, ModoVista, NombreBanda } from './tipos'
 import { diaLocal } from './lib/fecha'
 import { fechasCompletas, pasadasUtiles } from './lib/cobertura'
+import { rutaSvg } from './lib/proyeccion'
 import { useCifra } from './lib/useCifra'
 import type { FuenteRaster } from './componentes/CapaAnalisis'
 import Mapa, { type IdFondo } from './componentes/Mapa'
 import PanelBusqueda from './componentes/PanelBusqueda'
-import ColumnaSecciones, { type SeccionPanel } from './componentes/ColumnaSecciones'
+import PanelSecciones, { type MiniaturaModo, type SeccionPanel } from './componentes/PanelSecciones'
 import ControlMapa from './componentes/ControlMapa'
 import GaleriaEscenas from './componentes/GaleriaEscenas'
-import TarjetaResultado from './componentes/TarjetaResultado'
+import LecturaResultado from './componentes/LecturaResultado'
 import PanelInsar from './componentes/PanelInsar'
 import PanelAnalisis from './componentes/PanelAnalisis'
 import PanelSerie from './componentes/PanelSerie'
@@ -37,7 +39,7 @@ import type { ResultadoSerie } from './servicios/serie'
 
 const TITULO_SECCION: Record<SeccionPanel, string> = {
   escenas: 'Ajustes',
-  serie: 'Serie',
+  serie: 'Evolución',
   referencia: 'Capas globales',
   hidrologia: 'Escurrimiento',
   capas: 'Capas',
@@ -63,6 +65,40 @@ const NOMBRE_AREA: Partial<Record<IdCapa, string>> = {
   LIMITE: 'Municipio',
   LIMITE_URBANO: 'Zona urbana',
   CUENCA_PALOTE: 'Cuenca Palote',
+}
+
+/** Lo que dice el titulo de cada modo: lo que se ve, en palabras de quien lo mira. */
+const TITULO_MODO: Partial<Record<ModoVista, string>> = {
+  color: 'Así se ve',
+  calor: 'Qué tan caliente está el suelo',
+  agua: 'Dónde hay agua',
+  clases: 'Zonas que se parecen',
+  cambio: 'Qué cambió entre dos fechas',
+}
+
+const NOMBRE_INDICE: Record<string, string> = {
+  ndvi: 'Dónde hay vegetación',
+  ndwi: 'Agua en plantas',
+  mndwi: 'Agua superficial',
+  ndbi: 'Superficie construida',
+  ndci: 'Clorofila en agua',
+  ndti: 'Turbiedad',
+  nbr: 'Quema',
+}
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+function fechaBreve(dia: string, conAno = false): string {
+  const [a, m, d] = dia.split('-')
+  return `${Number(d)} ${MESES[Number(m) - 1]}${conAno ? ` ${a}` : ''}`
+}
+
+function precargar(url: string): Promise<void> {
+  return new Promise((listo, fallo) => {
+    const imagen = new Image()
+    imagen.onload = () => listo()
+    imagen.onerror = () => fallo(new Error(url))
+    imagen.src = url
+  })
 }
 
 const DOS_FECHAS: ModoVista[] = ['cambio', 'obra', 'agua']
@@ -93,29 +129,16 @@ interface DatosArea {
   serie: ResultadoSerie | null
 }
 
+/** Lo que deja `npm run historia`: una imagen limpia por mes, Color y NDVI, con una sola escala. */
+interface Historia {
+  limites: [[number, number], [number, number]]
+  escala: { p2: number; p98: number }
+  meses: Record<string, { dia: string; nubesArea: number; fuente: string } | null>
+}
+
 interface Apertura {
   generado: string
   areas: Record<string, DatosArea>
-}
-
-function fechaConAno(dia: string): string {
-  return new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-MX', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
-}
-
-function useAngosto(): boolean {
-  const [angosto, setAngosto] = useState(() => window.matchMedia('(max-width: 767px)').matches)
-  useEffect(() => {
-    const consulta = window.matchMedia('(max-width: 767px)')
-    const alCambiar = () => setAngosto(consulta.matches)
-    consulta.addEventListener('change', alCambiar)
-    return () => consulta.removeEventListener('change', alCambiar)
-  }, [])
-  return angosto
 }
 
 // Dia de Leon, no dia UTC: con toISOString, despues de las 18:00 locales
@@ -126,14 +149,6 @@ function haceDias(dias: number): string {
 
 function hoy(): string {
   return diaLocal(new Date())
-}
-
-function fechaLarga(dia: string): string {
-  return new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-MX', {
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  })
 }
 
 /** La base mas cercana a 30 dias antes: la misma separacion que busca el resumen semanal. */
@@ -157,7 +172,7 @@ function claveDe(modo: ModoVista, indice: DefinicionIndice | null): string {
 export default function App() {
   const [datosCapas, setDatosCapas] = useState<Record<string, FeatureCollection>>({})
   const [errorCapas, setErrorCapas] = useState<string | null>(null)
-  const [visibles, setVisibles] = useState<Set<IdCapa>>(() => new Set<IdCapa>(['LIMITE_URBANO']))
+  const [visibles, setVisibles] = useState<Set<IdCapa>>(() => new Set<IdCapa>(['LIMITE_URBANO', 'LIMITE']))
 
   const [apertura, setApertura] = useState<Apertura | null>(null)
   const [aperturaLista, setAperturaLista] = useState(false)
@@ -166,6 +181,14 @@ export default function App() {
    * Cierto: se eligio otra fecha u otros ajustes, y el resultado sale del calculo.
    */
   const [personalizado, setPersonalizado] = useState(false)
+  /** Fecha de la linea de tiempo, si no es la de lo precalculado. */
+  const [diaEvolucion, setDiaEvolucion] = useState<string | null>(null)
+  /** La fecha marcada, al instante; la imagen la sigue en cuanto llega. */
+  const [diaMarcado, setDiaMarcado] = useState<string | null>(null)
+  const [historia, setHistoria] = useState<Historia | null>(null)
+  const [reproduciendo, setReproduciendo] = useState(false)
+  const pedidoFecha = useRef(0)
+  const diaPendiente = useRef<string | null>(null)
 
   const [area, setArea] = useState<IdCapa>('LIMITE_URBANO')
   const [coleccion, setColeccion] = useState(COLECCION_POR_DEFECTO)
@@ -241,8 +264,6 @@ export default function App() {
   /** Panel lateral abierto. Reduce el mapa en vez de encimarse con el. */
   const [seccion, setSeccion] = useState<SeccionPanel | null>(null)
   const [galeriaAbierta, setGaleriaAbierta] = useState(false)
-  const [menuAbierto, setMenuAbierto] = useState(false)
-  const angosto = useAngosto()
 
   const [opacidad, setOpacidad] = useState(1)
   const [fondo, setFondo] = useState<IdFondo>('ninguno')
@@ -259,6 +280,10 @@ export default function App() {
         setApertura(datos)
         setAperturaLista(true)
       })
+    fetch(`${import.meta.env.BASE_URL}apertura/evolucion/historia/historia.json`)
+      .then((respuesta) => (respuesta.ok ? (respuesta.json() as Promise<Historia>) : null))
+      .catch(() => null)
+      .then(setHistoria)
   }, [])
 
   /**
@@ -396,6 +421,7 @@ export default function App() {
    * `cambios`, porque el estado todavia no se actualizo en este render.
    */
   const calcular = async (cambios: Partial<ParametrosAnalisis> = {}) => {
+    setReproduciendo(false)
     const escenas = cambios.escenas ?? seleccion
     const areaGeojson = datosCapas[area]
     if (!areaBbox || !areaGeojson || escenas.length === 0) return
@@ -521,24 +547,25 @@ export default function App() {
 
   const elegirArea = (id: IdCapa) => {
     if (id === area) return
+    setReproduciendo(false)
     soltarResultado()
     setPersonalizado(false)
     setVisibles((previas) => {
       const siguiente = new Set(previas)
-      siguiente.delete(area)
+      if (area !== 'LIMITE') siguiente.delete(area)
       siguiente.add(id)
       return siguiente
     })
     setArea(id)
-    setMenuAbierto(false)
   }
 
   /** Un clic: el modo y su imagen, ya calculada, de la ultima escena de esta area. */
   const elegirModo = (nuevo: ModoVista) => {
+    setReproduciendo(false)
     soltarResultado()
+    diaPendiente.current = null
     setPersonalizado(false)
     setSeccion((actual) => (actual === 'escenas' || actual === 'capas' ? actual : null))
-    setMenuAbierto(false)
     setModo(nuevo)
 
     const col = buscarColeccion(COLECCION_DEL_MODO[nuevo] ?? COLECCION_POR_DEFECTO.id)
@@ -555,15 +582,91 @@ export default function App() {
   }
 
   const elegirIndice = (definicion: DefinicionIndice) => {
+    setReproduciendo(false)
     soltarResultado()
     setPersonalizado(false)
     setIndice(definicion)
   }
 
+  // La linea de tiempo larga: Color y NDVI, de 2017 a hoy, con la misma imagen en las tres areas.
+  const baseApertura = `${import.meta.env.BASE_URL}apertura`
+  const fechasHistoria = useMemo(
+    () =>
+      Object.values(historia?.meses ?? {})
+        .flatMap((mes) => (mes ? [{ dia: mes.dia, nubes: mes.nubesArea, fuente: mes.fuente }] : []))
+        .sort((x, y) => x.dia.localeCompare(y.dia)),
+    [historia],
+  )
+  const diasHistoria = useMemo(() => fechasHistoria.map((f) => f.dia), [fechasHistoria])
+  const ultimoDia = diasHistoria[diasHistoria.length - 1] ?? null
+  const lineaLarga = !personalizado && !productoVista && !desplazamiento && ultimoDia !== null && (modo === 'color' || (modo === 'indice' && indice?.id === 'ndvi'))
+  const urlColorDe = (dia: string) => `${baseApertura}/evolucion/historia/color-${dia.slice(0, 7)}.jpg`
+  const urlNdviDe = (dia: string) => `${baseApertura}/evolucion/historia/indice-ndvi-${dia.slice(0, 7)}.png`
+  /** La imagen que esta puesta. */
+  const diaImagen = diaEvolucion ?? ultimoDia
+
+  /** Las vecinas se piden de una vez, para que el cambio sea en seco. */
+  const precargarVecinas = (dia: string) => {
+    const i = diasHistoria.indexOf(dia)
+    for (const vecino of diasHistoria.slice(Math.max(0, i - 2), i + 4)) {
+      new Image().src = urlColorDe(vecino)
+      new Image().src = urlNdviDe(vecino)
+    }
+  }
+
+  /**
+   * La fecha se marca al instante. La imagen cambia cuando ya esta lista; mientras, se
+   * queda la anterior: nunca un salto en negro, y el mapa no se mueve.
+   */
+  const verFecha = (dia: string) => {
+    const id = ++pedidoFecha.current
+    setDiaMarcado(dia)
+    precargarVecinas(dia)
+    void Promise.all([precargar(urlColorDe(dia)), precargar(urlNdviDe(dia))])
+      .catch(() => undefined)
+      .then(() => {
+        if (id === pedidoFecha.current) setDiaEvolucion(dia)
+      })
+  }
+
+  // Reproducir: una fecha tras otra. Se rehace con cada fecha para no encimarse.
+  useEffect(() => {
+    if (!reproduciendo) return
+    const espera = setTimeout(() => {
+      const siguiente = diasHistoria[diasHistoria.indexOf(diaMarcado ?? ultimoDia ?? '') + 1]
+      if (!siguiente) {
+        setReproduciendo(false)
+        return
+      }
+      verFecha(siguiente)
+    }, 1000)
+    return () => clearTimeout(espera)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reproduciendo, diaMarcado])
+
+  const alternarReproduccion = () => {
+    if (reproduciendo) {
+      setReproduciendo(false)
+      return
+    }
+    if ((diaMarcado ?? ultimoDia) === ultimoDia && diasHistoria[0]) verFecha(diasHistoria[0])
+    setReproduciendo(true)
+  }
+
   /** Clic en la regla: en los modos de dos fechas se mueve el marcador mas cercano. */
   const elegirDia = (dia: string) => {
+    setReproduciendo(false)
+    if (lineaLarga) {
+      verFecha(dia)
+      return
+    }
+
     const grupo = grupos.find((g) => g.dia === dia)
-    if (!grupo) return
+    if (!grupo) {
+      // La regla sale de lo precalculado antes de que responda el catalogo: el clic no se pierde.
+      diaPendiente.current = dia
+      return
+    }
 
     if (!DOS_FECHAS.includes(modo)) {
       if (registroBase && dia === registroBase.dia) {
@@ -609,6 +712,14 @@ export default function App() {
     setReferencia(base)
     void calcular({ escenas, escenasReferencia: base })
   }
+
+  useEffect(() => {
+    const dia = diaPendiente.current
+    if (!dia || grupos.length === 0) return
+    diaPendiente.current = null
+    elegirDia(dia)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grupos])
 
   const lanzarEscurrimiento = useCallback(() => {
     if (!subcuencasCn) return
@@ -714,7 +825,6 @@ export default function App() {
   const alternarSeccion = (id: SeccionPanel) => {
     const abre = seccion !== id
     setSeccion(abre ? id : null)
-    setMenuAbierto(false)
     if (!abre) return
     if (id === 'referencia' && !producto) void lanzarProducto(PRODUCTOS[0].id)
     if (id === 'hidrologia' && subcuencasCn && !escurrimiento) lanzarEscurrimiento()
@@ -776,7 +886,7 @@ export default function App() {
    * del mismo camino que los demas modos: bandas, worker e imagen. Tarda unos
    * segundos mas y funciona.
    */
-  const fuente = useMemo<FuenteRaster>(() => {
+  const fuenteModo = useMemo<FuenteRaster>(() => {
     // El desplazamiento gana: es un producto aparte que el usuario pidio ver.
     if (desplazamiento) return desplazamiento
     if (productoVista) return productoVista.fuente
@@ -792,12 +902,26 @@ export default function App() {
     return null
   }, [desplazamiento, productoVista, analisis, registro, area, clave])
 
+  // La misma serie al cambiar de fecha, otra al cambiar de area o de modulo: solo ahi hay barrido.
+  const fuente: FuenteRaster =
+    lineaLarga && modo === 'indice' && diaImagen && historia
+      ? {
+          tipo: 'imagen',
+          url: urlNdviDe(diaImagen),
+          limites: historia.limites,
+          clave: `historia:${area}:${diaImagen}`,
+          serie: `ndvi:${area}`,
+        }
+      : lineaLarga && modo === 'color'
+        ? null
+        : fuenteModo
+
   const errorRaster = errorAnalisis ?? estadoRaster.error
   const dosFechas = DOS_FECHAS.includes(modo)
-  const diaActual = registro ? registro.dia : (seleccion[0]?.dia ?? null)
+  const diaActual = lineaLarga ? (diaMarcado ?? ultimoDia) : registro ? registro.dia : (seleccion[0]?.dia ?? null)
   const diaBase = !dosFechas ? null : registro ? registro.diaBase : (referencia[0]?.dia ?? null)
+  const fechaVista = lineaLarga ? fechasHistoria.find((f) => f.dia === diaActual) : undefined
   const etiquetaArea = NOMBRE_AREA[area] ?? area
-  const enApertura = modo === 'color' && registro !== null && !productoVista && !desplazamiento
 
   const tituloResultado = productoVista
     ? (PRODUCTOS.find((p) => p.id === producto)?.etiqueta ?? 'Capa de referencia')
@@ -808,33 +932,29 @@ export default function App() {
   const hectareasObra = (analisis?.zonasObra ?? []).reduce((suma, zona) => suma + zona.hectareas, 0)
   const hectareasVistas = useCifra(hectareasObra, 900, 1)
 
-  /** La frase cambia al hacer clic, sin esperar a nada. */
+  const segundosCalculo = dosFechas ? 25 : 10
+
+  /** El titulo cambia al hacer clic, sin esperar a nada. */
   const textoResultado = (): { frase: string; detalle: string; aviso: string | null } => {
-    const separacion = diaActual && diaBase ? Math.abs(diasEntre(diaBase, diaActual)) : null
+    const fuenteDato = lineaLarga ? 'Sentinel-2 L2A' : (registro?.coleccion ?? coleccion.etiqueta)
     const fechas =
-      diaActual && separacion !== null && diaBase
-        ? `${fechaLarga(diaBase)} a ${fechaLarga(diaActual)}: ${separacion} días de separación`
+      diaActual && diaBase
+        ? `${fechaBreve(diaBase)} a ${fechaBreve(diaActual, true)} · ${Math.abs(diasEntre(diaBase, diaActual))} días`
         : diaActual
-          ? fechaLarga(diaActual)
+          ? fechaBreve(diaActual, true)
           : ''
-    const detalle = `${etiquetaArea}${fechas ? `, ${fechas}` : ''}. ${registro?.coleccion ?? coleccion.etiqueta}.`
+    const detalle = [etiquetaArea, fechas, fuenteDato.replace(' (SAR)', '')].filter(Boolean).join(' · ')
     const nombreModo =
-      modo === 'indice' && indice ? `${ETIQUETA_MODO[modo]} (${indice.id.toUpperCase()})` : ETIQUETA_MODO[modo]
+      modo === 'indice' && indice
+        ? `${NOMBRE_INDICE[indice.id] ?? ETIQUETA_MODO[modo]} (${indice.id.toUpperCase()})`
+        : (TITULO_MODO[modo] ?? ETIQUETA_MODO[modo])
 
     if (productoVista) return { frase: tituloResultado, detalle: etiquetaArea, aviso: null }
-    if (enApertura) {
-      return {
-        frase: `León, ${fechaConAno(registro.dia)}`,
-        detalle: `${etiquetaArea}. Imagen ${registro.coleccion}.`,
-        aviso: null,
-      }
-    }
-    if (calculando) {
-      return { frase: `${nombreModo}: calculando, unos ${dosFechas ? 25 : 10} s`, detalle, aviso: null }
-    }
+    if (calculando) return { frase: nombreModo, detalle, aviso: null }
+    if (lineaLarga) return { frase: nombreModo, detalle, aviso: null }
     if (!registro && !analisis) {
-      if (!personalizado) return { frase: nombreModo, detalle: `${etiquetaArea}. Buscando imágenes...`, aviso: null }
-      return { frase: nombreModo, detalle: `${detalle} Usa Recalcular en Ajustes.`, aviso: null }
+      if (!personalizado) return { frase: nombreModo, detalle: `${etiquetaArea} · buscando imágenes...`, aviso: null }
+      return { frase: nombreModo, detalle: `${detalle} · usa Recalcular en Ajustes`, aviso: null }
     }
     const aviso =
       registro?.aviso ??
@@ -844,148 +964,204 @@ export default function App() {
   }
   const { frase, detalle, aviso } = textoResultado()
 
+  // El fondo es de otra fecha cuando el dato no es de Sentinel-2 o se calculo otra fecha.
+  const diaFondoVisto = diaImagen ?? datosArea?.diaFondo
   const notaFondo =
-    datosArea && !enApertura && !productoVista && diaActual && diaActual !== datosArea.diaFondo
-      ? `Imagen de fondo del ${fechaLarga(datosArea.diaFondo)}.`
+    !lineaLarga && !productoVista && diaActual && diaFondoVisto && diaActual !== diaFondoVisto
+      ? `Imagen de fondo del ${fechaBreve(diaFondoVisto, true)}`
       : null
 
+  const leyendaSerie: EntradaLeyenda[] | null =
+    lineaLarga && modo === 'indice' && historia
+      ? [0, 0.25, 0.5, 0.75, 1].map((t) => {
+          const valor = historia.escala.p2 + t * (historia.escala.p98 - historia.escala.p2)
+          return { color: colorDeIndice(valor, historia.escala.p2, historia.escala.p98), etiqueta: valor.toFixed(2) }
+        })
+      : lineaLarga
+        ? []
+        : null
+
   const leyendaEnMapa: EntradaLeyenda[] =
+    leyendaSerie ??
     productoVista?.leyenda ??
     analisis?.leyenda ??
     registro?.leyenda ??
     (calculando && LEYENDA_DE_CATEGORIAS.includes(modo)
       ? (registroBase?.leyenda ?? []).map((entrada) => ({ ...entrada, detalle: undefined }))
       : [])
-  const notasEnMapa = productoVista?.notas ?? analisis?.notas ?? registro?.notas ?? []
+  const notasEnMapa =
+    productoVista?.notas ??
+    analisis?.notas ??
+    (lineaLarga && diaActual
+      ? [
+          `Imagen del ${fechaBreve(diaActual, true)}, ${fechaVista?.nubes ?? 0} % de nubes sobre el área. Fuente: ${fechaVista?.fuente ?? ''}.`,
+          ...(diaActual.startsWith('2017')
+            ? ['2017 viene de otro procesado de Sentinel-2. No se pudo comparar contra la misma fecha; contra el mismo mes de otros años no se ve un brinco.']
+            : []),
+          `Toda la línea de tiempo lleva la misma escala, para que un cambio de color sea de la imagen y no del estiramiento. Se muestra una imagen limpia por mes; un mes sin imagen no tuvo ninguna con 10 % de nubes o menos.`,
+        ]
+      : (registro?.notas ?? []))
 
   // Lo que dicen los colores: cinco numeros solos no dicen nada.
   const sentidoLeyenda = productoVista
     ? null
     : modo === 'cambio'
       ? 'Hectáreas de cambio de cobertura, no de obra'
-      : modo === 'indice' && indice
-        ? indice.id === 'ndvi'
-          ? 'De menos a más vegetación'
-          : `${indice.descripcion}: de menor a mayor`
+      : modo === 'indice' && indice && indice.id !== 'ndvi'
+        ? indice.descripcion
+        : null
+  const extremosLeyenda: [string, string] | null = productoVista
+    ? null
+    : modo === 'indice'
+      ? indice?.id === 'ndvi'
+        ? ['Menos verde', 'Más verde']
+        : ['Menos', 'Más']
+      : modo === 'calor'
+        ? ['Menos', 'Más']
         : null
 
-  const fechasPorModo = useMemo(() => {
-    const fechas: Partial<Record<ModoVista, string>> = {}
-    if (!datosArea) return fechas
-    for (const id of ['color', 'calor', 'agua', 'clases', 'cambio', 'obra'] as ModoVista[]) {
-      fechas[id] = datosArea.modos[id]?.dia
+  const miniaturas = useMemo(() => {
+    const salida: Partial<Record<ModoVista, MiniaturaModo>> = {}
+    if (!datosArea) return salida
+    const base = `${import.meta.env.BASE_URL}apertura/${area}`
+    const capa = (id: string) => {
+      const r = datosArea.modos[id]
+      return r?.imagen && r.limites ? { url: `${base}/${id}.png`, limites: r.limites } : null
     }
-    fechas.indice = datosArea.modos['indice-ndvi']?.dia
-    return fechas
-  }, [datosArea])
+    salida.indice = { capa: capa('indice-ndvi') }
+    salida.calor = { capa: capa('calor') }
+    salida.agua = { capa: capa('agua') }
+    salida.clases = { capa: capa('clases') }
+    // Sin resultado de Cambio en la tarjeta: son entregable de los meses 3-4 (orden del MASTER).
+    salida.obra = { capa: capa('obra') }
+    return salida
+  }, [datosArea, area])
 
-  const gruposRegla = grupos.length > 0 ? grupos : (datosArea?.fechas[coleccion.id] ?? [])
+  // La silueta es el municipio, mas el area si sale de el: la Cuenca Palote sale.
+  const rutasFoco = useMemo(() => {
+    const municipio = datosCapas.LIMITE
+    if (!municipio) return []
+    const propia = area !== 'LIMITE' && area !== 'LIMITE_URBANO' ? datosCapas[area] : null
+    return propia ? [rutaSvg(municipio), rutaSvg(propia)] : [rutaSvg(municipio)]
+  }, [datosCapas, area])
+
+  const gruposRegla = lineaLarga ? fechasHistoria : grupos.length > 0 ? grupos : (datosArea?.fechas[coleccion.id] ?? [])
   // La serie de NDVI ya viene calculada; otro indice se pide con el boton del panel.
   const serieVista = serie ?? (indice?.id === 'ndvi' ? (datosArea?.serie ?? null) : null)
 
-  const tarjeta = (
-    <TarjetaResultado
-      sentidoLeyenda={sentidoLeyenda}
-      titulo={tituloResultado}
-      frase={frase}
-      detalle={detalle}
-      aviso={aviso}
-      notaFondo={notaFondo}
-      leyenda={leyendaEnMapa}
-      notas={notasEnMapa}
-    />
-  )
+  // El fondo sale de la misma serie que la linea de tiempo: en Color, es lo que cambia de fecha.
+  const fondoMapa =
+    diaImagen && historia
+      ? { url: urlColorDe(diaImagen), limites: historia.limites }
+      : datosArea
+        ? { url: `${baseApertura}/${area}/fondo.jpg`, limites: datosArea.limitesFondo }
+        : null
 
   return (
-    <div className="flex h-full flex-col md:flex-row">
-      {angosto && (
-        <header className="flex shrink-0 items-center justify-between border-b border-filete bg-panel px-4 py-2">
-          <span className="text-[15px] font-semibold tracking-tight">Observatorio satelital</span>
-          <button
-            type="button"
-            onClick={() => setMenuAbierto(!menuAbierto)}
-            aria-expanded={menuAbierto}
-            className={`palabra ${menuAbierto ? 'palabra-activa' : ''}`}
-          >
-            Secciones
-          </button>
-        </header>
-      )}
+    <div id="app">
+      <PanelSecciones
+        area={area}
+        onArea={elegirArea}
+        modo={productoVista ? null : modo}
+        onModo={elegirModo}
+        miniaturas={miniaturas}
+        fondo={datosArea ? { url: `${baseApertura}/${area}/fondo.jpg`, limites: datosArea.limitesFondo } : null}
+        encuadre={areaBbox}
+        rutasFoco={rutasFoco}
+        seccion={seccion}
+        onSeccion={alternarSeccion}
+      />
 
-      {(!angosto || menuAbierto) && (
-        <div className="flex min-h-0 shrink-0 flex-col border-b border-filete max-md:max-h-[55%] md:w-65 md:border-b-0 md:border-r">
-          <ColumnaSecciones
-            area={area}
-            onArea={elegirArea}
-            modo={productoVista ? null : modo}
-            onModo={elegirModo}
-            fechas={fechasPorModo}
-            indices={indicesPosibles.length > 0 ? indicesPosibles : INDICES}
-            indice={indice}
-            onIndice={elegirIndice}
-            seccion={seccion}
-            onSeccion={alternarSeccion}
-          />
-        </div>
-      )}
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+      <main id="centro">
+        <div id="centro-fila">
+          <section id="mapa">
             <div className="mapa-entra h-full">
               <Mapa
                 capas={CAPAS}
                 datosCapas={datosCapas}
                 visibles={visibles}
                 areaBbox={areaBbox}
-                escenas={[]}
                 fuente={fuente}
                 opacidad={opacidad}
                 marcas={[]}
                 fondo={fondo}
-                imagenFondo={
-                  datosArea
-                    ? { url: `${import.meta.env.BASE_URL}apertura/${area}/fondo.jpg`, limites: datosArea.limitesFondo }
-                    : null
-                }
+                imagenFondo={fondoMapa}
+                rutasFoco={rutasFoco}
                 onEstadoRaster={setEstadoRaster}
               />
             </div>
 
-            {/* El id lo usa el medidor de traslapes del departamento para nombrar el elemento en sus reportes. */}
-            {(errorCapas || errorRaster || errorBusqueda) && (
-              <div
-                id="avisos-mapa"
-                className="pointer-events-auto absolute left-3 top-3 z-1000 max-w-[calc(100%-24rem)] space-y-1 bg-panel/95 px-3 py-2 text-xs text-aviso max-md:max-w-[calc(100%-1.5rem)]"
-                role="alert"
-              >
-                {errorCapas && <p>No se pudieron cargar estas capas: {errorCapas}. El resto sigue disponible.</p>}
-                {errorRaster && <p>{errorRaster}</p>}
-                {errorBusqueda && <p>{errorBusqueda}</p>}
-              </div>
-            )}
+            {/* Los ids los usa el medidor de traslapes del departamento para nombrar el elemento en sus reportes. */}
+            <div id="titulo">
+              <h1 key={`${frase}`} className="sube">
+                {frase}
+              </h1>
+              <p>
+                {detalle}
+                {notaFondo && ` · ${notaFondo}`}
+              </p>
+              {modo === 'indice' && !productoVista && (
+                <div className="indices" role="radiogroup" aria-label="Índice">
+                  {(indicesPosibles.length > 0 ? indicesPosibles : INDICES).map((definicion) => (
+                    <button
+                      key={definicion.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={indice?.id === definicion.id}
+                      onClick={() => elegirIndice(definicion)}
+                      title={definicion.descripcion}
+                      className={indice?.id === definicion.id ? 'activa' : ''}
+                    >
+                      {definicion.id.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {(errorCapas || errorRaster || errorBusqueda) && (
+                <div className="errores" role="alert">
+                  {errorCapas && <p>No se pudieron cargar estas capas: {errorCapas}. El resto sigue disponible.</p>}
+                  {errorRaster && <p>{errorRaster}</p>}
+                  {errorBusqueda && <p>{errorBusqueda}</p>}
+                </div>
+              )}
+            </div>
 
-            {/*
-              La tarjeta crece hacia arriba desde la atribucion de Leaflet y, si la
-              pantalla es baja, hace scroll adentro en vez de salirse del mapa.
-            */}
-            {!angosto && (
-              <div
-                id="columna-mapa"
-                className="pointer-events-none absolute bottom-7 right-3 top-3 z-1000 flex w-88 max-w-[calc(100%-1.5rem)] flex-col justify-end"
+            <div id="controles">
+              <button
+                type="button"
+                onClick={() => alternarSeccion('capas')}
+                aria-pressed={seccion === 'capas'}
+                data-testid="seccion-capas"
+                className={seccion === 'capas' ? 'activa' : ''}
               >
-                {tarjeta}
-              </div>
-            )}
-          </div>
+                Capas
+              </button>
+              <button
+                type="button"
+                onClick={() => alternarSeccion('escenas')}
+                aria-pressed={seccion === 'escenas'}
+                data-testid="seccion-escenas"
+                className={seccion === 'escenas' ? 'activa' : ''}
+              >
+                Ajustes
+              </button>
+            </div>
 
-          {/* En pantalla angosta la tarjeta va debajo del mapa, en flujo, para no taparlo. */}
-          {angosto && !menuAbierto && <div className="max-h-[32%] min-h-0 shrink-0 overflow-y-auto">{tarjeta}</div>}
+            <LecturaResultado
+              titulo={tituloResultado}
+              leyenda={leyendaEnMapa}
+              extremos={extremosLeyenda}
+              sentido={sentidoLeyenda}
+              grupos={modo === 'clases' && !productoVista}
+              aviso={aviso}
+              notas={notasEnMapa}
+            />
+          </section>
 
           {seccion && (
             <aside
               id="panel-lateral"
-              className="flex max-h-[50%] min-h-0 w-full shrink-0 flex-col border-t border-filete bg-panel md:max-h-none md:w-96 md:border-l md:border-t-0"
+              className="flex max-h-[50%] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl bg-panel md:max-h-none md:w-96"
             >
               <div className="flex shrink-0 items-center justify-between border-b border-filete px-4 py-2">
                 <h2 className="text-[15px] font-semibold">{TITULO_SECCION[seccion]}</h2>
@@ -1157,12 +1333,15 @@ export default function App() {
           actual={diaActual}
           base={diaBase}
           dosFechas={dosFechas}
-          nubesMax={nubesMax}
           calculando={calculando}
+          segundos={segundosCalculo}
+          puedeReproducir={lineaLarga && diasHistoria.length > 1}
+          reproduciendo={reproduciendo}
+          onReproducir={alternarReproduccion}
           onElegir={elegirDia}
           onGaleria={() => setGaleriaAbierta(true)}
         />
-      </div>
+      </main>
 
       {galeriaAbierta && (
         <GaleriaEscenas

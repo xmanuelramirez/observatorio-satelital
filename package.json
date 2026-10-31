@@ -9,12 +9,13 @@
     "tipos": "tsc -b --force",
     "lint": "oxlint",
     "preview": "vite preview",
-    "desplegar": "npm run apertura && npm run build && wrangler deploy",
+    "desplegar": "npm run apertura && npm run historia && npm run build && wrangler deploy",
     "local": "npm run build && wrangler dev --port 8787",
     "precalcular": "tsx herramientas/precalcular-productos.ts",
     "semanal": "tsx herramientas/resumen-semanal.ts",
     "medir": "tsx herramientas/medir-poligonos.ts",
-    "apertura": "tsx herramientas/apertura.ts"
+    "apertura": "tsx herramientas/apertura.ts",
+    "historia": "tsx herramientas/historia.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

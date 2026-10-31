@@ -12,7 +12,18 @@ export type FuenteRaster =
   /** Resultado de un calculo, ya pintado por el worker. */
   | { tipo: 'pintado'; resultado: ResultadoPintado }
   /** Imagen ya pintada, precalculada en el despliegue. */
-  | { tipo: 'imagen'; url: string; limites: [[number, number], [number, number]]; clave: string }
+  | {
+      tipo: 'imagen'
+      url: string
+      limites: [[number, number], [number, number]]
+      clave: string
+      /**
+       * Serie de la linea de tiempo. Dentro de la misma serie, la imagen se cambia en
+       * seco sobre la misma capa: sin barrido, y la anterior se queda hasta que llegue
+       * la nueva, para ver donde cambio (Carlos, 30/10/2026).
+       */
+      serie?: string
+    }
   | null
 
 interface Props {
@@ -25,6 +36,7 @@ interface CapaMontada {
   capa: Layer & { setOpacity: (opacidad: number) => unknown }
   /** Direccion de un blob que hay que liberar al quitar la capa. */
   urlPropia: string | null
+  serie?: string
 }
 
 /**
@@ -72,11 +84,18 @@ export default function CapaAnalisis({ fuente, opacidad, onEstado }: Props) {
       return
     }
 
+    const montadaAntes = montadaRef.current
+    if (fuente.tipo === 'imagen' && fuente.serie && montadaAntes?.serie === fuente.serie) {
+      ;(montadaAntes.capa as unknown as ImageOverlay).setUrl(fuente.url)
+      onEstado({ cargando: false, error: null })
+      return
+    }
+
     onEstado({ cargando: true, error: null })
 
     const preparar = async (): Promise<CapaMontada> => {
       if (fuente.tipo === 'imagen') {
-        return { capa: comoImagen(fuente.url, fuente.limites, opacidad), urlPropia: null }
+        return { capa: comoImagen(fuente.url, fuente.limites, opacidad), urlPropia: null, serie: fuente.serie }
       }
 
       if (fuente.tipo === 'pintado') {
