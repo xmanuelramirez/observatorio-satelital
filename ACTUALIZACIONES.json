@@ -270,5 +270,13 @@
     "resumen": "El modo Clases agrupa píxeles parecidos sin saber qué son, y su primera clase salía en azul, que se lee como agua aunque no lo sea. Los dos tonos azules de esa paleta pasan a colores sin esa lectura. Las clases y las hectáreas no cambian. Se está preparando una versión entrenada, con clases con nombre.",
     "seccion_manual": "Funciones · Clases",
     "evidencia": "Pedido de Carlos y orden del MASTER del 30/10/2026"
+  },
+  {
+    "fecha": "2026-10-30",
+    "tipo": "correccion",
+    "titulo": "El modo Clases avisa que sus números no son clases",
+    "resumen": "El modo Clases agrupa píxeles parecidos sin saber qué son. La tarjeta ahora dice a la vista que los números no son clases y que cambian entre fechas. Las clases y las hectáreas no cambian.",
+    "seccion_manual": "Funciones · Clases",
+    "evidencia": "ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-CLASES-ENTRENADAS.md"
   }
 ]

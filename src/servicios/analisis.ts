@@ -27,6 +27,9 @@ import { nubosidadEnArea } from './nubes'
 import { INDICES } from './indices'
 import type { Bbox, Coleccion, Escena, ModoVista, NombreBanda } from '../tipos'
 
+/** Dictamen del juez del 30/10/2026: k-means agrupa, no nombra. */
+const AVISO_CLASES_NUMERADAS = 'Los números no son clases y cambian entre fechas.'
+
 const AVISO_AGUA_VIENTO =
   'La variación entre pasadas puede deberse al viento sobre el agua; no se sostiene sin filtro.'
 
@@ -817,6 +820,7 @@ export async function ejecutarAnalisis(
       colorear: ([valor]) => (Number.isNaN(valor) ? undefined : colorDeClase(Math.round(valor))),
       leyenda,
       notas,
+      aviso: AVISO_CLASES_NUMERADAS,
       sello,
     }
   }
