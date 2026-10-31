@@ -1,39 +1,32 @@
 @import 'tailwindcss';
 
 /*
- * Identidad visual de la familia de plataformas del departamento.
+ * Identidad del Observatorio, de la direccion de diseno del 30/10/2026
+ * (16. DISENO/plataformas/observatorio-satelital/DIRECCION.md).
  *
- * La paleta es la de SICLAR, que Subcuencas ya adopto "para que las
- * aplicaciones del departamento se lean como una sola": carbon profundo con
- * matices de espresso, acento azul y la pareja Inter + JetBrains Mono. Los
- * valores estan copiados tal cual de 8. SUBCUENCAS/app/src/style.css; si la
- * familia cambia de color, se cambia aqui y en ningun otro lado.
- *
- * Dos ajustes de accesibilidad respecto al original, ambos por contraste
- * WCAG AA sobre el fondo:
- *   --color-rotulo  Subcuencas usa #6e665b para los rotulos, que da 3.4:1 y
- *                   no alcanza el 4.5:1 de texto. Se usa #8c7f73, que ya
- *                   existe en la paleta de SICLAR.
- *   Letra minima    12 px para todo texto que se lee. Solo los rotulos cortos
- *                   en mayusculas bajan a 11 px.
+ * Version oscura de Indices, para que las dos plataformas se lean como familia:
+ * una imagen satelital se lee mejor sobre oscuro y conserva el color de los
+ * datos sin competencia. La seleccion es subrayado claro, no color, y el unico
+ * acento es el de aviso. Los colores de datos no viven aqui: siguen en las
+ * paletas de analisis.
  */
 @theme {
-  --color-fondo: #0d0b0a;
-  --color-panel: #121110;
-  --color-panel-hondo: #0a0908;
-  --color-tinta: #f5efe5;
-  --color-tinta-suave: #b5ac9d;
-  --color-rotulo: #8c7f73;
-  --color-filete: #241d19;
-  --color-filete-fuerte: #2d2722;
-  --color-acento: #2596be;
-  --color-acento-suave: rgb(37 150 190 / 0.12);
-  --color-aviso: #fbbf24;
-  --color-peligro: #fb7185;
-  --color-ok: #34d399;
+  --color-fondo: #0b1019;
+  --color-panel: #151c2a;
+  --color-panel-hondo: #0b1019;
+  --color-tinta: #f3f6fa;
+  --color-tinta-suave: #97a3b6;
+  --color-rotulo: #97a3b6;
+  --color-filete: #263041;
+  --color-filete-fuerte: #263041;
+  --color-acento: #f3f6fa;
+  --color-acento-suave: rgb(243 246 250 / 0.1);
+  --color-aviso: #f9a825;
+  --color-peligro: #f9a825;
+  --color-ok: #97a3b6;
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --font-mono: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
 /*
@@ -63,27 +56,6 @@
     U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 300 800;
-  font-display: swap;
-  src: url(/fonts/jetbrains-mono-normal-latin-ext.woff2) format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
-    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
-    U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 300 800;
-  font-display: swap;
-  src: url(/fonts/jetbrains-mono-normal-latin.woff2) format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
-    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
 html,
 body,
 #root {
@@ -101,20 +73,134 @@ body {
 }
 
 @layer components {
-  /* Rotulo de seccion: mono en mayusculas, el unico texto que baja a 11 px. */
   .rotulo {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 500;
     color: var(--color-rotulo);
   }
 
-  /* Cifras, codigos y fechas en mono con numerales tabulares. */
+  /* Numerales tabulares, para que las cifras no bailen al contar. */
   .cifra {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Lo primero que se lee en la pantalla. */
+  .frase {
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  /* Boton de texto. La seleccion se marca con subrayado crema, no con color. */
+  .enlace,
+  .palabra {
+    padding: 2px 0;
+    font: inherit;
+    font-size: 13px;
+    color: var(--color-tinta-suave);
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+  }
+
+  .enlace:hover:not(:disabled),
+  .palabra:hover {
+    color: var(--color-tinta);
+  }
+
+  .enlace:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+
+  .palabra {
+    white-space: nowrap;
+  }
+
+  .palabra-activa {
+    color: var(--color-tinta);
+    border-bottom-color: var(--color-tinta);
+  }
+
+  /* Columna de secciones: la activa lleva barra clara y negrita, no solo color. */
+  .columna-grupo {
+    padding: 11px 16px 3px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-tinta-suave);
+  }
+
+  .seccion {
+    display: flex;
+    width: 100%;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 16px 4px 13px;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    color: var(--color-tinta);
+    background: none;
+    border: 0;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .seccion:hover {
+    background: var(--color-acento-suave);
+  }
+
+  .seccion-activa {
+    font-weight: 700;
+    border-left-color: var(--color-tinta);
+    background: var(--color-acento-suave);
+  }
+
+  .seccion-fecha {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-tinta-suave);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Regla de fechas */
+  .regla-rotulo {
+    transform: translateX(-50%);
+    transition: left 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .regla-tramo {
+    background-color: var(--color-tinta-suave);
+    transition:
+      left 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .regla-tramo-calculando {
+    background-image: linear-gradient(90deg, transparent, var(--color-tinta), transparent);
+    background-size: 40% 100%;
+    background-repeat: no-repeat;
+    animation: recorrer 1.3s linear infinite;
+  }
+
+  .regla-marca:hover span {
+    background: var(--color-tinta);
+  }
+
+  /* Fecha que se ve, llena; fecha base, punteada: no dependen solo del color. */
+  .regla-elegida {
+    width: 3px;
+    background: var(--color-tinta);
+  }
+
+  .regla-elegida-base {
+    width: 3px;
+    background: repeating-linear-gradient(var(--color-tinta) 0 3px, transparent 3px 6px);
   }
 
   .campo {
@@ -162,7 +248,7 @@ body {
     border-color: var(--color-acento);
   }
 
-  /* Accion principal: azul lleno con tinta oscura, como en Subcuencas. */
+  /* Accion principal: crema llena con tinta marina. */
   .boton-principal {
     width: 100%;
     padding: 8px 10px;
@@ -183,15 +269,12 @@ body {
     cursor: default;
   }
 
-  /* Pestanas: mono en mayusculas, activa en azul tenue. */
   .pestana {
     flex: 1 0 auto;
     padding: 7px 8px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
     color: var(--color-tinta-suave);
     background: var(--color-panel);
     border: 0;
@@ -211,8 +294,9 @@ body {
   }
 
   .pestana-activa {
-    color: var(--color-acento);
+    color: var(--color-tinta);
     background: var(--color-acento-suave);
+    box-shadow: inset 0 -2px 0 var(--color-tinta);
   }
 }
 
@@ -233,14 +317,49 @@ input[type='date']::-webkit-calendar-picker-indicator {
   outline-offset: 2px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+/*
+ * El movimiento no se condiciona a prefers-reduced-motion: la direccion de
+ * diseno lo pide asi, porque Carlos lo tiene encendido en Windows.
+ */
+@keyframes recorrer {
+  from { background-position: -60% 0; }
+  to { background-position: 160% 0; }
 }
+
+@keyframes acercar {
+  from { transform: scale(1.02); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes barrer {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes aparecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Al abrir, la imagen entra con un acercamiento leve. */
+.mapa-entra {
+  animation: acercar 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.zona-entra {
+  animation: aparecer 0.45s ease-out both;
+}
+
+.zd0 { animation-delay: 0.50s; }
+.zd1 { animation-delay: 0.59s; }
+.zd2 { animation-delay: 0.68s; }
+.zd3 { animation-delay: 0.77s; }
+.zd4 { animation-delay: 0.86s; }
+.zd5 { animation-delay: 0.95s; }
+.zd6 { animation-delay: 1.04s; }
+.zd7 { animation-delay: 1.13s; }
+.zd8 { animation-delay: 1.22s; }
+.zd9 { animation-delay: 1.31s; }
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -261,14 +380,13 @@ input[type='date']::-webkit-calendar-picker-indicator {
   height: 100%;
   width: 100%;
   font-family: var(--font-sans);
-  background: #000;
+  background: var(--color-panel-hondo);
 }
 
 .leaflet-control-attribution {
-  font-family: var(--font-mono);
-  font-size: 11px !important;
+  font-size: 12px !important;
   color: var(--color-tinta-suave) !important;
-  background: rgb(10 9 8 / 0.85) !important;
+  background: rgb(8 26 50 / 0.88) !important;
 }
 
 .leaflet-control-attribution a {
@@ -286,4 +404,6 @@ input[type='date']::-webkit-calendar-picker-indicator {
    sin el suavizado que inventaria valores entre celdas. */
 .capa-pixelada {
   image-rendering: pixelated;
+  /* Cada resultado nuevo barre el mapa de izquierda a derecha. */
+  animation: barrer 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
 }

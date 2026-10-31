@@ -38,6 +38,8 @@ interface Props {
   onQuitarNubes: (valor: boolean) => void
   soloAgua: boolean
   onSoloAgua: (valor: boolean) => void
+  /** Los modos ya estan en la tira; aqui solo quedan sus parametros. */
+  sinModos?: boolean
 }
 
 /**
@@ -105,6 +107,7 @@ export default function PanelAnalisis({
   onQuitarNubes,
   soloAgua,
   onSoloAgua,
+  sinModos = false,
 }: Props) {
   if (escenas.length === 0) return null
 
@@ -124,10 +127,10 @@ export default function PanelAnalisis({
     <div>
       <div className="px-4 py-3.5">
         <div className="mb-3">
-          <TituloPaso numero={3} titulo="Análisis" />
+          <TituloPaso numero={2} titulo="Análisis" />
         </div>
 
-        <div className="mb-3.5 space-y-2.5" role="tablist">
+        {!sinModos && <div className="mb-3.5 space-y-2.5" role="tablist">
           {GRUPOS_MODO.map((grupo) => (
             <div key={grupo.titulo}>
               <span className="mb-1 block text-xs text-tinta-suave">{grupo.titulo}</span>
@@ -159,7 +162,7 @@ export default function PanelAnalisis({
               </div>
             </div>
           ))}
-        </div>
+        </div>}
 
         {usaIndice && (
           <label className="mb-3.5 block">
@@ -431,7 +434,7 @@ export default function PanelAnalisis({
             data-testid="calcular"
             className="boton-principal"
           >
-            {calculando ? 'Leyendo bandas y calculando...' : 'Calcular sobre el área'}
+            {calculando ? 'Leyendo bandas y calculando...' : 'Recalcular'}
           </button>
         </div>
       </div>

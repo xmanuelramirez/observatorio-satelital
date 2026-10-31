@@ -54,8 +54,8 @@ export default function PanelEscurrimiento({
 
       {!disponible ? (
         <p className="text-xs leading-snug text-tinta-suave">
-          Necesita la capa de número de curva del departamento, que no viaja al sitio público.
-          Corre en la copia interna.
+          El escurrimiento se calcula en la copia interna del departamento, que lleva la capa
+          de número de curva. Siguiente paso: abrir ahí esta sección con la lluvia de diseño.
         </p>
       ) : (
         <>

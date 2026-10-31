@@ -4,29 +4,28 @@ import { CAPAS } from './datos/capas'
 import { COLECCION_POR_DEFECTO, buscarColeccion } from './datos/colecciones'
 import { bboxDe, cargarGeojson } from './servicios/geojson'
 import { buscarEscenas, type ResultadoBusqueda } from './servicios/stac'
-import { bandasDelAgua, type EntradaLeyenda } from './servicios/analisis'
+import { bandasDelAgua, type EntradaLeyenda, type ParametrosAnalisis } from './servicios/analisis'
 import { pedirAnalisis, pedirSerie } from './servicios/calculo'
 import { pintarResultado, type ResultadoPintado } from './servicios/pintura'
-import { CIFRA_OBRA_SUSPENDIDA } from './servicios/obranueva'
 import { INDICES, indicesDisponibles, type DefinicionIndice } from './servicios/indices'
+import { CIFRA_OBRA_SUSPENDIDA, avisoFenologia, diasEntre } from './servicios/obranueva'
 import type { Bbox, Escena, GrupoDia, IdCapa, ModoVista, NombreBanda } from './tipos'
 import { diaLocal } from './lib/fecha'
-import { pasadasUtiles } from './lib/cobertura'
+import { fechasCompletas, pasadasUtiles } from './lib/cobertura'
+import { useCifra } from './lib/useCifra'
 import type { FuenteRaster } from './componentes/CapaAnalisis'
 import Mapa, { type IdFondo } from './componentes/Mapa'
 import PanelBusqueda from './componentes/PanelBusqueda'
-import SelectorArea from './componentes/SelectorArea'
+import ColumnaSecciones, { type SeccionPanel } from './componentes/ColumnaSecciones'
 import ControlMapa from './componentes/ControlMapa'
-import { ETIQUETA_FONDO } from './datos/fondos'
-import SeccionFlotante from './componentes/SeccionFlotante'
 import GaleriaEscenas from './componentes/GaleriaEscenas'
 import TarjetaResultado from './componentes/TarjetaResultado'
 import PanelInsar from './componentes/PanelInsar'
-import ListaEscenas from './componentes/ListaEscenas'
 import PanelAnalisis from './componentes/PanelAnalisis'
 import PanelSerie from './componentes/PanelSerie'
 import PanelProductos from './componentes/PanelProductos'
 import PanelEscurrimiento from './componentes/PanelEscurrimiento'
+import ReglaFechas from './componentes/ReglaFechas'
 import {
   calcularEscurrimiento,
   leerSubcuencas,
@@ -36,16 +35,87 @@ import {
 import { cargarProducto, PRODUCTOS, type IdProducto } from './servicios/productos'
 import type { ResultadoSerie } from './servicios/serie'
 
-type Seccion = 'escenas' | 'serie' | 'referencia' | 'hidrologia' | 'capas'
+const TITULO_SECCION: Record<SeccionPanel, string> = {
+  escenas: 'Ajustes',
+  serie: 'Serie',
+  referencia: 'Capas globales',
+  hidrologia: 'Escurrimiento',
+  capas: 'Capas',
+}
 
 const ETIQUETA_MODO: Record<ModoVista, string> = {
-  indice: 'Índice',
+  indice: 'Vegetación',
   cambio: 'Cambio',
   obra: 'Obra nueva',
-  calor: 'Temperatura',
+  calor: 'Calor',
   agua: 'Agua por radar',
   clases: 'Clases',
   color: 'Color',
+}
+
+/** La coleccion que da cada modo con un solo clic. Los demas salen de Sentinel-2. */
+const COLECCION_DEL_MODO: Partial<Record<ModoVista, string>> = {
+  agua: 'sentinel-1-rtc',
+  calor: 'landsat-c2-l2',
+}
+
+const NOMBRE_AREA: Partial<Record<IdCapa, string>> = {
+  LIMITE: 'Municipio',
+  LIMITE_URBANO: 'Zona urbana',
+  CUENCA_PALOTE: 'Cuenca Palote',
+}
+
+const DOS_FECHAS: ModoVista[] = ['cambio', 'obra', 'agua']
+/** Leyendas de categorias: sirven mientras se calcula. Las de valores dependen de la fecha. */
+const LEYENDA_DE_CATEGORIAS: ModoVista[] = ['agua', 'cambio', 'obra', 'clases']
+const DIAS_DE_BUSQUEDA = 120
+const SEPARACION_POR_OMISION = 30
+
+/** Un modo ya calculado con la ultima escena, por `npm run apertura`. */
+interface Registro {
+  dia: string
+  diaBase: string | null
+  coleccion: string
+  /** Falso si no hay nada que pintar: Color es el fondo, y Obra fuera de julio a octubre. */
+  imagen: boolean
+  limites: [[number, number], [number, number]] | null
+  leyenda: EntradaLeyenda[]
+  aviso: string | null
+  notas: string[]
+}
+
+interface DatosArea {
+  nombre: string
+  limitesFondo: [[number, number], [number, number]]
+  diaFondo: string
+  fechas: Record<string, { dia: string; nubes: number | null }[]>
+  modos: Record<string, Registro>
+  serie: ResultadoSerie | null
+}
+
+interface Apertura {
+  generado: string
+  areas: Record<string, DatosArea>
+}
+
+function fechaConAno(dia: string): string {
+  return new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+function useAngosto(): boolean {
+  const [angosto, setAngosto] = useState(() => window.matchMedia('(max-width: 767px)').matches)
+  useEffect(() => {
+    const consulta = window.matchMedia('(max-width: 767px)')
+    const alCambiar = () => setAngosto(consulta.matches)
+    consulta.addEventListener('change', alCambiar)
+    return () => consulta.removeEventListener('change', alCambiar)
+  }, [])
+  return angosto
 }
 
 // Dia de Leon, no dia UTC: con toISOString, despues de las 18:00 locales
@@ -58,16 +128,48 @@ function hoy(): string {
   return diaLocal(new Date())
 }
 
+function fechaLarga(dia: string): string {
+  return new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  })
+}
+
+/** La base mas cercana a 30 dias antes: la misma separacion que busca el resumen semanal. */
+function baseCercana(grupos: GrupoDia[], dia: string): GrupoDia | null {
+  const distancia = (g: GrupoDia) => Math.abs(diasEntre(g.dia, dia) - SEPARACION_POR_OMISION)
+  return grupos
+    .filter((g) => g.dia < dia)
+    .reduce<GrupoDia | null>((mejor, g) => (!mejor || distancia(g) < distancia(mejor) ? g : mejor), null)
+}
+
+/** La superficie es el titular: el numero de zonas depende de la rejilla. */
+function fraseObra(hectareas: string): string {
+  if (CIFRA_OBRA_SUSPENDIDA) return 'Obra nueva: cifra en corrección'
+  return `Obra probable: ${hectareas} ha`
+}
+
+function claveDe(modo: ModoVista, indice: DefinicionIndice | null): string {
+  return modo === 'indice' ? `indice-${indice?.id ?? 'ndvi'}` : modo
+}
+
 export default function App() {
   const [datosCapas, setDatosCapas] = useState<Record<string, FeatureCollection>>({})
   const [errorCapas, setErrorCapas] = useState<string | null>(null)
-  const [visibles, setVisibles] = useState<Set<IdCapa>>(
-    () => new Set(CAPAS.filter((c) => c.visiblePorDefecto).map((c) => c.id)),
-  )
+  const [visibles, setVisibles] = useState<Set<IdCapa>>(() => new Set<IdCapa>(['LIMITE_URBANO']))
 
-  const [area, setArea] = useState<IdCapa>('LIMITE')
+  const [apertura, setApertura] = useState<Apertura | null>(null)
+  const [aperturaLista, setAperturaLista] = useState(false)
+  /**
+   * Falso: se ve lo precalculado de este modo y esta area, sin calcular nada.
+   * Cierto: se eligio otra fecha u otros ajustes, y el resultado sale del calculo.
+   */
+  const [personalizado, setPersonalizado] = useState(false)
+
+  const [area, setArea] = useState<IdCapa>('LIMITE_URBANO')
   const [coleccion, setColeccion] = useState(COLECCION_POR_DEFECTO)
-  const [desde, setDesde] = useState(() => haceDias(90))
+  const [desde, setDesde] = useState(() => haceDias(DIAS_DE_BUSQUEDA))
   const [hasta, setHasta] = useState(hoy)
   const [nubesMax, setNubesMax] = useState(20)
 
@@ -77,7 +179,7 @@ export default function App() {
   /** Escenas activas, siempre del mismo dia. Mas de una significa mosaico. */
   const [seleccion, setSeleccion] = useState<Escena[]>([])
 
-  const [modo, setModo] = useState<ModoVista>('indice')
+  const [modo, setModo] = useState<ModoVista>('color')
   const [referencia, setReferencia] = useState<Escena[]>([])
   const [umbralCambio, setUmbralCambio] = useState(0.1)
   const [umbralObra, setUmbralObra] = useState(0.08)
@@ -102,6 +204,8 @@ export default function App() {
   const [analisis, setAnalisis] = useState<ResultadoPintado | null>(null)
   const [calculando, setCalculando] = useState(false)
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null)
+  /** Solo cuenta el ultimo pedido: una respuesta tardia no pisa lo que se eligio despues. */
+  const pedidoVigente = useRef(0)
 
   const [serie, setSerie] = useState<ResultadoSerie | null>(null)
   const [calculandoSerie, setCalculandoSerie] = useState(false)
@@ -134,11 +238,11 @@ export default function App() {
   const [calculandoEscurrimiento, setCalculandoEscurrimiento] = useState(false)
   const [errorEscurrimiento, setErrorEscurrimiento] = useState<string | null>(null)
 
-  const [seccion, setSeccion] = useState<Seccion | null>('escenas')
+  /** Panel lateral abierto. Reduce el mapa en vez de encimarse con el. */
+  const [seccion, setSeccion] = useState<SeccionPanel | null>(null)
   const [galeriaAbierta, setGaleriaAbierta] = useState(false)
-  const alternarSeccion = (id: Seccion) => setSeccion((actual) => (actual === id ? null : id))
-  const [busquedaPlegada, setBusquedaPlegada] = useState(false)
-  const [listaPlegada, setListaPlegada] = useState(false)
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const angosto = useAngosto()
 
   const [opacidad, setOpacidad] = useState(1)
   const [fondo, setFondo] = useState<IdFondo>('ninguno')
@@ -146,6 +250,16 @@ export default function App() {
     cargando: false,
     error: null,
   })
+
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}apertura/apertura.json`)
+      .then((respuesta) => (respuesta.ok ? (respuesta.json() as Promise<Apertura>) : null))
+      .catch(() => null)
+      .then((datos) => {
+        setApertura(datos)
+        setAperturaLista(true)
+      })
+  }, [])
 
   /**
    * Cada capa se resuelve por separado a proposito. Con Promise.all, una sola
@@ -192,6 +306,28 @@ export default function App() {
 
   const grupos = useMemo<GrupoDia[]>(() => resultado?.grupos ?? [], [resultado])
 
+  const datosArea = apertura?.areas[area] ?? null
+  const clave = claveDe(modo, indice)
+  /** Lo precalculado de este modo, se este viendo o no. */
+  const registroBase = datosArea?.modos[clave] ?? null
+  /** Lo que se ve ahora sin calcular. */
+  const registro = personalizado ? null : registroBase
+
+  /**
+   * Las imagenes de esta area se piden de una vez, para que el cambio de modo no
+   * espere a la red. Los fondos de las otras areas tambien.
+   */
+  useEffect(() => {
+    if (!apertura) return
+    const base = import.meta.env.BASE_URL
+    for (const id of Object.keys(apertura.areas)) new Image().src = `${base}apertura/${id}/fondo.jpg`
+    const propios = apertura.areas[area]
+    if (!propios) return
+    for (const [id, datos] of Object.entries(propios.modos)) {
+      if (datos.imagen) new Image().src = `${base}apertura/${area}/${id}.png`
+    }
+  }, [apertura, area])
+
   /**
    * La comparacion es entre fechas, no entre mallas. Con la rejilla comun ya
    * da igual de que malla venga cada pixel, asi que la fecha base entra
@@ -213,10 +349,22 @@ export default function App() {
     })
   }, [])
 
-  const limpiarAnalisis = useCallback(() => {
+  /** Deja de mostrar lo anterior: ningun resultado se queda bajo un rotulo que no es el suyo. */
+  const soltarResultado = useCallback(() => {
+    pedidoVigente.current += 1
+    setCalculando(false)
     setAnalisis(null)
     setErrorAnalisis(null)
+    setProductoVista(null)
+    setProducto(null)
+    setDesplazamiento(null)
   }, [])
+
+  /** Un ajuste cambio: lo precalculado ya no le corresponde, hasta que se recalcule. */
+  const limpiarAnalisis = useCallback(() => {
+    soltarResultado()
+    setPersonalizado(true)
+  }, [soltarResultado])
 
   const cambiarColeccion = useCallback(
     (id: string) => {
@@ -236,22 +384,105 @@ export default function App() {
     [limpiarAnalisis, modo],
   )
 
-  const seleccionarDia = useCallback(
-    (escenasDelDia: Escena[]) => {
-      setSeleccion(escenasDelDia)
-      setReferencia((previa) =>
-        previa.length > 0 && previa[0].dia !== escenasDelDia[0].dia ? previa : [],
-      )
-      limpiarAnalisis()
-    },
-    [limpiarAnalisis],
-  )
-
   const alternarBandaKmeans = useCallback((banda: NombreBanda) => {
     setBandasKmeans((previas) =>
       previas.includes(banda) ? previas.filter((b) => b !== banda) : [...previas, banda],
     )
   }, [])
+
+  /**
+   * Calcula en vivo. Quita antes lo anterior: mientras tanto se ve el fondo, y la
+   * tarjeta dice el modo nuevo. Quien acaba de cambiar una eleccion la pasa en
+   * `cambios`, porque el estado todavia no se actualizo en este render.
+   */
+  const calcular = async (cambios: Partial<ParametrosAnalisis> = {}) => {
+    const escenas = cambios.escenas ?? seleccion
+    const areaGeojson = datosCapas[area]
+    if (!areaBbox || !areaGeojson || escenas.length === 0) return
+
+    soltarResultado()
+    setPersonalizado(true)
+    const id = pedidoVigente.current
+    setCalculando(true)
+
+    try {
+      const salida = await pedirAnalisis({
+        escenas,
+        escenasReferencia: referencia,
+        coleccion,
+        bbox: areaBbox,
+        areaGeojson,
+        etiquetaArea: NOMBRE_AREA[area] ?? area,
+        modo,
+        indice,
+        bandasKmeans,
+        k,
+        tamano,
+        umbralCambio,
+        umbralObra,
+        areaMinimaObra,
+        quitarNubes,
+        soloAgua,
+        umbralAguaDb,
+        ...cambios,
+      })
+      if (id !== pedidoVigente.current) return
+      setAnalisis(salida)
+    } catch (error: unknown) {
+      if (id !== pedidoVigente.current) return
+      setErrorAnalisis(error instanceof Error ? error.message : String(error))
+    } finally {
+      if (id === pedidoVigente.current) setCalculando(false)
+    }
+  }
+
+  /** Las fechas de la regla: se buscan solas al cambiar de area o de coleccion. */
+  useEffect(() => {
+    if (!areaBbox) return
+    let cancelada = false
+
+    setResultado(null)
+    setSerie(null)
+    setBuscando(true)
+    setErrorBusqueda(null)
+    buscarEscenas({ coleccion, bbox: areaBbox, desde, hasta, nubesMax, limite: 100 })
+      .then((salida) => {
+        if (!cancelada) setResultado({ ...salida, grupos: pasadasUtiles(coleccion.id, salida.grupos, areaBbox) })
+      })
+      .catch((error: unknown) => {
+        if (!cancelada) setErrorBusqueda(error instanceof Error ? error.message : String(error))
+      })
+      .finally(() => {
+        if (!cancelada) setBuscando(false)
+      })
+
+    return () => {
+      cancelada = true
+    }
+    // Solo el area y la coleccion disparan esta busqueda; lo demas se busca con el boton de Ajustes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areaBbox, coleccion.id])
+
+  /**
+   * Con las fechas ya buscadas, la seleccion se alinea con lo que se ve. Si este modo
+   * no se pudo precalcular, se calcula solo: cambiar de seccion nunca pide otro clic.
+   */
+  useEffect(() => {
+    if (personalizado || !resultado || !areaBbox || !aperturaLista) return
+    if (registroBase) {
+      setSeleccion(grupos.find((g) => g.dia === registroBase.dia)?.escenas ?? [])
+      setReferencia(grupos.find((g) => g.dia === registroBase.diaBase)?.escenas ?? [])
+      return
+    }
+    const utiles = fechasCompletas(grupos, areaBbox)
+    const actual = [...utiles].sort((a, b) => b.dia.localeCompare(a.dia))[0]
+    if (!actual) return
+    const base = DOS_FECHAS.includes(modo) ? baseCercana(utiles, actual.dia) : null
+    setSeleccion(actual.escenas)
+    setReferencia(base?.escenas ?? [])
+    void calcular({ escenas: actual.escenas, escenasReferencia: base?.escenas ?? [] })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultado, registroBase, personalizado, aperturaLista])
 
   const lanzarBusqueda = useCallback(async () => {
     if (!areaBbox) return
@@ -271,10 +502,15 @@ export default function App() {
         nubesMax,
         limite: 100,
       })
-      setResultado({ ...salida, grupos: pasadasUtiles(coleccion.id, salida.grupos, areaBbox) })
+      const disponibles = pasadasUtiles(coleccion.id, salida.grupos, areaBbox)
+      setResultado({ ...salida, grupos: disponibles })
       setSerie(null)
-      setBusquedaPlegada(true)
-      setListaPlegada(false)
+      const utiles = fechasCompletas(disponibles, areaBbox)
+      const actual = [...utiles].sort((a, b) => b.dia.localeCompare(a.dia))[0]
+      if (actual) {
+        setSeleccion(actual.escenas)
+        setReferencia(baseCercana(utiles, actual.dia)?.escenas ?? [])
+      }
     } catch (error: unknown) {
       setErrorBusqueda(error instanceof Error ? error.message : String(error))
       setResultado(null)
@@ -283,66 +519,96 @@ export default function App() {
     }
   }, [areaBbox, coleccion, desde, hasta, nubesMax, limpiarAnalisis])
 
-  const lanzarAnalisis = useCallback(async () => {
-    if (seleccion.length === 0 || !areaBbox) return
+  const elegirArea = (id: IdCapa) => {
+    if (id === area) return
+    soltarResultado()
+    setPersonalizado(false)
+    setVisibles((previas) => {
+      const siguiente = new Set(previas)
+      siguiente.delete(area)
+      siguiente.add(id)
+      return siguiente
+    })
+    setArea(id)
+    setMenuAbierto(false)
+  }
 
-    setCalculando(true)
-    setErrorAnalisis(null)
+  /** Un clic: el modo y su imagen, ya calculada, de la ultima escena de esta area. */
+  const elegirModo = (nuevo: ModoVista) => {
+    soltarResultado()
+    setPersonalizado(false)
+    setSeccion((actual) => (actual === 'escenas' || actual === 'capas' ? actual : null))
+    setMenuAbierto(false)
+    setModo(nuevo)
 
-    try {
-      const areaGeojson = datosCapas[area]
-      if (!areaGeojson) throw new Error('El area todavia no termina de cargar')
-
-      // Un analisis nuevo reemplaza a lo que hubiera en el mapa.
-      setDesplazamiento(null)
-      setProductoVista(null)
-      setProducto(null)
-
-      const salida = await pedirAnalisis({
-        escenas: seleccion,
-        escenasReferencia: referencia,
-        coleccion,
-        bbox: areaBbox,
-        areaGeojson,
-        etiquetaArea: CAPAS.find((c) => c.id === area)?.etiqueta ?? area,
-        modo,
-        indice,
-        bandasKmeans,
-        k,
-        tamano,
-        umbralCambio,
-        umbralObra,
-        areaMinimaObra,
-        quitarNubes,
-        soloAgua,
-        umbralAguaDb,
-      })
-      setAnalisis(salida)
-    } catch (error: unknown) {
-      setErrorAnalisis(error instanceof Error ? error.message : String(error))
-      setAnalisis(null)
-    } finally {
-      setCalculando(false)
+    const col = buscarColeccion(COLECCION_DEL_MODO[nuevo] ?? COLECCION_POR_DEFECTO.id)
+    if (col.id !== coleccion.id) {
+      const bandas = Object.keys(col.bandas) as NombreBanda[]
+      setColeccion(col)
+      setResultado(null)
+      setSeleccion([])
+      setReferencia([])
+      setBandasKmeans(bandas.slice(0, Math.min(4, bandas.length)))
     }
-  }, [
-    seleccion,
-    referencia,
-    areaBbox,
-    datosCapas,
-    area,
-    coleccion,
-    modo,
-    indice,
-    bandasKmeans,
-    k,
-    tamano,
-    umbralCambio,
-    umbralObra,
-    areaMinimaObra,
-    quitarNubes,
-    soloAgua,
-    umbralAguaDb,
-  ])
+    // Cambio esta precalculado con NDVI: el indice tiene que decir lo mismo que la imagen.
+    if (nuevo === 'cambio' || !indice) setIndice(INDICES[0])
+  }
+
+  const elegirIndice = (definicion: DefinicionIndice) => {
+    soltarResultado()
+    setPersonalizado(false)
+    setIndice(definicion)
+  }
+
+  /** Clic en la regla: en los modos de dos fechas se mueve el marcador mas cercano. */
+  const elegirDia = (dia: string) => {
+    const grupo = grupos.find((g) => g.dia === dia)
+    if (!grupo) return
+
+    if (!DOS_FECHAS.includes(modo)) {
+      if (registroBase && dia === registroBase.dia) {
+        soltarResultado()
+        setPersonalizado(false)
+        return
+      }
+      setSeleccion(grupo.escenas)
+      setReferencia([])
+      void calcular({ escenas: grupo.escenas, escenasReferencia: [] })
+      return
+    }
+
+    const actual = seleccion[0]?.dia
+    const previa = referencia[0]?.dia
+    if (dia === actual || dia === previa) return
+
+    const cerca = (otro: string | undefined) => (otro ? Math.abs(diasEntre(otro, dia)) : Infinity)
+    let nuevaActual = cerca(actual) <= cerca(previa) ? dia : (actual ?? dia)
+    let nuevaBase = cerca(actual) <= cerca(previa) ? (previa ?? '') : dia
+    if (nuevaBase && nuevaBase > nuevaActual) [nuevaActual, nuevaBase] = [nuevaBase, nuevaActual]
+
+    const escenas = grupos.find((g) => g.dia === nuevaActual)?.escenas ?? []
+    const base = grupos.find((g) => g.dia === nuevaBase)?.escenas ?? []
+    setSeleccion(escenas)
+    setReferencia(base)
+    if (registroBase && nuevaActual === registroBase.dia && nuevaBase === registroBase.diaBase) {
+      soltarResultado()
+      setPersonalizado(false)
+      return
+    }
+    void calcular({ escenas, escenasReferencia: base })
+  }
+
+  const elegirDesdeGaleria = (escenas: Escena[]) => {
+    const dia = escenas[0].dia
+    const base = !DOS_FECHAS.includes(modo)
+      ? []
+      : referencia.length > 0 && referencia[0].dia !== dia
+        ? referencia
+        : (baseCercana(grupos, dia)?.escenas ?? [])
+    setSeleccion(escenas)
+    setReferencia(base)
+    void calcular({ escenas, escenasReferencia: base })
+  }
 
   const lanzarEscurrimiento = useCallback(() => {
     if (!subcuencasCn) return
@@ -405,6 +671,8 @@ export default function App() {
             notas: string[]
             generado: string
           }
+          // La capa de referencia manda sobre lo que hubiera pintado antes.
+          soltarResultado()
           setProductoVista({
             fuente: { tipo: 'imagen', url: `${ruta}.png`, limites: datos.limites, clave: ruta },
             leyenda: datos.leyenda,
@@ -419,9 +687,10 @@ export default function App() {
             producto: definicion,
             bbox: areaBbox,
             areaGeojson,
-            etiquetaArea: CAPAS.find((c) => c.id === area)?.etiqueta ?? area,
+            etiquetaArea: NOMBRE_AREA[area] ?? area,
             tamano: 512,
           })
+          soltarResultado()
           setProductoVista({
             fuente: { tipo: 'pintado', resultado: pintarResultado(salida) },
             leyenda: salida.leyenda,
@@ -430,9 +699,6 @@ export default function App() {
         }
 
         setProducto(id)
-        // La capa de referencia manda sobre lo que hubiera pintado antes.
-        limpiarAnalisis()
-        setDesplazamiento(null)
       } catch (error: unknown) {
         setErrorProducto(error instanceof Error ? error.message : String(error))
         setProductoVista(null)
@@ -441,15 +707,18 @@ export default function App() {
         setCargandoProducto(null)
       }
     },
-    [areaBbox, datosCapas, area, limpiarAnalisis],
+    [areaBbox, datosCapas, area, soltarResultado],
   )
 
-  // Cambiar de area con una capa de referencia puesta la vuelve a cargar para
-  // la nueva area; sin esto se quedaba pintada la del area anterior.
-  useEffect(() => {
-    if (producto) void lanzarProducto(producto)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [area])
+  /** Abrir una herramienta ya muestra algo: no pide otro clic. */
+  const alternarSeccion = (id: SeccionPanel) => {
+    const abre = seccion !== id
+    setSeccion(abre ? id : null)
+    setMenuAbierto(false)
+    if (!abre) return
+    if (id === 'referencia' && !producto) void lanzarProducto(PRODUCTOS[0].id)
+    if (id === 'hidrologia' && subcuencasCn && !escurrimiento) lanzarEscurrimiento()
+  }
 
   const lanzarSerie = useCallback(async () => {
     if (!areaBbox || !indice) return
@@ -512,336 +781,395 @@ export default function App() {
     if (desplazamiento) return desplazamiento
     if (productoVista) return productoVista.fuente
     if (analisis) return { tipo: 'pintado', resultado: analisis }
+    if (registro?.imagen && registro.limites) {
+      return {
+        tipo: 'imagen',
+        url: `${import.meta.env.BASE_URL}apertura/${area}/${clave}.png`,
+        limites: registro.limites,
+        clave: `apertura:${area}:${clave}`,
+      }
+    }
     return null
-  }, [desplazamiento, productoVista, analisis])
+  }, [desplazamiento, productoVista, analisis, registro, area, clave])
 
   const errorRaster = errorAnalisis ?? estadoRaster.error
+  const dosFechas = DOS_FECHAS.includes(modo)
+  const diaActual = registro ? registro.dia : (seleccion[0]?.dia ?? null)
+  const diaBase = !dosFechas ? null : registro ? registro.diaBase : (referencia[0]?.dia ?? null)
+  const etiquetaArea = NOMBRE_AREA[area] ?? area
+  const enApertura = modo === 'color' && registro !== null && !productoVista && !desplazamiento
 
   const tituloResultado = productoVista
     ? (PRODUCTOS.find((p) => p.id === producto)?.etiqueta ?? 'Capa de referencia')
-    : analisis && seleccion.length > 0
-      ? `${ETIQUETA_MODO[modo]} · ${seleccion[0].dia}`
+    : diaActual
+      ? `${ETIQUETA_MODO[modo]} · ${diaActual}`
       : 'Resultado'
 
-  const leyendaEnMapa = productoVista?.leyenda ?? analisis?.leyenda ?? []
-  const notasEnMapa = productoVista?.notas ?? analisis?.notas ?? []
+  const hectareasObra = (analisis?.zonasObra ?? []).reduce((suma, zona) => suma + zona.hectareas, 0)
+  const hectareasVistas = useCifra(hectareasObra, 900, 1)
 
-  const resumenEscenas =
-    seleccion.length > 0
-      ? `${seleccion[0].dia} · ${seleccion.map((e) => e.malla || e.plataforma).join(' + ')}`
-      : resultado
-        ? `${grupos.length} fechas encontradas en ${coleccion.etiqueta}`
-        : 'Buscar imágenes y analizarlas'
-  const resumenSerie = serie
-    ? `${serie.puntos.length} fechas calculadas`
-    : 'Un índice a lo largo del tiempo'
-  const resumenReferencia = producto
-    ? (PRODUCTOS.find((p) => p.id === producto)?.etiqueta ?? '')
-    : 'Agua histórica, cobertura y evapotranspiración'
-  const resumenCapas = `${visibles.size} capas · fondo ${ETIQUETA_FONDO[fondo].toLowerCase()}`
+  /** La frase cambia al hacer clic, sin esperar a nada. */
+  const textoResultado = (): { frase: string; detalle: string; aviso: string | null } => {
+    const separacion = diaActual && diaBase ? Math.abs(diasEntre(diaBase, diaActual)) : null
+    const fechas =
+      diaActual && separacion !== null && diaBase
+        ? `${fechaLarga(diaBase)} a ${fechaLarga(diaActual)}: ${separacion} días de separación`
+        : diaActual
+          ? fechaLarga(diaActual)
+          : ''
+    const detalle = `${etiquetaArea}${fechas ? `, ${fechas}` : ''}. ${registro?.coleccion ?? coleccion.etiqueta}.`
+    const nombreModo =
+      modo === 'indice' && indice ? `${ETIQUETA_MODO[modo]} (${indice.id.toUpperCase()})` : ETIQUETA_MODO[modo]
+
+    if (productoVista) return { frase: tituloResultado, detalle: etiquetaArea, aviso: null }
+    if (enApertura) {
+      return {
+        frase: `León, ${fechaConAno(registro.dia)}`,
+        detalle: `${etiquetaArea}. Imagen ${registro.coleccion}.`,
+        aviso: null,
+      }
+    }
+    if (calculando) {
+      return { frase: `${nombreModo}: calculando, unos ${dosFechas ? 25 : 10} s`, detalle, aviso: null }
+    }
+    if (!registro && !analisis) {
+      if (!personalizado) return { frase: nombreModo, detalle: `${etiquetaArea}. Buscando imágenes...`, aviso: null }
+      return { frase: nombreModo, detalle: `${detalle} Usa Recalcular en Ajustes.`, aviso: null }
+    }
+    const aviso =
+      registro?.aviso ??
+      analisis?.aviso ??
+      (modo === 'cambio' && analisis?.fenologia ? avisoFenologia(analisis.fenologia) : null)
+    return { frase: modo === 'obra' ? fraseObra(hectareasVistas) : nombreModo, detalle, aviso }
+  }
+  const { frase, detalle, aviso } = textoResultado()
+
+  const notaFondo =
+    datosArea && !enApertura && !productoVista && diaActual && diaActual !== datosArea.diaFondo
+      ? `Imagen de fondo del ${fechaLarga(datosArea.diaFondo)}.`
+      : null
+
+  const leyendaEnMapa: EntradaLeyenda[] =
+    productoVista?.leyenda ??
+    analisis?.leyenda ??
+    registro?.leyenda ??
+    (calculando && LEYENDA_DE_CATEGORIAS.includes(modo)
+      ? (registroBase?.leyenda ?? []).map((entrada) => ({ ...entrada, detalle: undefined }))
+      : [])
+  const notasEnMapa = productoVista?.notas ?? analisis?.notas ?? registro?.notas ?? []
+
+  // Lo que dicen los colores: cinco numeros solos no dicen nada.
+  const sentidoLeyenda = productoVista
+    ? null
+    : modo === 'cambio'
+      ? 'Hectáreas de cambio de cobertura, no de obra'
+      : modo === 'indice' && indice
+        ? indice.id === 'ndvi'
+          ? 'De menos a más vegetación'
+          : `${indice.descripcion}: de menor a mayor`
+        : null
+
+  const fechasPorModo = useMemo(() => {
+    const fechas: Partial<Record<ModoVista, string>> = {}
+    if (!datosArea) return fechas
+    for (const id of ['color', 'calor', 'agua', 'clases', 'cambio', 'obra'] as ModoVista[]) {
+      fechas[id] = datosArea.modos[id]?.dia
+    }
+    fechas.indice = datosArea.modos['indice-ndvi']?.dia
+    return fechas
+  }, [datosArea])
+
+  const gruposRegla = grupos.length > 0 ? grupos : (datosArea?.fechas[coleccion.id] ?? [])
+  // La serie de NDVI ya viene calculada; otro indice se pide con el boton del panel.
+  const serieVista = serie ?? (indice?.id === 'ndvi' ? (datosArea?.serie ?? null) : null)
+
+  const tarjeta = (
+    <TarjetaResultado
+      sentidoLeyenda={sentidoLeyenda}
+      titulo={tituloResultado}
+      frase={frase}
+      detalle={detalle}
+      aviso={aviso}
+      notaFondo={notaFondo}
+      leyenda={leyendaEnMapa}
+      notas={notasEnMapa}
+    />
+  )
 
   return (
-    <div className="relative h-full">
-      <Mapa
-        capas={CAPAS}
-        datosCapas={datosCapas}
-        visibles={visibles}
-        areaBbox={areaBbox}
-        escenas={seleccion}
-        fuente={fuente}
-        opacidad={opacidad}
-        marcas={desplazamiento || productoVista ? [] : (analisis?.marcas ?? [])}
-        fondo={fondo}
-        onEstadoRaster={setEstadoRaster}
-      />
+    <div className="flex h-full flex-col md:flex-row">
+      {angosto && (
+        <header className="flex shrink-0 items-center justify-between border-b border-filete bg-panel px-4 py-2">
+          <span className="text-[15px] font-semibold tracking-tight">Observatorio satelital</span>
+          <button
+            type="button"
+            onClick={() => setMenuAbierto(!menuAbierto)}
+            aria-expanded={menuAbierto}
+            className={`palabra ${menuAbierto ? 'palabra-activa' : ''}`}
+          >
+            Secciones
+          </button>
+        </header>
+      )}
 
-      {/*
-        Menu flotante del margen izquierdo: tarjetas independientes sobre el
-        mapa que funcionan como acordeon. Abrir una pliega la que estaba
-        abierta, asi el mapa queda libre salvo por la tarjeta en uso.
-      */}
-      {/*
-        El id no es decorativo: el medidor de traslapes del departamento nombra
-        cada elemento por su id o, si no tiene, por su primera clase. Sin esto
-        la columna salia en los reportes como «.pointer-events-none», que no
-        dice nada a quien lee.
-      */}
-      <div
-        id="menu-flotante"
-        className="pointer-events-none absolute inset-y-3 left-3 z-1000 flex w-88 flex-col gap-2"
-      >
-        <div className="pointer-events-auto shrink-0 border border-filete-fuerte bg-panel/95 shadow-lg shadow-black/40">
-          <header className="px-4 pt-3">
-            <p className="rotulo">Planeación Hídrica · León</p>
-            <h1 className="mt-1 text-[17px] font-semibold tracking-tight">Observatorio satelital</h1>
-          </header>
+      {(!angosto || menuAbierto) && (
+        <div className="flex min-h-0 shrink-0 flex-col border-b border-filete max-md:max-h-[55%] md:w-65 md:border-b-0 md:border-r">
+          <ColumnaSecciones
+            area={area}
+            onArea={elegirArea}
+            modo={productoVista ? null : modo}
+            onModo={elegirModo}
+            fechas={fechasPorModo}
+            indices={indicesPosibles.length > 0 ? indicesPosibles : INDICES}
+            indice={indice}
+            onIndice={elegirIndice}
+            seccion={seccion}
+            onSeccion={alternarSeccion}
+          />
+        </div>
+      )}
 
-          {errorCapas && (
-            <p className="border-b border-filete px-4 py-3 text-xs text-peligro" role="alert">
-              No se pudieron cargar estas capas: {errorCapas}. El resto sigue disponible.
-            </p>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+            <div className="mapa-entra h-full">
+              <Mapa
+                capas={CAPAS}
+                datosCapas={datosCapas}
+                visibles={visibles}
+                areaBbox={areaBbox}
+                escenas={[]}
+                fuente={fuente}
+                opacidad={opacidad}
+                marcas={[]}
+                fondo={fondo}
+                imagenFondo={
+                  datosArea
+                    ? { url: `${import.meta.env.BASE_URL}apertura/${area}/fondo.jpg`, limites: datosArea.limitesFondo }
+                    : null
+                }
+                onEstadoRaster={setEstadoRaster}
+              />
+            </div>
+
+            {/* El id lo usa el medidor de traslapes del departamento para nombrar el elemento en sus reportes. */}
+            {(errorCapas || errorRaster || errorBusqueda) && (
+              <div
+                id="avisos-mapa"
+                className="pointer-events-auto absolute left-3 top-3 z-1000 max-w-[calc(100%-24rem)] space-y-1 bg-panel/95 px-3 py-2 text-xs text-aviso max-md:max-w-[calc(100%-1.5rem)]"
+                role="alert"
+              >
+                {errorCapas && <p>No se pudieron cargar estas capas: {errorCapas}. El resto sigue disponible.</p>}
+                {errorRaster && <p>{errorRaster}</p>}
+                {errorBusqueda && <p>{errorBusqueda}</p>}
+              </div>
+            )}
+
+            {/*
+              La tarjeta crece hacia arriba desde la atribucion de Leaflet y, si la
+              pantalla es baja, hace scroll adentro en vez de salirse del mapa.
+            */}
+            {!angosto && (
+              <div
+                id="columna-mapa"
+                className="pointer-events-none absolute bottom-7 right-3 top-3 z-1000 flex w-88 max-w-[calc(100%-1.5rem)] flex-col justify-end"
+              >
+                {tarjeta}
+              </div>
+            )}
+          </div>
+
+          {/* En pantalla angosta la tarjeta va debajo del mapa, en flujo, para no taparlo. */}
+          {angosto && !menuAbierto && <div className="max-h-[32%] min-h-0 shrink-0 overflow-y-auto">{tarjeta}</div>}
+
+          {seccion && (
+            <aside
+              id="panel-lateral"
+              className="flex max-h-[50%] min-h-0 w-full shrink-0 flex-col border-t border-filete bg-panel md:max-h-none md:w-96 md:border-l md:border-t-0"
+            >
+              <div className="flex shrink-0 items-center justify-between border-b border-filete px-4 py-2">
+                <h2 className="text-[15px] font-semibold">{TITULO_SECCION[seccion]}</h2>
+                <button type="button" onClick={() => setSeccion(null)} className="enlace">
+                  Cerrar
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {seccion === 'capas' && (
+                  <>
+                    <ControlMapa visibles={visibles} onVisible={alternarVisible} fondo={fondo} onFondo={setFondo} />
+                    <label className="block px-3.5 pb-3 text-xs">
+                      <span className="mb-1 block text-tinta-suave">
+                        Opacidad del resultado <span className="cifra text-tinta">{Math.round(opacidad * 100)} %</span>
+                      </span>
+                      <input
+                        type="range"
+                        min={0.2}
+                        max={1}
+                        step={0.05}
+                        value={opacidad}
+                        onChange={(e) => setOpacidad(Number(e.target.value))}
+                        className="w-full"
+                      />
+                    </label>
+                  </>
+                )}
+
+                {seccion === 'escenas' && (
+                  <>
+                    <PanelBusqueda
+                      coleccion={coleccion}
+                      onColeccion={cambiarColeccion}
+                      desde={desde}
+                      onDesde={setDesde}
+                      hasta={hasta}
+                      onHasta={setHasta}
+                      nubesMax={nubesMax}
+                      onNubesMax={setNubesMax}
+                      buscando={buscando}
+                      onBuscar={lanzarBusqueda}
+                      plegado={false}
+                      onDesplegar={() => undefined}
+                    />
+                    <PanelAnalisis
+                      sinModos
+                      escenas={seleccion}
+                      coleccion={coleccion}
+                      modo={modo}
+                      onModo={elegirModo}
+                      indices={indicesPosibles}
+                      indice={indice}
+                      onIndice={(id) => {
+                        setIndice(indicesPosibles.find((i) => i.id === id) ?? null)
+                        limpiarAnalisis()
+                      }}
+                      bandasDisponibles={bandasDisponibles}
+                      bandasKmeans={bandasKmeans}
+                      onBandaKmeans={alternarBandaKmeans}
+                      k={k}
+                      onK={setK}
+                      tamano={tamano}
+                      onTamano={setTamano}
+                      calculando={calculando}
+                      onCalcular={() => void calcular()}
+                      error={errorRaster}
+                      diasReferencia={diasReferencia}
+                      referencia={referencia}
+                      onDiaReferencia={(dia) => {
+                        setReferencia(grupos.find((grupo) => grupo.dia === dia)?.escenas ?? [])
+                        limpiarAnalisis()
+                      }}
+                      umbralCambio={umbralCambio}
+                      onUmbralCambio={(valor) => {
+                        setUmbralCambio(valor)
+                        limpiarAnalisis()
+                      }}
+                      umbralObra={umbralObra}
+                      onUmbralObra={(valor) => {
+                        setUmbralObra(valor)
+                        limpiarAnalisis()
+                      }}
+                      umbralAguaDb={umbralAguaDb}
+                      onUmbralAguaDb={(valor) => {
+                        setUmbralAguaDb(valor)
+                        limpiarAnalisis()
+                      }}
+                      areaMinimaObra={areaMinimaObra}
+                      onAreaMinimaObra={(valor) => {
+                        setAreaMinimaObra(valor)
+                        limpiarAnalisis()
+                      }}
+                      quitarNubes={quitarNubes}
+                      onQuitarNubes={(valor) => {
+                        setQuitarNubes(valor)
+                        limpiarAnalisis()
+                      }}
+                      soloAgua={soloAgua}
+                      onSoloAgua={(valor) => {
+                        setSoloAgua(valor)
+                        limpiarAnalisis()
+                      }}
+                    />
+                  </>
+                )}
+
+                {seccion === 'serie' && (
+                  <PanelSerie
+                    indice={indicesPosibles.find((i) => i.id === indice?.id) ?? null}
+                    fechasDisponibles={grupos.length}
+                    maxFechas={maxFechas}
+                    onMaxFechas={setMaxFechas}
+                    calculando={calculandoSerie}
+                    progreso={progresoSerie}
+                    resultado={serieVista}
+                    error={errorSerie}
+                    onCalcular={lanzarSerie}
+                    onCancelar={() => cancelarSerie.current?.abort()}
+                  />
+                )}
+
+                {seccion === 'referencia' && (
+                  <PanelProductos
+                    activo={producto}
+                    cargando={cargandoProducto}
+                    error={errorProducto}
+                    onCargar={lanzarProducto}
+                    onQuitar={() => {
+                      setProducto(null)
+                      setProductoVista(null)
+                    }}
+                  />
+                )}
+
+                {seccion === 'hidrologia' && (
+                  <>
+                    <PanelEscurrimiento
+                      disponible={subcuencasCn !== null}
+                      lluviaMm={lluviaMm}
+                      onLluviaMm={setLluviaMm}
+                      condicion={condicionCn}
+                      onCondicion={setCondicionCn}
+                      zonasObra={CIFRA_OBRA_SUSPENDIDA ? 0 : (analisis?.zonasObra?.length ?? 0)}
+                      calculando={calculandoEscurrimiento}
+                      resultado={escurrimiento}
+                      error={errorEscurrimiento}
+                      onCalcular={lanzarEscurrimiento}
+                    />
+
+                    <PanelInsar
+                      bbox={areaBbox}
+                      desde={desde}
+                      hasta={hasta}
+                      onCargarDesplazamiento={(href, limite) => {
+                        soltarResultado()
+                        setDesplazamiento(href ? { tipo: 'insar', href, limite } : null)
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+            </aside>
           )}
-
-          <SelectorArea area={area} onArea={setArea} />
         </div>
 
-        <SeccionFlotante
-          titulo="Escenas"
-          resumen={resumenEscenas}
-          abierta={seccion === 'escenas'}
-          onAlternar={() => alternarSeccion('escenas')}
-          testId="seccion-escenas"
-        >
-              <>
-                <PanelBusqueda
-                  coleccion={coleccion}
-                  onColeccion={cambiarColeccion}
-                  desde={desde}
-                  onDesde={setDesde}
-                  hasta={hasta}
-                  onHasta={setHasta}
-                  nubesMax={nubesMax}
-                  onNubesMax={setNubesMax}
-                  buscando={buscando}
-                  onBuscar={lanzarBusqueda}
-                  plegado={busquedaPlegada}
-                  onDesplegar={() => setBusquedaPlegada(false)}
-                />
-
-                <ListaEscenas
-                  grupos={grupos}
-                  totalCoincidencias={resultado?.totalCoincidencias ?? null}
-                  seleccion={seleccion}
-                  onElegir={(escenas) => {
-                    seleccionarDia(escenas)
-                    setListaPlegada(true)
-                  }}
-                  plegado={listaPlegada}
-                  onDesplegar={() => setListaPlegada(false)}
-                  onPantallaCompleta={() => setGaleriaAbierta(true)}
-                  buscando={buscando}
-                  error={errorBusqueda}
-                  yaBusco={resultado !== null || errorBusqueda !== null}
-                />
-
-                {/* El analisis aparece cuando la lista ya se plego a la escena elegida. */}
-                {listaPlegada && (
-                <PanelAnalisis
-                  escenas={seleccion}
-                  coleccion={coleccion}
-                  modo={modo}
-                  onModo={(nuevo) => {
-                    setModo(nuevo)
-                    limpiarAnalisis()
-                  }}
-                  indices={indicesPosibles}
-                  indice={indice}
-                  onIndice={(id) => {
-                    setIndice(indicesPosibles.find((i) => i.id === id) ?? null)
-                    limpiarAnalisis()
-                  }}
-                  bandasDisponibles={bandasDisponibles}
-                  bandasKmeans={bandasKmeans}
-                  onBandaKmeans={alternarBandaKmeans}
-                  k={k}
-                  onK={setK}
-                  tamano={tamano}
-                  onTamano={setTamano}
-                  calculando={calculando}
-                  onCalcular={lanzarAnalisis}
-                  error={errorRaster}
-                  diasReferencia={diasReferencia}
-                  referencia={referencia}
-                  onDiaReferencia={(dia) => {
-                    setReferencia(grupos.find((grupo) => grupo.dia === dia)?.escenas ?? [])
-                    limpiarAnalisis()
-                  }}
-                  umbralCambio={umbralCambio}
-                  onUmbralCambio={(valor) => {
-                    setUmbralCambio(valor)
-                    limpiarAnalisis()
-                  }}
-                  umbralObra={umbralObra}
-                  onUmbralObra={(valor) => {
-                    setUmbralObra(valor)
-                    limpiarAnalisis()
-                  }}
-                  umbralAguaDb={umbralAguaDb}
-                  onUmbralAguaDb={(valor) => {
-                    setUmbralAguaDb(valor)
-                    limpiarAnalisis()
-                  }}
-                  areaMinimaObra={areaMinimaObra}
-                  onAreaMinimaObra={(valor) => {
-                    setAreaMinimaObra(valor)
-                    limpiarAnalisis()
-                  }}
-                  quitarNubes={quitarNubes}
-                  onQuitarNubes={(valor) => {
-                    setQuitarNubes(valor)
-                    limpiarAnalisis()
-                  }}
-                  soloAgua={soloAgua}
-                  onSoloAgua={(valor) => {
-                    setSoloAgua(valor)
-                    limpiarAnalisis()
-                  }}
-                />
-                )}
-              </>
-        </SeccionFlotante>
-
-        <SeccionFlotante
-          titulo="Serie de tiempo"
-          resumen={resumenSerie}
-          abierta={seccion === 'serie'}
-          onAlternar={() => alternarSeccion('serie')}
-          testId="seccion-serie"
-        >
-              <PanelSerie
-                indice={indice}
-                fechasDisponibles={grupos.length}
-                maxFechas={maxFechas}
-                onMaxFechas={setMaxFechas}
-                calculando={calculandoSerie}
-                progreso={progresoSerie}
-                resultado={serie}
-                error={errorSerie}
-                onCalcular={lanzarSerie}
-                onCancelar={() => cancelarSerie.current?.abort()}
-              />
-        </SeccionFlotante>
-
-        <SeccionFlotante
-          titulo="Capas de referencia"
-          resumen={resumenReferencia}
-          abierta={seccion === 'referencia'}
-          onAlternar={() => alternarSeccion('referencia')}
-          testId="seccion-referencia"
-        >
-              <PanelProductos
-                activo={producto}
-                cargando={cargandoProducto}
-                error={errorProducto}
-                onCargar={lanzarProducto}
-                onQuitar={() => {
-                  setProducto(null)
-                  setProductoVista(null)
-                }}
-              />
-        </SeccionFlotante>
-
-        <SeccionFlotante
-          titulo="Hidrología"
-          resumen={'Escurrimiento por número de curva y subsidencia InSAR'}
-          abierta={seccion === 'hidrologia'}
-          onAlternar={() => alternarSeccion('hidrologia')}
-          testId="seccion-hidrologia"
-        >
-              <>
-                <PanelEscurrimiento
-                  disponible={subcuencasCn !== null}
-                  lluviaMm={lluviaMm}
-                  onLluviaMm={setLluviaMm}
-                  condicion={condicionCn}
-                  onCondicion={setCondicionCn}
-                  zonasObra={CIFRA_OBRA_SUSPENDIDA ? 0 : (analisis?.zonasObra?.length ?? 0)}
-                  calculando={calculandoEscurrimiento}
-                  resultado={escurrimiento}
-                  error={errorEscurrimiento}
-                  onCalcular={lanzarEscurrimiento}
-                />
-
-                <PanelInsar
-                  bbox={areaBbox}
-                  desde={desde}
-                  hasta={hasta}
-                  onCargarDesplazamiento={(href, limite) => {
-                    limpiarAnalisis()
-                    setDesplazamiento(href ? { tipo: 'insar', href, limite } : null)
-                  }}
-                />
-              </>
-        </SeccionFlotante>
-
-        <SeccionFlotante
-          titulo="Capas del mapa"
-          resumen={resumenCapas}
-          abierta={seccion === 'capas'}
-          onAlternar={() => alternarSeccion('capas')}
-          testId="seccion-capas"
-        >
-            <ControlMapa visibles={visibles} onVisible={alternarVisible} fondo={fondo} onFondo={setFondo} />
-        </SeccionFlotante>
+        <ReglaFechas
+          grupos={gruposRegla}
+          actual={diaActual}
+          base={diaBase}
+          dosFechas={dosFechas}
+          nubesMax={nubesMax}
+          calculando={calculando}
+          onElegir={elegirDia}
+          onGaleria={() => setGaleriaAbierta(true)}
+        />
       </div>
-
-      <TarjetaResultado
-        titulo={tituloResultado}
-        aviso={productoVista ? undefined : analisis?.aviso}
-        leyenda={leyendaEnMapa}
-        notas={notasEnMapa}
-      />
-
-        {seleccion.length > 0 && (
-          <div className="absolute right-3 top-3 z-1000 w-76 border border-filete-fuerte bg-panel-hondo/95 text-xs">
-            <div className="border-b border-filete px-3.5 py-3">
-              <p className="rotulo">Escena en el mapa</p>
-              <p className="cifra mt-1.5 text-[13px] font-semibold text-tinta">
-                {seleccion[0].dia} · {seleccion.map((e) => e.malla || e.plataforma).join(' y ')}
-              </p>
-              {seleccion.length > 1 && (
-                <p className="mt-1 text-acento">Mosaico de {seleccion.length} mallas</p>
-              )}
-
-              {(estadoRaster.cargando || calculando) && (
-                <p className="mt-2 text-acento" role="status">
-                  {calculando ? 'Leyendo bandas...' : 'Pintando sobre el mapa...'}
-                </p>
-              )}
-            </div>
-
-            <div className="px-3.5 py-3">
-              <label className="block">
-                <span className="mb-1 block text-tinta-suave">
-                  Opacidad <span className="cifra text-tinta">{Math.round(opacidad * 100)} %</span>
-                </span>
-                <input
-                  type="range"
-                  min={0.2}
-                  max={1}
-                  step={0.05}
-                  value={opacidad}
-                  onChange={(e) => setOpacidad(Number(e.target.value))}
-                  className="w-full"
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSeleccion([])
-                  setReferencia([])
-                  setListaPlegada(false)
-                  limpiarAnalisis()
-                }}
-                className="boton mt-2.5 w-full"
-              >
-                Quitar del mapa
-              </button>
-            </div>
-          </div>
-        )}
 
       {galeriaAbierta && (
         <GaleriaEscenas
           grupos={grupos}
           seleccion={seleccion}
           coleccion={coleccion.etiqueta}
-          onElegir={(escenas) => {
-            seleccionarDia(escenas)
-            setListaPlegada(true)
-            setSeccion('escenas')
-          }}
+          onElegir={elegirDesdeGaleria}
           onCerrar={() => setGaleriaAbierta(false)}
         />
       )}

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { CircleMarker, GeoJSON, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import { CircleMarker, GeoJSON, ImageOverlay, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { circleMarker } from 'leaflet'
 import type { FeatureCollection } from 'geojson'
 import type { Bbox, Capa, Escena, IdCapa } from '../tipos'
@@ -17,6 +17,8 @@ interface Props {
   /** Zonas detectadas que se marcan aparte del raster. */
   marcas: MarcaMapa[]
   fondo: IdFondo
+  /** Color de Sentinel-2 del ultimo resumen: lo que se ve debajo de todo al abrir. */
+  imagenFondo: { url: string; limites: [[number, number], [number, number]] } | null
   onEstadoRaster: (estado: { cargando: boolean; error: string | null }) => void
 }
 
@@ -72,9 +74,18 @@ function AtribucionFuentes() {
 function SeguirTamano() {
   const mapa = useMap()
 
+  // Sin la bandera que Leaflet pone por omision; las atribuciones de fuentes se quedan.
   useEffect(() => {
-    const observador = new ResizeObserver(() => mapa.invalidateSize({ animate: false }))
-    observador.observe(mapa.getContainer())
+    mapa.attributionControl?.setPrefix('<a href="https://leafletjs.com">Leaflet</a>')
+  }, [mapa])
+
+  useEffect(() => {
+    const contenedor = mapa.getContainer()
+    const observador = new ResizeObserver(() => {
+      // Sin alto, Leaflet calcula la vista en NaN. Pasa en celular con el menu abierto.
+      if (contenedor.clientWidth > 0 && contenedor.clientHeight > 0) mapa.invalidateSize({ animate: false })
+    })
+    observador.observe(contenedor)
     return () => observador.disconnect()
   }, [mapa])
 
@@ -121,8 +132,9 @@ function AjustarA({ bbox }: { bbox: Bbox | null }) {
           [bbox[1], bbox[0]],
           [bbox[3], bbox[2]],
         ],
-        // El menu flotante ocupa unos 370 px del margen izquierdo.
-        { paddingTopLeft: [390, 24], paddingBottomRight: [24, 24] },
+        // La tarjeta de resultado ocupa la esquina derecha. Un mapa angosto no
+        // puede cederle ese margen: el encuadre quedaria en un zoom invalido.
+        { paddingTopLeft: [24, 24], paddingBottomRight: [tamano.x > 900 ? 372 : 24, 24], animate: false },
       )
       return true
     }
@@ -156,6 +168,7 @@ export default function Mapa({
   opacidad,
   marcas,
   fondo,
+  imagenFondo,
   onEstadoRaster,
 }: Props) {
   const base = FONDOS[fondo]
@@ -173,9 +186,21 @@ export default function Mapa({
       zoom={11}
       zoomControl={false}
       fadeAnimation={false}
+      // Sin escalones de zoom: el area se encuadra al alto disponible, no al entero mas cercano.
+      zoomSnap={0}
+      zoomDelta={0.5}
     >
       {base && (
         <TileLayer key={fondo} url={base.url} attribution={base.atribucion} maxZoom={19} />
+      )}
+
+      {imagenFondo && (
+        <ImageOverlay
+          key={imagenFondo.url}
+          url={imagenFondo.url}
+          bounds={imagenFondo.limites}
+          className="fondo-apertura"
+        />
       )}
 
       <CapaAnalisis fuente={fuente} opacidad={opacidad} onEstado={onEstadoRaster} />
@@ -219,12 +244,19 @@ export default function Mapa({
         del circulo es lo que se compara, y si el radio fuera proporcional una
         zona de 10 ha se veria cien veces mayor que una de 1 ha.
       */}
-      {marcas.map((marca) => (
+      {marcas.map((marca, i) => (
         <CircleMarker
           key={`${marca.lat},${marca.lon}`}
           center={[marca.lat, marca.lon]}
           radius={Math.max(6, Math.min(26, 5 * Math.sqrt(marca.hectareas)))}
-          pathOptions={{ color: '#fb7185', weight: 2, fillColor: '#fb7185', fillOpacity: 0.2 }}
+          pathOptions={{
+            color: '#fb7185',
+            weight: 2,
+            fillColor: '#fb7185',
+            fillOpacity: 0.2,
+            // Entran escalonadas, de la mayor a la menor; la clase da el retardo.
+            className: `zona-entra zd${Math.min(i, 9)}`,
+          }}
         >
           <Tooltip direction="top">{marca.etiqueta}</Tooltip>
         </CircleMarker>

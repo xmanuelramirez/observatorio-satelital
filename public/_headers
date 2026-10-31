@@ -32,7 +32,7 @@
 #       Miniaturas de Earth Search y Planetary Computer, y los mosaicos de
 #       CARTO del mapa de referencia (subdominios a, b, c y d).
 #   font-src 'self'
-#       Inter y JetBrains Mono auto-alojadas en /fonts. Ningun tercero.
+#       Inter auto-alojada en /fonts. Ningun tercero.
 
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com https://planetarycomputer.microsoft.com https://tile.openstreetmap.org https://services.arcgisonline.com; font-src 'self'; connect-src 'self' https://earth-search.aws.element84.com https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com https://planetarycomputer.microsoft.com https://landsateuwest.blob.core.windows.net https://sentinel1euwestrtc.blob.core.windows.net https://ai4edataeuwest.blob.core.windows.net https://modiseuwest.blob.core.windows.net https://api.daac.asf.alaska.edu; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'

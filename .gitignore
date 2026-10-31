@@ -66,3 +66,6 @@ ENTREGABLES/
 # Insumos que entrega SAPAL o el departamento (p. ej. zonas de recarga potencial). Se guardan
 # con su huella para trabajar en local, nunca en el repositorio.
 insumos-sapal/
+
+# Precalculado por `npm run apertura`: pesa decenas de MB y cambia con cada escena.
+public/apertura/

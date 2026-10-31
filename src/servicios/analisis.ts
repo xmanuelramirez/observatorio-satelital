@@ -398,15 +398,12 @@ export async function ejecutarAnalisis(
     const enVentana = parConfiable(escenasReferencia[0].dia, escenas[0].dia)
     // Tampoco con el verdor en movimiento: ahi lo detectado puede ser secado aun en ventana.
     const pintaZonas = enVentana && !fenologia.aviso
-    if (!enVentana) {
-      notas.unshift(
-        'Las zonas no se pintan: el método solo es confiable con las dos fechas entre julio y octubre.',
-      )
-    } else if (!pintaZonas) {
-      notas.unshift(
-        'Las zonas no se pintan: el verdor cambió fuera de lo construido, y lo detectado puede ser secado.',
-      )
-    }
+    // Sin zonas en el mapa, el motivo va a la vista: un mapa limpio se leeria como que no hay obra.
+    const motivoSinZonas = !enVentana
+      ? 'Las zonas no se pintan: el método solo es confiable con las dos fechas entre julio y octubre.'
+      : !pintaZonas
+        ? 'Las zonas no se pintan: el verdor cambió fuera de lo construido, y lo detectado puede ser secado.'
+        : null
 
     notas.push(
       `Regla: NDBI sube ${umbralObra.toFixed(2)} o más, NDVI final bajo 0.30, MNDWI negativo y NDVI base de ${NDVI_MAXIMO_BASE.toFixed(2)} o menos.`,
@@ -459,7 +456,7 @@ export async function ejecutarAnalisis(
       zonasObra: resultado.zonas,
       perdidaVegetacion,
       fenologia,
-      aviso: CIFRA_OBRA_SUSPENDIDA ? AVISO_CIFRA_SUSPENDIDA : undefined,
+      aviso: [motivoSinZonas, CIFRA_OBRA_SUSPENDIDA ? AVISO_CIFRA_SUSPENDIDA : null].filter(Boolean).join(' ') || undefined,
       marcas: (pintaZonas ? resultado.zonas : []).map((zona, i) => ({
         lat: zona.lat,
         lon: zona.lon,

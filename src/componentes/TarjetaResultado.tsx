@@ -3,23 +3,25 @@ import type { EntradaLeyenda } from '../servicios/analisis'
 
 interface Props {
   titulo: string
-  /** Aviso del que depende leer bien el resultado: va a la vista, no plegado. */
-  aviso?: string
+  /** Lo primero que se lee: el resultado dicho en una frase. */
+  frase: string
+  /** Area, fechas, separacion y fuente: lo que el dato exige llevar junto. */
+  detalle: string
+  /** Aviso del que depende leer bien la cifra: va junto a ella, nunca plegado. */
+  aviso?: string | null
+  /** Si la imagen de fondo es de otra fecha que el resultado, se dice aqui. */
+  notaFondo?: string | null
+  /** Que significa la escala, cuando la leyenda son solo valores. */
+  sentidoLeyenda?: string | null
   leyenda: EntradaLeyenda[]
   notas: string[]
 }
 
-/**
- * Simbologia del resultado que esta en el mapa, en tarjeta flotante propia en
- * la esquina inferior derecha, como en un mapa impreso, arriba de la
- * atribucion de Leaflet. Las notas del calculo son la letra chica: van
- * plegadas al pie, porque el margen izquierdo es del menu.
- */
 /** Nombre de archivo sin acentos ni espacios, con la fecha del dia. */
 function nombreArchivo(titulo: string): string {
   const limpio = titulo
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .toLowerCase()
@@ -44,10 +46,15 @@ function descargar(nombre: string, contenido: string, tipo: string) {
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-export default function TarjetaResultado({ titulo, aviso, leyenda, notas }: Props) {
+/**
+ * La frase del resultado con su simbologia, abajo a la derecha como en un mapa
+ * impreso. Las notas del calculo van plegadas en «Cómo se calculó»; el aviso del
+ * que depende leer bien el dato sube a la frase, no al pliegue.
+ */
+export default function TarjetaResultado({ titulo, frase, detalle, aviso, notaFondo, sentidoLeyenda, leyenda, notas }: Props) {
   const [notasAbiertas, setNotasAbiertas] = useState(false)
 
-  if (leyenda.length === 0 && notas.length === 0) return null
+  if (!frase && leyenda.length === 0 && notas.length === 0) return null
 
   const base = nombreArchivo(titulo)
 
@@ -71,68 +78,68 @@ export default function TarjetaResultado({ titulo, aviso, leyenda, notas }: Prop
   }
 
   return (
-    <div className="absolute bottom-7 right-3 z-1000 flex max-h-[calc(100vh-15rem)] w-72 flex-col border border-filete-fuerte bg-panel/95 text-xs shadow-lg shadow-black/40" data-testid="simbologia">
-      <div className="shrink-0 border-b border-filete px-3.5 py-2.5">
-        <p className="rotulo">Simbología</p>
-        <p className="mt-1 text-[13px] font-semibold text-tinta">{titulo}</p>
-        {aviso && <p className="mt-1 text-xs leading-snug text-aviso">{aviso}</p>}
-
-        {leyenda.length > 0 && (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-rotulo">Descargar</span>
-            <button type="button" onClick={comoCsv} className="boton py-1" data-testid="descargar-csv">
-              CSV
-            </button>
-            <button type="button" onClick={comoJson} className="boton py-1" data-testid="descargar-json">
-              JSON
-            </button>
-          </div>
-        )}
+    <div
+      id="tarjeta-resultado"
+      className="pointer-events-auto flex min-h-0 w-88 max-w-full flex-col bg-panel/95 text-xs"
+      data-testid="simbologia"
+    >
+      <div className="shrink-0 px-4 pb-2.5 pt-3.5">
+        <p className="frase cifra" aria-live="polite">{frase}</p>
+        {detalle && <p className="mt-1.5 text-[13px] leading-snug text-tinta-suave">{detalle}</p>}
+        {notaFondo && <p className="mt-1 text-[13px] leading-snug text-tinta-suave">{notaFondo}</p>}
+        {aviso && <p className="mt-1.5 text-[13px] leading-snug text-aviso">{aviso}</p>}
       </div>
 
       <div className="min-h-0 overflow-y-auto">
-        {leyenda.length > 0 && (
-          <ul className="space-y-2 px-3.5 py-3">
+        {(leyenda.length > 0 || sentidoLeyenda) && (
+          <ul className="space-y-1.5 border-t border-filete px-4 py-2.5">
+            {sentidoLeyenda && <li className="text-[13px] text-tinta-suave">{sentidoLeyenda}</li>}
             {leyenda.map((entrada) => (
               <li key={entrada.etiqueta} className="flex items-start gap-2.5 text-[13px]">
-                <span
-                  className="mt-1 inline-block h-3 w-3 shrink-0"
-                  style={{ background: entrada.color }}
-                />
+                <span className="mt-1 inline-block h-3 w-3 shrink-0" style={{ background: entrada.color }} />
                 <span>
                   <span className="font-medium">{entrada.etiqueta}</span>
-                  {entrada.detalle && (
-                    <span className="cifra block text-xs text-tinta-suave">{entrada.detalle}</span>
-                  )}
+                  {entrada.detalle && <span className="cifra block text-xs text-tinta-suave">{entrada.detalle}</span>}
                 </span>
               </li>
             ))}
           </ul>
         )}
 
-        {notas.length > 0 && (
-          <div className="border-t border-filete">
+        {notasAbiertas && (
+          <ul className="space-y-1.5 border-t border-filete px-4 py-2.5 leading-snug text-tinta-suave">
+            {notas.map((nota) => (
+              <li key={nota}>{nota}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {(notas.length > 0 || leyenda.length > 0) && (
+        <div className="flex shrink-0 items-center gap-3 border-t border-filete px-4 py-2">
+          {notas.length > 0 && (
             <button
               type="button"
               aria-expanded={notasAbiertas}
               onClick={() => setNotasAbiertas(!notasAbiertas)}
               data-testid="notas-calculo"
-              className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2 text-left hover:bg-fondo"
+              className="enlace"
             >
-              <span className="rotulo">Notas del cálculo ({notas.length})</span>
-              <span className="cifra text-rotulo">{notasAbiertas ? '−' : '+'}</span>
+              {notasAbiertas ? 'Ocultar cómo se calculó' : 'Cómo se calculó'}
             </button>
-
-            {notasAbiertas && (
-              <ul className="space-y-1.5 px-3.5 pb-3 leading-snug text-tinta-suave">
-                {notas.map((nota) => (
-                  <li key={nota}>{nota}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+          {leyenda.length > 0 && (
+            <span className="ml-auto flex items-center gap-2.5">
+              <button type="button" onClick={comoCsv} className="enlace" data-testid="descargar-csv">
+                CSV
+              </button>
+              <button type="button" onClick={comoJson} className="enlace" data-testid="descargar-json">
+                JSON
+              </button>
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }
