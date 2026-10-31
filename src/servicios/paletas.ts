@@ -1,11 +1,15 @@
-/** Paleta categorica para las clases de k-means, legible sobre fondo oscuro. */
+/**
+ * Paleta categorica para las clases de k-means, legible sobre fondo oscuro. Sin azules:
+ * estas clases no estan entrenadas, y un azul se lee como agua aunque no lo sea (Carlos,
+ * 30/10/2026). Vuelven cuando una clase este entrenada como agua.
+ */
 export const PALETA_CLASES = [
-  '#2b7fb8',
+  '#b0855a',
   '#43a047',
   '#f2c744',
   '#e0623c',
   '#8e6bbf',
-  '#00a5a5',
+  '#d4a5c9',
   '#c2185b',
   '#7d6b52',
 ]
