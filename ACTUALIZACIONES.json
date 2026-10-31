@@ -262,5 +262,21 @@
     "resumen": "Aunque las dos fechas caigan entre julio y octubre, el modo Obra nueva no pinta zonas si el verdor cambió fuera de lo construido, porque lo detectado puede ser secado. Con 22 de septiembre a 30 de octubre de 2026 la mediana de NDVI fuera de lo construido baja 0.107 y no se pinta; con 13 de agosto a 5 de septiembre baja 0.008 y sí. La cifra sigue suspendida.",
     "seccion_manual": "Funciones · Obra nueva",
     "evidencia": "Orden del MASTER del 30/10/2026"
+  },
+  {
+    "fecha": "2026-10-30",
+    "tipo": "correccion",
+    "titulo": "Las clases sin entrenar dejan de pintarse en azul",
+    "resumen": "El modo Clases agrupa píxeles parecidos sin saber qué son, y su primera clase salía en azul, que se lee como agua aunque no lo sea. Los dos tonos azules de esa paleta pasan a colores sin esa lectura. Las clases y las hectáreas no cambian. Se está preparando una versión entrenada, con clases con nombre.",
+    "seccion_manual": "Funciones · Clases",
+    "evidencia": "Pedido de Carlos y orden del MASTER del 30/10/2026"
+  },
+  {
+    "fecha": "2026-10-30",
+    "tipo": "correccion",
+    "titulo": "El modo Clases avisa que sus números no son clases",
+    "resumen": "El modo Clases agrupa píxeles parecidos sin saber qué son. La tarjeta ahora dice a la vista que los números no son clases y que cambian entre fechas. Las clases y las hectáreas no cambian.",
+    "seccion_manual": "Funciones · Clases",
+    "evidencia": "ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-CLASES-ENTRENADAS.md"
   }
 ]
