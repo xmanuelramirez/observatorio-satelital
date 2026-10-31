@@ -9,11 +9,13 @@
     "tipos": "tsc -b --force",
     "lint": "oxlint",
     "preview": "vite preview",
-    "desplegar": "npm run build && wrangler deploy",
+    "desplegar": "npm run apertura && npm run historia && npm run build && wrangler deploy",
     "local": "npm run build && wrangler dev --port 8787",
     "precalcular": "tsx herramientas/precalcular-productos.ts",
     "semanal": "tsx herramientas/resumen-semanal.ts",
-    "medir": "tsx herramientas/medir-poligonos.ts"
+    "medir": "tsx herramientas/medir-poligonos.ts",
+    "apertura": "tsx herramientas/apertura.ts",
+    "historia": "tsx herramientas/historia.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -35,6 +37,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "jpeg-js": "^0.4.4",
     "oxlint": "^1.83.0",
     "pngjs": "^7.0.0",
     "tsx": "^4.23.13",

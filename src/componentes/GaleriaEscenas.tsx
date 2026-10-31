@@ -83,6 +83,7 @@ export default function GaleriaEscenas({ grupos, seleccion, coleccion, onElegir,
                   <button
                     type="button"
                     onClick={() => elegir(grupo.escenas)}
+                    data-testid={`escena-mosaico-${grupo.dia}`}
                     className={`boton ${esElDia && seleccion.length > 1 ? 'boton-activo' : ''}`}
                   >
                     Analizar el mosaico de {grupo.escenas.length} mallas
@@ -129,6 +130,7 @@ export default function GaleriaEscenas({ grupos, seleccion, coleccion, onElegir,
                         <button
                           type="button"
                           onClick={() => elegir([escena])}
+                          data-testid={grupo.escenas.length === 1 ? `escena-mosaico-${grupo.dia}` : undefined}
                           className={`boton shrink-0 ${activa ? 'boton-activo' : ''}`}
                         >
                           Analizar

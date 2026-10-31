@@ -1,22 +1,27 @@
 import { useEffect, useRef } from 'react'
-import { CircleMarker, GeoJSON, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import { CircleMarker, GeoJSON, ImageOverlay, MapContainer, Pane, SVGOverlay, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { circleMarker } from 'leaflet'
 import type { FeatureCollection } from 'geojson'
-import type { Bbox, Capa, Escena, IdCapa } from '../tipos'
+import type { Bbox, Capa, IdCapa } from '../tipos'
 import CapaAnalisis, { type FuenteRaster } from './CapaAnalisis'
 import type { MarcaMapa } from '../servicios/analisis'
+import { xDe, yDe } from '../lib/proyeccion'
+import VeloFoco from './VeloFoco'
 
 interface Props {
   capas: Capa[]
   datosCapas: Record<string, FeatureCollection>
   visibles: Set<IdCapa>
   areaBbox: Bbox | null
-  escenas: Escena[]
   fuente: FuenteRaster
   opacidad: number
   /** Zonas detectadas que se marcan aparte del raster. */
   marcas: MarcaMapa[]
   fondo: IdFondo
+  /** Color de Sentinel-2 del ultimo resumen: lo que se ve debajo de todo al abrir. */
+  imagenFondo: { url: string; limites: [[number, number], [number, number]] } | null
+  /** La silueta: fuera de esto no hay imagen ni capas. */
+  rutasFoco: string[]
   onEstadoRaster: (estado: { cargando: boolean; error: string | null }) => void
 }
 
@@ -72,9 +77,18 @@ function AtribucionFuentes() {
 function SeguirTamano() {
   const mapa = useMap()
 
+  // Sin la bandera que Leaflet pone por omision; las atribuciones de fuentes se quedan.
   useEffect(() => {
-    const observador = new ResizeObserver(() => mapa.invalidateSize({ animate: false }))
-    observador.observe(mapa.getContainer())
+    mapa.attributionControl?.setPrefix('<a href="https://leafletjs.com">Leaflet</a>')
+  }, [mapa])
+
+  useEffect(() => {
+    const contenedor = mapa.getContainer()
+    const observador = new ResizeObserver(() => {
+      // Sin alto, Leaflet calcula la vista en NaN. Pasa en celular con el menu abierto.
+      if (contenedor.clientWidth > 0 && contenedor.clientHeight > 0) mapa.invalidateSize({ animate: false })
+    })
+    observador.observe(contenedor)
     return () => observador.disconnect()
   }, [mapa])
 
@@ -90,6 +104,7 @@ function SeguirTamano() {
 function AjustarA({ bbox }: { bbox: Bbox | null }) {
   const mapa = useMap()
   const usuarioMovio = useRef(false)
+  const yaEncuadro = useRef(false)
 
   // Mover o acercar el mapa a mano cancela el reencuadre automatico. Se
   // escucha el gesto en el contenedor y no los eventos del mapa, porque
@@ -113,7 +128,7 @@ function AjustarA({ bbox }: { bbox: Bbox | null }) {
     // Elegir otra area es una peticion explicita de encuadre.
     usuarioMovio.current = false
 
-    const ajustar = (): boolean => {
+    const ajustar = (animar = false): boolean => {
       const tamano = mapa.getSize()
       if (tamano.x === 0 || tamano.y === 0) return false
       mapa.fitBounds(
@@ -121,13 +136,17 @@ function AjustarA({ bbox }: { bbox: Bbox | null }) {
           [bbox[1], bbox[0]],
           [bbox[3], bbox[2]],
         ],
-        // El menu flotante ocupa unos 370 px del margen izquierdo.
-        { paddingTopLeft: [390, 24], paddingBottomRight: [24, 24] },
+        // La tarjeta de resultado ocupa la esquina derecha. Un mapa angosto no
+        // puede cederle ese margen: el encuadre quedaria en un zoom invalido.
+        // Arriba y abajo quedan el titulo y la leyenda, cuando el mapa tiene alto para ellos.
+        { paddingTopLeft: [24, tamano.y > 420 ? 84 : 24], paddingBottomRight: [24, tamano.y > 420 ? 110 : 24], animate: animar, duration: 0.8 },
       )
       return true
     }
 
-    ajustar()
+    // Cambiar de area si lleva movimiento; la primera vez y al cambiar de tamano, no.
+    ajustar(yaEncuadro.current)
+    yaEncuadro.current = true
 
     /*
      * Se sigue reencuadrando en cada cambio de tamano mientras nadie haya
@@ -151,11 +170,12 @@ export default function Mapa({
   datosCapas,
   visibles,
   areaBbox,
-  escenas,
   fuente,
   opacidad,
   marcas,
   fondo,
+  imagenFondo,
+  rutasFoco,
   onEstadoRaster,
 }: Props) {
   const base = FONDOS[fondo]
@@ -173,21 +193,40 @@ export default function Mapa({
       zoom={11}
       zoomControl={false}
       fadeAnimation={false}
+      // Sin escalones de zoom: el area se encuadra al alto disponible, no al entero mas cercano.
+      zoomSnap={0}
+      zoomDelta={0.5}
     >
       {base && (
         <TileLayer key={fondo} url={base.url} attribution={base.atribucion} maxZoom={19} />
       )}
 
+      {imagenFondo && (
+        <Pane name="fondo" style={{ zIndex: 300 }}>
+          {/* La misma capa con otra direccion: la imagen anterior se queda hasta que llega la nueva. */}
+          <ImageOverlay url={imagenFondo.url} bounds={imagenFondo.limites} />
+        </Pane>
+      )}
+
       <CapaAnalisis fuente={fuente} opacidad={opacidad} onEstado={onEstadoRaster} />
 
-      {escenas.map((escena) => (
-        <GeoJSON
-          key={`huella-${escena.id}`}
-          data={escena.huella}
-          style={{ color: '#ffffff', weight: 1, dashArray: '4 4', fillOpacity: 0 }}
-        />
-      ))}
 
+      {imagenFondo && rutasFoco.length > 0 && (
+        <Pane name="foco" style={{ zIndex: 450, pointerEvents: 'none' }}>
+          <SVGOverlay
+            key={`${imagenFondo.limites[0][1]}`}
+            bounds={imagenFondo.limites}
+            attributes={{
+              viewBox: `${xDe(imagenFondo.limites[0][1])} ${yDe(imagenFondo.limites[1][0])} ${xDe(imagenFondo.limites[1][1]) - xDe(imagenFondo.limites[0][1])} ${yDe(imagenFondo.limites[0][0]) - yDe(imagenFondo.limites[1][0])}`,
+              preserveAspectRatio: 'none',
+            }}
+          >
+            <VeloFoco limites={imagenFondo.limites} rutas={rutasFoco} />
+          </SVGOverlay>
+        </Pane>
+      )}
+
+      <Pane name="bordes" style={{ zIndex: 460 }}>
       {capas.map((capa) => {
         const datos = datosCapas[capa.id]
         if (!datos || !visibles.has(capa.id)) return null
@@ -214,17 +253,26 @@ export default function Mapa({
         )
       })}
 
+      </Pane>
+
       {/*
         El radio crece con la raiz del area, no con el area: al ojo, el area
         del circulo es lo que se compara, y si el radio fuera proporcional una
         zona de 10 ha se veria cien veces mayor que una de 1 ha.
       */}
-      {marcas.map((marca) => (
+      {marcas.map((marca, i) => (
         <CircleMarker
           key={`${marca.lat},${marca.lon}`}
           center={[marca.lat, marca.lon]}
           radius={Math.max(6, Math.min(26, 5 * Math.sqrt(marca.hectareas)))}
-          pathOptions={{ color: '#fb7185', weight: 2, fillColor: '#fb7185', fillOpacity: 0.2 }}
+          pathOptions={{
+            color: '#fb7185',
+            weight: 2,
+            fillColor: '#fb7185',
+            fillOpacity: 0.2,
+            // Entran escalonadas, de la mayor a la menor; la clase da el retardo.
+            className: `zona-entra zd${Math.min(i, 9)}`,
+          }}
         >
           <Tooltip direction="top">{marca.etiqueta}</Tooltip>
         </CircleMarker>

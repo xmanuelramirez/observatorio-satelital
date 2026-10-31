@@ -45,6 +45,8 @@ export interface EntradaLeyenda {
   color: string
   etiqueta: string
   detalle?: string
+  /** Se pinta a rayas, igual que en el mapa: un estado no va solo con color. */
+  entramado?: boolean
 }
 
 export interface ResultadoAnalisis {
@@ -52,6 +54,8 @@ export interface ResultadoAnalisis {
   /** Una banda para indice, cambio o clases; tres para color verdadero. */
   bandas: Float32Array[]
   colorear: (valores: number[]) => string | undefined
+  /** Celdas que se pintan a rayas diagonales en vez de llenas. */
+  entramado?: (valores: number[]) => boolean
   leyenda: EntradaLeyenda[]
   notas: string[]
   /**
@@ -401,15 +405,12 @@ export async function ejecutarAnalisis(
     const enVentana = parConfiable(escenasReferencia[0].dia, escenas[0].dia)
     // Tampoco con el verdor en movimiento: ahi lo detectado puede ser secado aun en ventana.
     const pintaZonas = enVentana && !fenologia.aviso
-    if (!enVentana) {
-      notas.unshift(
-        'Las zonas no se pintan: el método solo es confiable con las dos fechas entre julio y octubre.',
-      )
-    } else if (!pintaZonas) {
-      notas.unshift(
-        'Las zonas no se pintan: el verdor cambió fuera de lo construido, y lo detectado puede ser secado.',
-      )
-    }
+    // Sin zonas en el mapa, el motivo va a la vista: un mapa limpio se leeria como que no hay obra.
+    const motivoSinZonas = !enVentana
+      ? 'Las zonas no se pintan: el método solo es confiable con las dos fechas entre julio y octubre.'
+      : !pintaZonas
+        ? 'Las zonas no se pintan: el verdor cambió fuera de lo construido, y lo detectado puede ser secado.'
+        : null
 
     notas.push(
       `Regla: NDBI sube ${umbralObra.toFixed(2)} o más, NDVI final bajo 0.30, MNDWI negativo y NDVI base de ${NDVI_MAXIMO_BASE.toFixed(2)} o menos.`,
@@ -462,7 +463,7 @@ export async function ejecutarAnalisis(
       zonasObra: resultado.zonas,
       perdidaVegetacion,
       fenologia,
-      aviso: CIFRA_OBRA_SUSPENDIDA ? AVISO_CIFRA_SUSPENDIDA : undefined,
+      aviso: [motivoSinZonas, CIFRA_OBRA_SUSPENDIDA ? AVISO_CIFRA_SUSPENDIDA : null].filter(Boolean).join(' ') || undefined,
       marcas: (pintaZonas ? resultado.zonas : []).map((zona, i) => ({
         lat: zona.lat,
         lon: zona.lon,
@@ -698,9 +699,10 @@ export async function ejecutarAnalisis(
       rejilla,
       bandas: [clases],
       colorear: ([valor]) => (Number.isNaN(valor) ? undefined : colores[Math.round(valor)]),
+      entramado: ([valor]) => valor === 1,
       leyenda: [
         { color: COLOR_AGUA, etiqueta: 'Agua en las dos fechas', detalle: ha(permanente) },
-        { color: COLOR_CRECIDA, etiqueta: 'Agua nueva', detalle: ha(nueva) },
+        { color: COLOR_CRECIDA, etiqueta: 'Agua nueva', detalle: ha(nueva), entramado: true },
         { color: COLOR_RETIRADA, etiqueta: 'Agua que desapareció', detalle: ha(perdida) },
       ],
       notas,
