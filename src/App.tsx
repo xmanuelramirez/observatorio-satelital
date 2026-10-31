@@ -13,6 +13,7 @@ import { colorDeIndice } from './servicios/paletas'
 import type { Bbox, Escena, GrupoDia, IdCapa, ModoVista, NombreBanda } from './tipos'
 import { diaLocal } from './lib/fecha'
 import { fechasCompletas, pasadasUtiles } from './lib/cobertura'
+import { COLECCION_ANTERIOR, NOTA_CRITERIO, NOTA_MES_APARTADO, NOTA_PROCESADO_ANTERIOR, ROTULO_LINEA_TIEMPO, mesesApartados } from './lib/lineaTiempo'
 import { rutaSvg } from './lib/proyeccion'
 import { useCifra } from './lib/useCifra'
 import type { FuenteRaster } from './componentes/CapaAnalisis'
@@ -133,7 +134,7 @@ interface DatosArea {
 interface Historia {
   limites: [[number, number], [number, number]]
   escala: { p2: number; p98: number }
-  meses: Record<string, { dia: string; nubesArea: number; fuente: string } | null>
+  meses: Record<string, { dia: string; nubesArea: number; fuente: string; urbana: { rojo: number; ndvi: number } } | null>
 }
 
 interface Apertura {
@@ -598,6 +599,7 @@ export default function App() {
     [historia],
   )
   const diasHistoria = useMemo(() => fechasHistoria.map((f) => f.dia), [fechasHistoria])
+  const apartados = useMemo(() => mesesApartados(historia?.meses ?? {}), [historia])
   const ultimoDia = diasHistoria[diasHistoria.length - 1] ?? null
   const lineaLarga = !personalizado && !productoVista && !desplazamiento && ultimoDia !== null && (modo === 'color' || (modo === 'indice' && indice?.id === 'ndvi'))
   const urlColorDe = (dia: string) => `${baseApertura}/evolucion/historia/color-${dia.slice(0, 7)}.jpg`
@@ -951,7 +953,10 @@ export default function App() {
 
     if (productoVista) return { frase: tituloResultado, detalle: etiquetaArea, aviso: null }
     if (calculando) return { frase: nombreModo, detalle, aviso: null }
-    if (lineaLarga) return { frase: nombreModo, detalle, aviso: null }
+    if (lineaLarga) {
+      const apartado = diaActual !== null && apartados.has(diaActual.slice(0, 7))
+      return { frase: nombreModo, detalle, aviso: apartado ? `${ROTULO_LINEA_TIEMPO} ${NOTA_MES_APARTADO}` : ROTULO_LINEA_TIEMPO }
+    }
     if (!registro && !analisis) {
       if (!personalizado) return { frase: nombreModo, detalle: `${etiquetaArea} · buscando imágenes...`, aviso: null }
       return { frase: nombreModo, detalle: `${detalle} · usa Recalcular en Ajustes`, aviso: null }
@@ -994,11 +999,10 @@ export default function App() {
     analisis?.notas ??
     (lineaLarga && diaActual
       ? [
-          `Imagen del ${fechaBreve(diaActual, true)}, ${fechaVista?.nubes ?? 0} % de nubes sobre el área. Fuente: ${fechaVista?.fuente ?? ''}.`,
-          ...(diaActual.startsWith('2017')
-            ? ['2017 viene de otro procesado de Sentinel-2. No se pudo comparar contra la misma fecha; contra el mismo mes de otros años no se ve un brinco.']
-            : []),
+          `Imagen del ${fechaBreve(diaActual, true)}, ${fechaVista?.nubes ?? 0} % de nubes sobre el área. Fuente: Sentinel-2 L2A (${fechaVista?.fuente ?? ''}).`,
+          ...(fechaVista?.fuente === COLECCION_ANTERIOR ? [NOTA_PROCESADO_ANTERIOR] : []),
           `Toda la línea de tiempo lleva la misma escala, para que un cambio de color sea de la imagen y no del estiramiento. Se muestra una imagen limpia por mes; un mes sin imagen no tuvo ninguna con 10 % de nubes o menos.`,
+          NOTA_CRITERIO,
         ]
       : (registro?.notas ?? []))
 
@@ -1155,6 +1159,7 @@ export default function App() {
               grupos={modo === 'clases' && !productoVista}
               aviso={aviso}
               notas={notasEnMapa}
+              contraste={lineaLarga}
             />
           </section>
 

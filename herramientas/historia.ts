@@ -6,6 +6,22 @@
  * con desplazamiento 0, sin importar lo que declare su metadato: esa coleccion ya
  * resto el +1000 y aplicarlo otra vez cuenta doble (comprobado el 09/10/2026).
  *
+ * NO REGENERAR DESDE CERO hasta tener la guarda por escena (a mas tardar el 01/12/2026):
+ * seis escenas de la vieja, 13QHD del 29/01 al 23/02/2022, traen el +1000 sin restar con la
+ * misma bandera que las corregidas. La serie esta limpia porque eligio el 28/02/2022, no
+ * porque la regla la proteja. Una corrida normal no toca los meses cerrados.
+ *
+ * Criterio de exclusion y de rotulo, para todos los meses (dictamen del 30/10/2026):
+ *  - Se excluye una fecha solo con causa fisica que el filtro de nubes no ve: eclipse, +1000
+ *    sin restar o bruma (percentil 1 del rojo mayor de 0.06, como el 09/11/2025). Hoy solo el
+ *    eclipse esta en codigo (`FECHAS_EXCLUIDAS`); las otras dos entran con la guarda.
+ *  - Se rotula, sin excluir, todo mes a mas de 0.02 de rojo o 0.05 de NDVI de la mediana de su
+ *    mismo mes, sobre la zona urbana. Quitarlos seria escoger datos. La app los calcula de este
+ *    JSON (`mesesApartados`, en `src/lib/lineaTiempo.ts`): hoy son 2017-09, 2017-10, 2018-05,
+ *    2018-07, 2018-12 y 2023-07.
+ * La tabla del contraste entre colecciones esta en ese mismo archivo y sale de
+ * `herramientas/contraste-colecciones.ts`.
+ *
  * Todas las imagenes llevan la misma escala, la de una escena de referencia, para
  * que el color no brinque entre anios por el estiramiento. El JSON deja por mes la
  * reflectancia mediana sobre la zona urbana: es la cifra de contraste. Lo construido

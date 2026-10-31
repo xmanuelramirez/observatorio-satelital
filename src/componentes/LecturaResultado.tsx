@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { EntradaLeyenda } from '../servicios/analisis'
+import { CONTRASTE_COLECCIONES, PIE_CONTRASTE } from '../lib/lineaTiempo'
 
 interface Props {
   titulo: string
@@ -12,6 +13,8 @@ interface Props {
   grupos: boolean
   aviso: string | null
   notas: string[]
+  /** La tabla del contraste entre colecciones, en la linea de tiempo. */
+  contraste: boolean
 }
 
 /** Nombre de archivo sin acentos ni espacios, con la fecha del dia. */
@@ -44,7 +47,7 @@ function descargar(nombre: string, contenido: string, tipo: string) {
 }
 
 /** La leyenda, el aviso y lo que se calculo, sobre el mapa. El aviso va a la vista, nunca plegado. */
-export default function LecturaResultado({ titulo, leyenda, extremos, sentido, grupos, aviso, notas }: Props) {
+export default function LecturaResultado({ titulo, leyenda, extremos, sentido, grupos, aviso, notas, contraste }: Props) {
   const [notasAbiertas, setNotasAbiertas] = useState(false)
   const base = nombreArchivo(titulo)
 
@@ -107,6 +110,27 @@ export default function LecturaResultado({ titulo, leyenda, extremos, sentido, g
             {notas.map((nota) => (
               <p key={nota}>{nota}</p>
             ))}
+            {contraste && (
+              <table data-testid="contraste-colecciones">
+                <caption>{PIE_CONTRASTE}</caption>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Rojo</th>
+                    <th>NDVI</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CONTRASTE_COLECCIONES.map((fila) => (
+                    <tr key={fila.fecha}>
+                      <td>{fila.fecha}</td>
+                      <td>{fila.rojo}</td>
+                      <td>{fila.ndvi}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
