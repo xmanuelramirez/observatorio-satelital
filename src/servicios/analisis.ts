@@ -42,6 +42,8 @@ export interface EntradaLeyenda {
   color: string
   etiqueta: string
   detalle?: string
+  /** Se pinta a rayas, igual que en el mapa: un estado no va solo con color. */
+  entramado?: boolean
 }
 
 export interface ResultadoAnalisis {
@@ -49,6 +51,8 @@ export interface ResultadoAnalisis {
   /** Una banda para indice, cambio o clases; tres para color verdadero. */
   bandas: Float32Array[]
   colorear: (valores: number[]) => string | undefined
+  /** Celdas que se pintan a rayas diagonales en vez de llenas. */
+  entramado?: (valores: number[]) => boolean
   leyenda: EntradaLeyenda[]
   notas: string[]
   /**
@@ -692,9 +696,10 @@ export async function ejecutarAnalisis(
       rejilla,
       bandas: [clases],
       colorear: ([valor]) => (Number.isNaN(valor) ? undefined : colores[Math.round(valor)]),
+      entramado: ([valor]) => valor === 1,
       leyenda: [
         { color: COLOR_AGUA, etiqueta: 'Agua en las dos fechas', detalle: ha(permanente) },
-        { color: COLOR_CRECIDA, etiqueta: 'Agua nueva', detalle: ha(nueva) },
+        { color: COLOR_CRECIDA, etiqueta: 'Agua nueva', detalle: ha(nueva), entramado: true },
         { color: COLOR_RETIRADA, etiqueta: 'Agua que desapareció', detalle: ha(perdida) },
       ],
       notas,

@@ -96,7 +96,11 @@ export default function TarjetaResultado({ titulo, frase, detalle, aviso, notaFo
             {sentidoLeyenda && <li className="text-[13px] text-tinta-suave">{sentidoLeyenda}</li>}
             {leyenda.map((entrada) => (
               <li key={entrada.etiqueta} className="flex items-start gap-2.5 text-[13px]">
-                <span className="mt-1 inline-block h-3 w-3 shrink-0" style={{ background: entrada.color }} />
+                <span className="mt-1 inline-block h-3 w-3 shrink-0" style={{
+                    background: entrada.entramado
+                      ? `repeating-linear-gradient(135deg, ${entrada.color} 0 2px, transparent 2px 4px)`
+                      : entrada.color,
+                  }} />
                 <span>
                   <span className="font-medium">{entrada.etiqueta}</span>
                   {entrada.detalle && <span className="cifra block text-xs text-tinta-suave">{entrada.detalle}</span>}

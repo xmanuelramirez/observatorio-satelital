@@ -45,7 +45,7 @@ export function aRgb(color: string): [number, number, number] {
 }
 
 export function pintarResultado(resultado: ResultadoAnalisis): ResultadoPintado {
-  const { rejilla, bandas, colorear } = resultado
+  const { rejilla, bandas, colorear, entramado } = resultado
   const { ancho, alto } = rejilla
 
   if (rejilla.epsg !== 4326) {
@@ -61,6 +61,9 @@ export function pintarResultado(resultado: ResultadoAnalisis): ResultadoPintado 
 
     const color = colorear(valores)
     if (!color) continue
+
+    // Rayas diagonales de dos celdas: lo que no se pinta deja ver el fondo.
+    if (entramado?.(valores) && ((i % ancho) + Math.floor(i / ancho)) % 4 >= 2) continue
 
     let rgb = cache.get(color)
     if (!rgb) {
