@@ -94,6 +94,8 @@ export interface Escena {
   plataforma: string
   /** Codigo MGRS en Sentinel-2, path/row en Landsat, vacio en Sentinel-1. */
   malla: string
+  /** Linea base de procesamiento en Sentinel-2, p. ej. 05.00. Null en las demas misiones. */
+  lineaBase: string | null
   bbox: Bbox
   huella: Geometry
   thumbnail: string | null

@@ -92,6 +92,7 @@ function aEscena(item: ItemStac, coleccion: Coleccion): Escena {
     nubes: typeof nubesCrudas === 'number' ? nubesCrudas : null,
     plataforma: texto(props.platform).toUpperCase(),
     malla: malla(props),
+    lineaBase: texto(props['s2:processing_baseline']) || null,
     bbox: item.bbox,
     huella: item.geometry,
     thumbnail: assets[coleccion.assetVistaPrevia]?.href ?? null,

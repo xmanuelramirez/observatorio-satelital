@@ -40,7 +40,7 @@ export const CONTRASTE_COLECCIONES: { fecha: string; rojo: string; ndvi: string 
   { fecha: '10/04/2025', rojo: '0.0000', ndvi: '0.0000' },
 ]
 
-function mediana(valores: number[]): number {
+export function mediana(valores: number[]): number {
   const orden = [...valores].sort((a, b) => a - b)
   const mitad = orden.length >> 1
   return orden.length % 2 ? orden[mitad] : (orden[mitad - 1] + orden[mitad]) / 2

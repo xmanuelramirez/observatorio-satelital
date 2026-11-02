@@ -6,15 +6,19 @@
  * con desplazamiento 0, sin importar lo que declare su metadato: esa coleccion ya
  * resto el +1000 y aplicarlo otra vez cuenta doble (comprobado el 09/10/2026).
  *
- * NO REGENERAR DESDE CERO hasta tener la guarda por escena (a mas tardar el 01/12/2026):
- * seis escenas de la vieja, 13QHD del 29/01 al 23/02/2022, traen el +1000 sin restar con la
- * misma bandera que las corregidas. La serie esta limpia porque eligio el 28/02/2022, no
- * porque la regla la proteja. Una corrida normal no toca los meses cerrados.
+ * Seis fechas de la vieja, del 29/01 al 23/02/2022, traen el +1000 sin restar en sus dos mallas
+ * (12 escenas), con la misma bandera que las corregidas. La guarda por escena (`guarda-escena.ts`) descarta la fecha
+ * que traiga una: restarle 0.1 dejaria una escena corregida a ojo junto a una sin corregir. Y si
+ * un mes queda a mas de 0.05 de rojo de su mismo mes, la corrida termina en error, para que
+ * `npm run desplegar` no publique sin que alguien lo vea. Cada mes guarda sus escenas y su
+ * linea base. Una corrida normal no toca los meses cerrados.
  *
  * Criterio de exclusion y de rotulo, para todos los meses (dictamen del 30/10/2026):
- *  - Se excluye una fecha solo con causa fisica que el filtro de nubes no ve: eclipse, +1000
- *    sin restar o bruma (percentil 1 del rojo mayor de 0.06, como el 09/11/2025). Hoy solo el
- *    eclipse esta en codigo (`FECHAS_EXCLUIDAS`); las otras dos entran con la guarda.
+ *  - Se excluye una fecha solo con causa fisica que el filtro de nubes no ve: eclipse
+ *    (`FECHAS_EXCLUIDAS`), +1000 sin restar (`traeMilSinRestar`) o bruma (percentil 1 del rojo
+ *    mayor de 0.06, como el 09/11/2025). La bruma NO esta en codigo: ese corte no separa. El
+ *    09/11/2025 da 0.062 y 27 meses publicados de estiaje lo pasan, hasta 0.092 (auditoria del
+ *    01/11/2026). Automatizarlo sacaria esos meses; el corte espera al juez.
  *  - Se rotula, sin excluir, todo mes a mas de 0.02 de rojo o 0.05 de NDVI de la mediana de su
  *    mismo mes, sobre la zona urbana. Quitarlos seria escoger datos. La app los calcula de este
  *    JSON (`mesesApartados`, en `src/lib/lineaTiempo.ts`): hoy son 2017-09, 2017-10, 2018-05,
@@ -43,7 +47,8 @@ import { PNG } from 'pngjs'
 import type { FeatureCollection } from 'geojson'
 import { bboxDe } from '../src/servicios/geojson'
 import { buscarEscenas } from '../src/servicios/stac'
-import { obtenerMosaico } from '../src/servicios/pilas'
+import { obtenerMosaico, obtenerPilaEscena } from '../src/servicios/pilas'
+import { CORTE_ALARMA_ROJO, desviacionDelMismoMes, traeMilSinRestar } from './guarda-escena'
 import { mascaraDeArea } from '../src/servicios/mascara'
 import { rejillaDe } from '../src/servicios/raster'
 import { aRgb } from '../src/servicios/pintura'
@@ -54,7 +59,8 @@ import { buscarColeccion } from '../src/datos/colecciones'
 import type { Coleccion, Escena, GrupoDia } from '../src/tipos'
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const SALIDA = join(RAIZ, 'public', 'apertura', 'evolucion', 'historia')
+/** `HISTORIA_SALIDA` permite probar sin tocar lo que se publica. */
+const SALIDA = process.env.HISTORIA_SALIDA ?? join(RAIZ, 'public', 'apertura', 'evolucion', 'historia')
 const REFERENCIA = '2026-10-20'
 const LADO_COLOR = 2000
 const LADO_NDVI = 1024
@@ -85,11 +91,13 @@ function sinDesplazamiento(escena: Escena): Escena {
 
 /**
  * La coleccion vieja repite algunas mallas con una copia en s3:// de una cubeta que cobra
- * al que lee. Solo sirven las que se pueden leer por https, y una por malla.
+ * al que lee, o con otra version del procesado. Solo sirven las que se pueden leer por
+ * https, y una por malla: la de linea base mas reciente, no la que el STAC devuelva primero.
  */
 function legibles(escenas: Escena[]): Escena[] {
   const vistas = new Set<string>()
-  return escenas.filter((escena) => {
+  const recientes = [...escenas].sort((a, b) => (b.lineaBase ?? '').localeCompare(a.lineaBase ?? ''))
+  return recientes.filter((escena) => {
     // Solo importan las bandas que se leen: los metadatos de la escena pueden seguir en s3://.
     const abierta = ['red', 'green', 'blue', 'nir', 'scl'].every((nombre) => escena.assets[nombre]?.href.startsWith('https://'))
     if (!abierta || vistas.has(escena.malla)) return false
@@ -190,12 +198,22 @@ async function main() {
   const previo = existsSync(rutaJson) ? JSON.parse(await readFile(rutaJson, 'utf-8')) : { meses: {} }
   const meses: Record<string, unknown> = previo.meses
   const inicio = Date.now()
+  const alarmas: string[] = []
 
   const buscarEn = async (coleccion: Coleccion, mes: string): Promise<GrupoDia[]> => {
     const { grupos } = await conReintentos(() =>
       buscarEscenas({ coleccion, bbox, desde: `${mes}-01`, hasta: finDeMes(mes), nubesMax: NUBES_ESCENA, limite: 60 }),
     )
     return fechasCompletas(grupos, bbox)
+  }
+
+  /** Misma lectura que `nubesSobreArea`: la pila queda en cache y no se baja dos veces. */
+  const conMilSinRestar = async (grupo: GrupoDia, coleccion: Coleccion): Promise<Escena | null> => {
+    for (const escena of grupo.escenas) {
+      const { pila } = await conReintentos(() => obtenerPilaEscena(escena, coleccion, ['rojo'], rejillaNubes, true))
+      if (traeMilSinRestar(pila.bandas.rojo)) return escena
+    }
+    return null
   }
 
   /** Las nubes que de verdad caen sobre la silueta, no las de toda la malla. */
@@ -219,8 +237,19 @@ async function main() {
       const grupos = (await buscarEn(coleccion, mes))
         .map((g) => (coleccion === vieja ? { ...g, escenas: legibles(g.escenas).map(sinDesplazamiento) } : g))
         .filter((g) => g.escenas.length > 0 && !FECHAS_EXCLUIDAS.has(g.dia))
-      const orden = [...grupos].sort((a, b) => (a.nubes ?? 99) - (b.nubes ?? 99)).slice(0, CANDIDATAS)
+      const orden = [...grupos].sort((a, b) => (a.nubes ?? 99) - (b.nubes ?? 99))
+      let candidatas = 0
       for (const grupo of orden) {
+        if (candidatas >= CANDIDATAS) break
+        // Una fecha descartada no gasta candidata: en febrero de 2022 las limpias son las que traen el +1000.
+        if (coleccion === vieja) {
+          const mala = await conMilSinRestar(grupo, coleccion)
+          if (mala) {
+            console.log(`${mes}: ${grupo.dia} descartada, ${mala.id} trae el +1000 sin restar`)
+            continue
+          }
+        }
+        candidatas++
         const nubes = await nubesSobreArea(grupo, coleccion)
         if (nubes <= NUBES_AREA && (!elegida || nubes < elegida.nubes)) elegida = { grupo, coleccion, nubes, fuente }
       }
@@ -285,11 +314,23 @@ async function main() {
       dia: grupo.dia,
       nubesArea: Number(nubes.toFixed(1)),
       fuente,
+      escenas: grupo.escenas.map((escena) => ({ id: escena.id, lineaBase: escena.lineaBase })),
       urbana: { rojo: redondo(mediana(rojoUrbano)), nir: redondo(mediana(nirUrbano)), ndvi: redondo(mediana(ndviUrbano)) },
       bytes: pesoColor + pesoNdvi,
     }
+    const rojoDelMes = redondo(mediana(rojoUrbano))
+    const desviacion = rojoDelMes === null ? null : desviacionDelMismoMes(meses, mes, rojoDelMes)
+    if (desviacion !== null && Math.abs(desviacion) > CORTE_ALARMA_ROJO) {
+      alarmas.push(`${mes} (${grupo.dia}): rojo urbano a ${desviacion.toFixed(3)} de la mediana de su mismo mes`)
+    }
     await writeFile(rutaJson, `${JSON.stringify({ limites: [[bbox[1], bbox[0]], [bbox[3], bbox[2]]], escala: { p2, p98, cortes }, meses })}\n`)
     console.log(`${mes}: ${grupo.dia} ${fuente}, nubes ${nubes.toFixed(1)} %, rojo urbano ${redondo(mediana(rojoUrbano))}, ${((pesoColor + pesoNdvi) / 1e6).toFixed(1)} MB, ${((Date.now() - inicio) / 60000).toFixed(1)} min`)
+  }
+  if (alarmas.length > 0) {
+    // Con codigo de error se detiene `npm run desplegar`: el mes hay que verlo antes de publicarlo.
+    console.error(`ALARMA, revisar antes de publicar:\n${alarmas.join('\n')}`)
+    process.exitCode = 1
+    return
   }
   console.log('historia: lista')
 }
