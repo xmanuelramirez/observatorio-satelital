@@ -92,13 +92,13 @@ def main() -> None:
     for lo, hi, color, nombre in CLASES:
         sel = (dmin > lo) & (dmin <= hi) if lo else dmin <= hi
         pct = 100 * pob[sel].sum() / pob.sum()
-        detalle = f"rango {min(sin[0], con[0]):.0f} a {max(sin[1], con[1]):.0f} %" if not lo else f"modelo: {pct:.0f} %"
+        detalle = f"rango {sin[0]:.0f} a {sin[1]:.0f} %" if not lo else f"modelo: {pct:.0f} %"
         leyenda.append({"color": hex_de(color), "etiqueta": nombre, "detalle": detalle})
     leyenda.append({"color": "#ffffff", "etiqueta": f"Zona prioritaria ({prior['robustas']} AGEB)"})
 
     notas = [
         "Distancia caminando por calles hasta el borde del espacio verde público de 0.5 ha o más más cercano, desde cada celda de 100 m del límite urbano.",
-        f"Población a 400 m o menos (criterio A-1 de la NOM-001-SEDATU-2021): solo se da como rango. Sin contar deportivos sin vegetación, {sin[0]:.1f} a {sin[1]:.1f} %; contándolos, {con[0]:.1f} a {con[1]:.1f} %. Si cuentan o no lo fija NBS.",
+        f"Población a 400 m o menos de un espacio verde (criterio A-1 de la NOM-001-SEDATU-2021): {sin[0]:.1f} a {sin[1]:.1f} %, solo como rango. Las unidades deportivas sin vegetación son espacio público pero no espacio verde (regla de NBS con la NOM); contándolas como espacio público, el rango sería {con[0]:.1f} a {con[1]:.1f} %.",
         "El inventario junta OpenStreetMap y las áreas verdes del PMDUOET 2020. No cuentan plazas sin vegetación, áreas dentro de cotos, camellones, baldíos ni monte. Una muestra de 101 polígonos se revisó en imagen de alta resolución por dos revisores independientes (kappa 0.91 en sí o no); el resto lo clasificó un modelo entrenado con esas etiquetas (exactitud balanceada 0.86).",
         "El mapa muestra el escenario del modelo. Las zonas prioritarias son las AGEB con más habitantes lejos de las tres distancias de la NOM (400 m a 0.5 ha, 600 m a 4 ha y 800 m a 7.5 ha) en los tres escenarios: cota baja, modelo y cota alta. Las que dependen del escenario no se marcan.",
         "Dos lagunas con arbolado al norte siguen a confirmar y no se suman. Los parques que no están en ninguna de las dos fuentes no se cuentan: la cifra real puede ser algo mayor.",

@@ -74,9 +74,14 @@ def inventarios(base: pd.DataFrame) -> dict[str, np.ndarray]:
         ambos_si = r["es_parque"] == "si" and r["juez"] == "si"
         alguno_si = "si" in (r["es_parque"], r["juez"]) or "dudoso" in (r["es_parque"], r["juez"])
         acuerdo = r["es_parque"] == r["juez"] and r["es_parque"] in ("si", "no")
-        especial = int(r["n"]) in DEPORTIVOS or int(r["n"]) == CANADA
-        salida["baja"][i] = ambos_si and not especial
-        salida["alta"][i] = alguno_si or especial
+        # Regla de NBS (09/11/2026, NOM-001-SEDATU-2021): un deportivo sin vegetacion es espacio publico,
+        # no espacio verde. Queda fuera de los tres inventarios. El #63 sigue fuera de la baja y dentro de la alta.
+        if int(r["n"]) in DEPORTIVOS:
+            salida["baja"][i] = salida["modelo"][i] = salida["alta"][i] = False
+            continue
+        canada = int(r["n"]) == CANADA
+        salida["baja"][i] = ambos_si and not canada
+        salida["alta"][i] = alguno_si or canada
         if acuerdo:
             salida["modelo"][i] = r["es_parque"] == "si"
     return salida
@@ -200,8 +205,7 @@ def mapa(skill: str, parques, tabla, ageb_geom, cifras) -> None:
                 path_effects=[pe.withStroke(linewidth=2.4, foreground="white", alpha=0.9)])
     # El rango que se publica es el de la muestra corregida (dos variantes de deportivos), no el determinista.
     var = json.loads((SALIDA / "correccion-a1.json").read_text(encoding="utf-8"))["variantes"]
-    b = min(v["rango"][0] for v in var.values())
-    a = max(v["rango"][1] for v in var.values())
+    b, a = var["sin_deportivos_sin_vegetacion"]["rango"]
     m = cifras["modelo"]["a1_pct"]
     leyenda_vertical(ax, [
         ("area", dict(color=C["regenerada"]), "Espacio verde público de 0.5 ha o más (modelo)"),
