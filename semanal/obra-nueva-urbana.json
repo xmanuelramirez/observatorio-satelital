@@ -4,12 +4,14 @@
     "id": "LIMITE_URBANO",
     "etiqueta": "Zona urbana"
   },
-  "generado": "2026-11-02T14:39:05.479Z",
+  "generado": "2026-11-09T22:56:46.470Z",
   "coleccion": "Sentinel-2 L2A",
-  "fechaActual": "2026-11-01",
+  "fechaActual": "2026-11-04",
   "fechaBase": "2026-09-22",
-  "separacionDias": 40,
-  "nubesActual": 0.0358545,
+  "separacionDias": 43,
+  "objetivoBase": "2026-10-05",
+  "baseFueraDeVentana": true,
+  "nubesActual": 0.8660455,
   "nubesBase": 4.4741925,
   "mallas": [
     "13QHD",
@@ -20,42 +22,42 @@
     "areaMinimaHa": 1,
     "rejilla": 1024
   },
-  "zonas": 29,
-  "hectareas": 41.3,
+  "zonas": 26,
+  "hectareas": 38.9,
   "cifraConfiable": false,
   "perdidaVegetacion": {
-    "zonas": 88,
-    "hectareas": 243.7
+    "zonas": 131,
+    "hectareas": 360.2
   },
   "avisoFenologia": {
     "activo": true,
-    "medianaDndvi": -0.107
+    "medianaDndvi": -0.129
   },
   "principales": [
+    {
+      "hectareas": 3.1,
+      "lat": 21.10865,
+      "lon": -101.76112
+    },
     {
       "hectareas": 3.1,
       "lat": 21.08401,
       "lon": -101.74182
     },
     {
-      "hectareas": 2.8,
-      "lat": 21.0892,
-      "lon": -101.68745
+      "hectareas": 2.6,
+      "lat": 21.0893,
+      "lon": -101.68747
     },
     {
-      "hectareas": 2.1,
-      "lat": 21.16146,
-      "lon": -101.75086
+      "hectareas": 2.3,
+      "lat": 21.16142,
+      "lon": -101.75081
     },
     {
       "hectareas": 2,
       "lat": 21.20345,
-      "lon": -101.68555
-    },
-    {
-      "hectareas": 1.9,
-      "lat": 21.09307,
-      "lon": -101.76354
+      "lon": -101.68566
     }
   ],
   "limites": [
@@ -70,11 +72,12 @@
   ],
   "imagen": "obra-nueva-urbana.png",
   "notas": [
-    "El verdor cambió fuera de lo construido (mediana de -0.107 en NDVI): parte de lo detectado puede ser temporada y no un cambio real.",
-    "Separación temporal: 40 días entre 2026-09-22 y 2026-11-01. Sentinel-2 L2A revisita cada 5 días, así que es el paso más fino disponible.",
+    "Sin imagen limpia a 12 días o menos del 2026-10-05: la base es la limpia más cercana, del 2026-09-22.",
+    "El verdor cambió fuera de lo construido (mediana de -0.129 en NDVI): parte de lo detectado puede ser temporada y no un cambio real.",
+    "Separación temporal: 43 días entre 2026-09-22 y 2026-11-04. Sentinel-2 L2A revisita cada 5 días, así que es el paso más fino disponible.",
     "Rejilla 1024 por 1024 sobre el área, celda de 23 por 19 m (sensor nativo 10 m).",
     "Recortado al polígono de Zona urbana: 23,057 ha dentro del área.",
-    "Mosaico de 2 escenas del 2026-11-01: 13QHD 100 por ciento, 14QKJ 0 por ciento.",
+    "Mosaico de 2 escenas del 2026-11-04: 13QHD 100 por ciento, 14QKJ 0 por ciento.",
     "Máscara de nubes de la fecha actual (scl): 13QHD con 0.0 por ciento nublado de lo que observa, 14QKJ con 0.0 por ciento nublado de lo que observa.",
     "El área queda cubierta por completo.",
     "Máscara de nubes de la fecha base (scl): 13QHD con 3.7 por ciento nublado de lo que observa, 14QKJ con 3.7 por ciento nublado de lo que observa.",
