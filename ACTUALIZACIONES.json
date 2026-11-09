@@ -294,5 +294,13 @@
     "resumen": "En Capas globales, la distancia por calles desde cada punto de la zona urbana hasta el espacio verde público de 0.5 ha o más más cercano, con los cortes de la NOM-001-SEDATU-2021 y las 14 zonas prioritarias que se sostienen en los tres escenarios. El porcentaje de población a 400 m o menos se da solo como rango: 9 a 17 % sin contar deportivos sin vegetación y 11 a 19 % contándolos. El inventario junta OpenStreetMap y las áreas verdes del PMDUOET 2020, filtrado con NDVI y con una muestra revisada a ciegas por dos revisores.",
     "seccion_manual": "Funciones · Capas globales",
     "evidencia": "Orden del MASTER del 09/11/2026; dictamen del juez de la revisión ciega (procede con condiciones)"
+  },
+  {
+    "fecha": "2026-11-09",
+    "tipo": "correccion",
+    "titulo": "El resumen semanal de obra nueva ya no se queda sin foto cuando falta una fecha base limpia",
+    "resumen": "Si no hay imagen limpia a 12 días de la fecha de hace un mes, el resumen toma la limpia más cercana entre 14 y 75 días antes y lo declara en el mensaje, en vez de no generarse. El 09/11/2026 la base fue el 22/09 contra el 04/11 (43 días). Las hectáreas siguen marcadas como no confiables fuera de julio a octubre.",
+    "seccion_manual": "Funciones · Resumen semanal",
+    "evidencia": "c9a3210; corrida manual de Resumen semanal del 09/11/2026 en verde"
   }
 ]
