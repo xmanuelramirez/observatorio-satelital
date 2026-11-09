@@ -56,8 +56,8 @@ export default function PanelProductos({
       )}
 
       <p className="mt-2 text-xs leading-snug text-rotulo">
-        Precalculadas al construir el sitio a partir de Planetary Computer: aparecen al
-        instante y no dependen de la búsqueda de escenas.
+        Precalculadas al construir el sitio (Planetary Computer y capas propias del
+        observatorio): aparecen al instante y no dependen de la búsqueda de escenas.
       </p>
     </section>
   )

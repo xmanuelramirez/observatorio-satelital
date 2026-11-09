@@ -73,7 +73,8 @@ async function main() {
   const pedido = process.argv.includes('--producto')
     ? process.argv[process.argv.indexOf('--producto') + 1]
     : null
-  const productos = pedido ? PRODUCTOS.filter((p) => p.id === pedido) : PRODUCTOS
+  // Las capas propias (soloPrecalculado) las hacen sus propias herramientas, no Planetary Computer.
+  const productos = (pedido ? PRODUCTOS.filter((p) => p.id === pedido) : PRODUCTOS).filter((p) => !p.soloPrecalculado)
   if (productos.length === 0) {
     throw new Error(`No hay ningún producto que se llame ${pedido}`)
   }

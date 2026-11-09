@@ -774,7 +774,7 @@ export default function App() {
       setErrorProducto(null)
 
       try {
-        const ruta = `${import.meta.env.BASE_URL}precalculado/${area}/${id}`
+        const ruta = `${import.meta.env.BASE_URL}${definicion.soloPrecalculado ?? `precalculado/${area}/${id}`}`
         const precalculado = await fetch(`${ruta}.json`).catch(() => null)
 
         if (precalculado?.ok) {
@@ -794,6 +794,8 @@ export default function App() {
               `Precalculado al construir el sitio (${diaLocal(datos.generado)}), no en tu navegador.`,
             ],
           })
+        } else if (definicion.soloPrecalculado) {
+          throw new Error('Esta capa no viene en este despliegue')
         } else {
           // Area sin precalculo: se calcula aqui, que es lo lento.
           const salida = await cargarProducto({
@@ -828,7 +830,7 @@ export default function App() {
     const abre = seccion !== id
     setSeccion(abre ? id : null)
     if (!abre) return
-    if (id === 'referencia' && !producto) void lanzarProducto(PRODUCTOS[0].id)
+    if (id === 'referencia' && !producto) void lanzarProducto((PRODUCTOS.find((p) => !p.soloPrecalculado) ?? PRODUCTOS[0]).id)
     if (id === 'hidrologia' && subcuencasCn && !escurrimiento) lanzarEscurrimiento()
   }
 
@@ -1081,6 +1083,7 @@ export default function App() {
           <section id="mapa">
             <div className="mapa-entra h-full">
               <Mapa
+                atribucion={producto === 'espacio-verde' && productoVista ? '© colaboradores de OpenStreetMap (ODbL)' : null}
                 capas={CAPAS}
                 datosCapas={datosCapas}
                 visibles={visibles}

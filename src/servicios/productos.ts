@@ -17,7 +17,7 @@ import type { AssetBanda, Bbox } from '../tipos'
  * entrega firma anonima.
  */
 
-export type IdProducto = 'agua-historica' | 'cobertura' | 'evapotranspiracion'
+export type IdProducto = 'agua-historica' | 'cobertura' | 'evapotranspiracion' | 'espacio-verde'
 
 interface Interpretacion {
   bandas: Float32Array[]
@@ -41,6 +41,11 @@ interface DefinicionProducto {
    * una decision y ademas puede cambiar sin avisar.
    */
   plataforma?: string
+  /**
+   * Capa propia del observatorio, solo precalculada (ruta bajo la raiz del sitio, sin extension). No
+   * hay calculo en vivo ni depende del area: es la misma imagen para las tres.
+   */
+  soloPrecalculado?: string
   interpretar: (valores: Float32Array, hectareasPorCelda: number) => Interpretacion
 }
 
@@ -75,6 +80,19 @@ function hectareas(celdas: number, hectareasPorCelda: number): string {
 }
 
 export const PRODUCTOS: DefinicionProducto[] = [
+  {
+    id: 'espacio-verde',
+    etiqueta: 'Distancia a espacio verde',
+    descripcion: 'Caminando por calles hasta un parque público de 0.5 ha o más',
+    coleccion: '',
+    asset: '',
+    metros: 100,
+    fuente: 'OpenStreetMap, PMDUOET 2020, INEGI 2020 y Sentinel-2',
+    soloPrecalculado: 'apertura/espacio-verde/capa',
+    interpretar: () => {
+      throw new Error('Esta capa solo existe precalculada')
+    },
+  },
   {
     id: 'agua-historica',
     etiqueta: 'Agua histórica',

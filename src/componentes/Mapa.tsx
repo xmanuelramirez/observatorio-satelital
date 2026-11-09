@@ -9,6 +9,8 @@ import { xDe, yDe } from '../lib/proyeccion'
 import VeloFoco from './VeloFoco'
 
 interface Props {
+  /** Atribucion que exige la capa puesta, ademas de la de Sentinel (la licencia ODbL de OSM, por ejemplo). */
+  atribucion?: string | null
   capas: Capa[]
   datosCapas: Record<string, FeatureCollection>
   visibles: Set<IdCapa>
@@ -60,16 +62,16 @@ export type IdFondo = keyof typeof FONDOS
  * mantiene al dia y dispara el resize que AjustarA espera para encuadrar.
  */
 /** Atribucion de las imagenes que se analizan; el fondo de referencia trae la suya. */
-function AtribucionFuentes() {
+function AtribucionFuentes({ extra }: { extra: string | null }) {
   const mapa = useMap()
 
   useEffect(() => {
-    const texto = 'Contiene datos modificados de Copernicus Sentinel 2026'
-    mapa.attributionControl?.addAttribution(texto)
+    const textos = ['Contiene datos modificados de Copernicus Sentinel 2026', ...(extra ? [extra] : [])]
+    for (const texto of textos) mapa.attributionControl?.addAttribution(texto)
     return () => {
-      mapa.attributionControl?.removeAttribution(texto)
+      for (const texto of textos) mapa.attributionControl?.removeAttribution(texto)
     }
-  }, [mapa])
+  }, [mapa, extra])
 
   return null
 }
@@ -166,6 +168,7 @@ function AjustarA({ bbox }: { bbox: Bbox | null }) {
 }
 
 export default function Mapa({
+  atribucion = null,
   capas,
   datosCapas,
   visibles,
@@ -278,7 +281,7 @@ export default function Mapa({
         </CircleMarker>
       ))}
 
-      <AtribucionFuentes />
+      <AtribucionFuentes extra={atribucion} />
       <SeguirTamano />
       <AjustarA bbox={areaBbox} />
     </MapContainer>

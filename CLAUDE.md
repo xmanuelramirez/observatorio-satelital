@@ -46,6 +46,12 @@ termina en error, un mes quedó a más de 0.05 de rojo de su mismo mes: se revis
 `npx tsx herramientas/auditar-historia.ts` repasa lo publicado sin cambiar imágenes. Dictamen en
 `ORDENES-DEL-MASTER/2026-10-30-DICTAMEN-JUEZ-LINEA-DE-TIEMPO.md`.
 
+La capa «Distancia a espacio verde» (`public/apertura/espacio-verde/`) no la genera `npm run desplegar`: sale
+de `herramientas/espacio_verde*.py`, en orden `espacio_verde`, `espacio_verde_cifras`, `espacio_verde_muestra`,
+`espacio_verde_rf`, `espacio_verde_prioridad` y `espacio_verde_capa`. Los insumos de OSM, NDVI e INEGI y la
+revisión de la muestra viven en `salidas/espacio-verde/`. El A-1 se publica solo como rango (dictamen del juez del
+09/11/2026). La imagen de Esri se usó solo para revisar la muestra: no entra a la app.
+
 Cada cambio visible para quien usa la plataforma se anota en `ACTUALIZACIONES.json`, en el
 formato del MASTER. De ahí salen la bitácora de SISPLAN y el control de versiones del manual.
 

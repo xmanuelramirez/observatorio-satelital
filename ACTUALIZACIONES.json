@@ -286,5 +286,13 @@
     "resumen": "Nueva estructura: panel con tarjetas de imagen y nombres simples, logo de SAPAL y recorte neto al límite municipal. Cambiar de área o de modo ya no calcula: cada combinación viene lista con la última escena limpia. La línea de tiempo muestra una imagen limpia por mes desde 2017 en Color y Vegetación, 100 de 118 meses, con una sola escala, y cambia en seco entre fechas. No indica tendencia de un año a otro: el verdor sube y baja con las lluvias y con el día de la toma, y así lo dice el rótulo a la vista. Los meses sin imagen no tuvieron ninguna con 10 por ciento de nubes o menos. Otra fecha u otros ajustes siguen calculándose en vivo.",
     "seccion_manual": "Funciones · Interfaz",
     "evidencia": "a3e13fb, versión 4ab9cef7. Aprobada por Carlos el 30/10/2026; maqueta de DISEÑO en 16. DISEÑO/plataformas/observatorio-satelital"
+  },
+  {
+    "fecha": "2026-11-09",
+    "tipo": "capacidad",
+    "titulo": "Nueva capa: distancia caminando a un espacio verde público",
+    "resumen": "En Capas globales, la distancia por calles desde cada punto de la zona urbana hasta el espacio verde público de 0.5 ha o más más cercano, con los cortes de la NOM-001-SEDATU-2021 y las 14 zonas prioritarias que se sostienen en los tres escenarios. El porcentaje de población a 400 m o menos se da solo como rango: 9 a 17 % sin contar deportivos sin vegetación y 11 a 19 % contándolos. El inventario junta OpenStreetMap y las áreas verdes del PMDUOET 2020, filtrado con NDVI y con una muestra revisada a ciegas por dos revisores.",
+    "seccion_manual": "Funciones · Capas globales",
+    "evidencia": "Orden del MASTER del 09/11/2026; dictamen del juez de la revisión ciega (procede con condiciones)"
   }
 ]
