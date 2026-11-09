@@ -40,6 +40,13 @@ const NUBES_MAX = 15
 /** Separacion buscada entre las dos fechas, y cuanto se tolera de mas o de menos. */
 const SEPARACION_DIAS = 30
 const TOLERANCIA_DIAS = 12
+/**
+ * Si en la ventana no hay fecha limpia (lluvias, nubes), se toma la limpia mas cercana al objetivo
+ * entre estos extremos y se declara, en vez de no mandar nada (orden del MASTER del 09/11/2026).
+ * El 09/11/2026 fallo asi: ninguna fecha limpia a +-12 dias del 05/10/2026.
+ */
+const SEPARACION_MINIMA_DIAS = 14
+const SEPARACION_MAXIMA_DIAS = 75
 /** A 1024 celdas la zona urbana queda cerca de la resolucion nativa de 10 m. */
 const TAMANO = 1024
 
@@ -197,7 +204,7 @@ async function main() {
   const { grupos } = await buscarEscenas({
     coleccion,
     bbox,
-    desde: restarDias(hoy, SEPARACION_DIAS + TOLERANCIA_DIAS + 21),
+    desde: restarDias(hoy, SEPARACION_MAXIMA_DIAS + 21),
     hasta: hoy,
     nubesMax: NUBES_MAX,
     limite: 100,
@@ -207,13 +214,22 @@ async function main() {
   // Mas reciente primero. La base es la fecha mas cercana a un mes antes.
   const actual = grupos[0]
   const objetivo = restarDias(actual.dia, SEPARACION_DIAS)
-  const candidatas = grupos.filter(
-    (g) => Math.abs(diasEntre(objetivo, g.dia)) <= TOLERANCIA_DIAS && g.dia !== actual.dia,
-  )
-  if (candidatas.length === 0) throw new Error(`No hay fecha base limpia cerca de ${objetivo}`)
+  const separacion = (g: GrupoDia) => diasEntre(g.dia, actual.dia)
+  const enVentana = grupos.filter((g) => Math.abs(diasEntre(objetivo, g.dia)) <= TOLERANCIA_DIAS && g.dia !== actual.dia)
+  const ampliada = grupos.filter((g) => separacion(g) >= SEPARACION_MINIMA_DIAS && separacion(g) <= SEPARACION_MAXIMA_DIAS)
+  const candidatas = enVentana.length > 0 ? enVentana : ampliada
+  if (candidatas.length === 0) {
+    throw new Error(
+      `No hay fecha base limpia entre ${SEPARACION_MINIMA_DIAS} y ${SEPARACION_MAXIMA_DIAS} dias antes de ${actual.dia}`,
+    )
+  }
+  const baseFueraDeVentana = enVentana.length === 0
   const base: GrupoDia = candidatas.reduce((mejor, g) =>
     Math.abs(diasEntre(objetivo, g.dia)) < Math.abs(diasEntre(objetivo, mejor.dia)) ? g : mejor,
   )
+  if (baseFueraDeVentana) {
+    console.log(`Sin fecha limpia a +-${TOLERANCIA_DIAS} dias de ${objetivo}: se usa ${base.dia}, la limpia mas cercana`)
+  }
 
   const inicio = Date.now()
   const resultado = await ejecutarAnalisis({
@@ -252,6 +268,9 @@ async function main() {
     fechaActual: actual.dia,
     fechaBase: base.dia,
     separacionDias: diasEntre(base.dia, actual.dia),
+    // La base buscada y si hubo que salir de la ventana de +-TOLERANCIA_DIAS para encontrar una limpia.
+    objetivoBase: objetivo,
+    baseFueraDeVentana,
     nubesActual: actual.nubes,
     nubesBase: base.nubes,
     mallas: actual.escenas.map((e) => e.malla),
@@ -277,7 +296,12 @@ async function main() {
     })),
     limites: pintado.limites,
     imagen: 'obra-nueva-urbana.png',
-    notas: resultado.notas,
+    notas: [
+      ...(baseFueraDeVentana
+        ? [`Sin imagen limpia a ${TOLERANCIA_DIAS} días o menos del ${objetivo}: la base es la limpia más cercana, del ${base.dia}.`]
+        : []),
+      ...resultado.notas,
+    ],
   }
   await writeFile(join(SALIDA, 'obra-nueva-urbana.json'), `${JSON.stringify(salida, null, 2)}\n`)
 
