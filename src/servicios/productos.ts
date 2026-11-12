@@ -20,6 +20,8 @@ import type { AssetBanda, Bbox } from '../tipos'
 /** Una capa precalculada con varias imagenes que se recorren (los horizontes del automata en «Zonas de crecimiento»). */
 export interface PasosProducto {
   rotulo: string
+  /** Rotulo corto junto a los botones (p. ej. que los anos son horizontes del modelo, no fechas ciertas). */
+  nota?: string
   inicial: number | string
   lista: { etiqueta: string; imagen: string; leyenda: EntradaLeyenda[] }[]
 }

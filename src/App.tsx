@@ -958,7 +958,7 @@ export default function App() {
   const etiquetaArea = NOMBRE_AREA[area] ?? area
 
   const tituloResultado = productoVista
-    ? `${PRODUCTOS.find((p) => p.id === producto)?.etiqueta ?? 'Capa de referencia'}${productoVista.pasos ? ` · autómata a ${productoVista.pasos.elegido}` : ''}`
+    ? `${PRODUCTOS.find((p) => p.id === producto)?.etiqueta ?? 'Capa de referencia'}${productoVista.pasos ? ` · horizonte ${productoVista.pasos.elegido} del autómata` : ''}`
     : diaActual
       ? `${ETIQUETA_MODO[modo]} · ${diaActual}`
       : 'Resultado'
@@ -1169,6 +1169,7 @@ export default function App() {
                       {paso.etiqueta}
                     </button>
                   ))}
+                  {productoVista.pasos.nota && <span className="indices-nota">{productoVista.pasos.nota}</span>}
                 </div>
               )}
               {(errorCapas || errorRaster || errorBusqueda) && (

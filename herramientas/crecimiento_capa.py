@@ -86,6 +86,9 @@ def main() -> None:
 
     auto = gpd.read_file(APPS / "0. CAPAS VARIAS" / "AUTOMATAS_CELULARES" / "COMBINADO.shp").to_crs(4326)
     auto["geometry"] = auto.make_valid()
+    # COMBINADO trae las seis capas crecimiento_2025 a crecimiento_2050 tal cual (campo `layer`); crecimiento_2030a no entra:
+    # no es horizonte, es subconjunto de 2030 (dictamen del juez, 12/11/2026). El campo `year` no dice si es inicio o fin
+    # del periodo: en pantalla va como «horizonte del modelo», con el ano base supuesto.
     # Cada poligono es lo que el automata suma en su horizonte (los horizontes casi no se traslapan: 16 ha de 4 915). Una
     # celda queda con el primer horizonte que la toca.
     horizonte = np.zeros(forma, np.int32)
@@ -159,16 +162,16 @@ def main() -> None:
         "Crecimiento 2000-2020: superficie construida (techos, sin calles), modelo GHSL R2023A (Centro Común de Investigación de la CE, CC BY 4.0). 2000 es época observada con Landsat; 2020 es modelada a partir de Sentinel-2 2018. Una celda de 100 m creció si subió 1 000 m² o más; es expansión si en 2000 tenía menos de 20 % construido.",
         f"Factibilidades nuevas: {len(fact) if fact is not None else 0} lotes del 30/09 al 21/10/2026 (Nuevos Desarrollos), solo contorno. Son solicitudes posteriores a las imágenes: todavía no se ven construidas.",
         f"Referencia, sin recalcular: Análisis de Cuentas proyecta para el municipio {tasa_25_30 * 100:.1f} % de crecimiento de población al año de 2025 a 2030 y {tasa_30_50 * 100:.1f} % de 2030 a 2050 ({proy['fuente']}).",
-        "Autómatas celulares: modelo de crecimiento de SAPAL (2025), horizontes de 2025 a 2050; año base supuesto 2025. Cada horizonte suma lo que el modelo prevé urbanizar en ese quinquenio, en un azul más claro cuanto más lejano; los botones de arriba recorren los horizontes. Donde ya hubo crecimiento 2000-2020 se ve lo observado. Convenios: desarrollos con factibilidad convenida de 2025 y 2026, solo contorno.",
+        "Autómatas celulares: modelo de crecimiento de SAPAL (2025), horizontes de 2025 a 2050; año base supuesto 2025. Los años son horizontes del modelo, no fechas ciertas. Cada horizonte suma lo que el modelo prevé urbanizar, en un azul más claro cuanto más lejano; los botones de arriba recorren los horizontes. Donde ya hubo crecimiento 2000-2020 se ve lo observado. Convenios: desarrollos con factibilidad convenida de 2025 y 2026, solo contorno.",
         "La concordancia entre el crecimiento observado, las factibilidades, los convenios y el autómata está en revisión del juez; sus cifras no se muestran todavía.",
     ]
     def leyenda_de(anio: int) -> list[dict]:
-        return leyenda + [{"color": hex_(HORIZONTES[h]), "etiqueta": f"Autómata celular: se suma en {h}"}
+        return leyenda + [{"color": hex_(HORIZONTES[h]), "etiqueta": f"Autómata celular, horizonte {h}"}
                           for h in sorted(HORIZONTES) if h <= anio]
 
     datos = {"producto": "zonas-crecimiento", "limites": [[float(y0), float(x0)], [float(y1), float(x1)]],
              "leyenda": leyenda_de(max(pasos)), "notas": notas, "generado": datetime.now(timezone.utc).isoformat(),
-             "pasos": {"rotulo": "Horizonte del autómata", "inicial": max(pasos),
+             "pasos": {"rotulo": "Horizonte del autómata", "nota": "Horizontes del modelo; año base supuesto 2025", "inicial": max(pasos),
                        "lista": [{"etiqueta": str(a), "imagen": f"capa-{a}.png", "leyenda": leyenda_de(a)} for a in pasos]}}
     (DESTINO / "capa.json").write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps({"celdas_expansion": int(expansion.sum()), "celdas_consolidacion": int(consolidacion.sum()),
