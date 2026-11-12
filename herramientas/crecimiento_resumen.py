@@ -131,23 +131,36 @@ def main() -> None:
     pob = {int(k): v for k, v in proy["poblacion"].items()}
     previsto = []
     interno_4 = {}
+    # Superficie por horizonte del vector (EPSG:32614), cada parte en el primer horizonte que la toca: suma la union de
+    # 4,914.9 ha. El raster a 10 m solo reparte esa superficie entre expansion y consolidacion (MASTER, 12/11/2026).
+    utm = auto.to_crs(32614)
+    mun_utm = gpd.GeoSeries([mun], crs=MOLL).to_crs(32614).iloc[0]
+    urb_utm = gpd.GeoSeries([urb], crs=MOLL).to_crs(32614).iloc[0].intersection(mun_utm)
+    zonas_vector = {"municipio": mun_utm, "dentro_limite_urbano": urb_utm, "fuera_limite_urbano": mun_utm.difference(urb_utm)}
+    acumulado = None
     for h in HORIZONTES:
         en_h = horizonte == h
         g = auto[auto["year"] == h]
         fila = {"horizonte": h}
+        propia = utm[utm["year"] == h].union_all()
+        nueva = propia if acumulado is None else propia.difference(acumulado)
+        acumulado = propia if acumulado is None else acumulado.union(propia)
         for k, m in ambitos.items():
             sel = en_h & m
-            fila[k] = {"expansion_ha": round(float((sel & clase_fina).sum()) * ha_fino, 1),
-                       "consolidacion_ha": round(float((sel & ~clase_fina).sum()) * ha_fino, 1)}
-            fila[k]["total_ha"] = round(fila[k]["expansion_ha"] + fila[k]["consolidacion_ha"], 1)
+            n = float(sel.sum())
+            parte_exp = float((sel & clase_fina).sum()) / n if n else 1.0
+            total = float(nueva.intersection(zonas_vector[k]).area) / 1e4
+            fila[k] = {"expansion_ha": round(total * parte_exp, 1), "consolidacion_ha": round(total * (1 - parte_exp), 1),
+                       "total_ha": round(total, 1)}
         fila["automata"] = {"poligonos": int(len(g)), "pob": int(round(float(g["pob"].sum()))),
                             "viv": None if h == 2030 else int(round(float(g["viv"].sum())))}
         if h == 2030:
             fila["automata"]["viv_nota"] = "anulada: las 416 partes de crecimiento_2030a traen el area_eff del conjunto"
         tot = fila["municipio"]["total_ha"]
         # Condicion 4: la densidad es un insumo del modelo, no un resultado.
-        fila["automata"]["hab_por_ha_supuesto"] = round(fila["automata"]["pob"] / tot) if tot else None
+        # Del propio modelo: 85 % de superficie util, una vivienda por 194 m2 utiles y sus hab/vivienda.
         fila["automata"]["hab_por_vivienda_supuesto"] = HAB_POR_VIVIENDA.get(h, 4.2)
+        fila["automata"]["hab_por_ha_supuesto"] = round(0.85 * 1e4 / 194 * fila["automata"]["hab_por_vivienda_supuesto"])
         # Contraste 4, solo interno: con la serie anterior de SAPAL (en revision).
         if h - 5 in pob and h in pob:
             interno_4[h] = round(fila["automata"]["pob"] / (pob[h] - pob[h - 5]), 2)

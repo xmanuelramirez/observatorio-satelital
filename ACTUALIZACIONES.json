@@ -342,5 +342,13 @@
     "resumen": "En el panel de Capas globales, con Zonas de crecimiento abierta: el techo nuevo estimado por GHSL de 2000 a 2020 y el suelo que el autómata prevé por horizonte, cada uno partido en expansión y consolidación, por municipio, dentro del límite urbano o fuera; y el crecimiento anual de la población de los censos de INEGI. Un clic en una barra del autómata cambia el horizonte del mapa. Techo y suelo no se comparan entre sí; la densidad del autómata se muestra como supuesto del modelo. La proyección de población a 2050 se agrega cuando quede ajustada a la Intercensal 2025.",
     "seccion_manual": "Funciones · Capas globales",
     "evidencia": "Pedido de Carlos del 12/11/2026; dictamen del juez del 12/11/2026 con condiciones 1 a 7 cumplidas"
+  },
+  {
+    "fecha": "2026-11-12",
+    "tipo": "correccion",
+    "titulo": "Tablero de crecimiento: barras del autómata con la superficie del vector",
+    "resumen": "Las barras del autómata por horizonte ahora suman las 4,914.9 ha de la capa (superficie de cada polígono, no de la rejilla de 10 m, que daba 4,936); la rejilla solo reparte entre expansión y consolidación. Cada horizonte baja menos de 1 %. La gráfica de población pasa a color propio, sin gris.",
+    "seccion_manual": "Funciones · Capas globales",
+    "evidencia": "Revisión del MASTER del 12/11/2026"
   }
 ]

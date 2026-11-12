@@ -62,6 +62,8 @@ const AMBITOS: { id: Ambito; etiqueta: string }[] = [
 // Mismos tonos que el mapa: palido lo que se extiende, cafe lo que rellena.
 const COLOR_EXPANSION = '#f1dcb0'
 const COLOR_CONSOLIDACION = '#a67652'
+// Poblacion: color propio, sin gris; validado contra expansion y consolidacion para daltonismo (12/11/2026).
+const COLOR_POBLACION = '#3987e5'
 
 const ha = (n: number) => Math.round(n).toLocaleString('es-MX')
 const pct = (n: number) => `${(n * 100).toFixed(1)} %`
@@ -170,7 +172,7 @@ function Tasas({ observado }: { observado: Observado[] }) {
         const h = (o.poblacion.tasa_anual / maximo) * util
         return (
           <g key={o.periodo}>
-            <rect x={x} y={alto - abajo - h} width={grueso} height={h} rx={2} className="resumen-tasa" />
+            <rect x={x} y={alto - abajo - h} width={grueso} height={h} rx={2} fill={COLOR_POBLACION} />
             <text x={x + grueso / 2} y={alto - abajo - h - 6} textAnchor="middle" className="resumen-valor">
               {(o.poblacion.tasa_anual * 100).toFixed(1)}
             </text>
@@ -239,7 +241,7 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
       <h3 className="resumen-titulo">Autómata: suelo previsto por horizonte, ha</h3>
       <p className="resumen-pie">
         {datos.automata_ha_union.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ha en total;
-        las barras reparten esa superficie por horizonte. Horizontes del modelo; año
+        cada barra es la superficie del vector en su horizonte. Horizontes del modelo; año
         base supuesto 2025.
       </p>
       <Barras
