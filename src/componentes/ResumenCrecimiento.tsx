@@ -62,8 +62,9 @@ const AMBITOS: { id: Ambito; etiqueta: string }[] = [
 // Mismos tonos que el mapa: palido lo que se extiende, cafe lo que rellena.
 const COLOR_EXPANSION = '#f1dcb0'
 const COLOR_CONSOLIDACION = '#a67652'
-// Poblacion: color propio, sin gris; validado contra expansion y consolidacion para daltonismo (12/11/2026).
-const COLOR_POBLACION = '#3987e5'
+// Poblacion: color con un solo significado en el panel (ni gris, ni azul marino, ni el de ningun horizonte); validado
+// contra los seis horizontes, expansion y consolidacion, con daltonismo, sobre el panel (MASTER, 12/11/2026).
+const COLOR_POBLACION = '#4fc3d9'
 
 const ha = (n: number) => Math.round(n).toLocaleString('es-MX')
 const pct = (n: number) => `${(n * 100).toFixed(1)} %`
