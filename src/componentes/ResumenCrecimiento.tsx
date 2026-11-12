@@ -1,13 +1,18 @@
 import { useState } from 'react'
 
 /**
- * Tablero de «Zonas de crecimiento»: expansion y consolidacion por quinquenio, observadas (GHSL 2000-2020) y previstas por
- * el automata (horizontes 2025-2050), junto a la tasa de crecimiento de la poblacion. Lo genera
- * `herramientas/crecimiento_resumen.py`; solo se publica con dictamen del juez.
- *
- * Lo observado (techos) y lo previsto (suelo) miden cosas distintas: van en graficas separadas, cada una con su eje.
- * El detalle de una barra se abre con clic, no al pasar el cursor; en el autómata, el clic tambien cambia el horizonte
- * del mapa.
+ * Tablero de «Zonas de crecimiento»: expansion y consolidacion por quinquenio, observadas (estimacion GHSL 2000-2020) y
+ * previstas por el automata (horizontes 2025-2050), junto al crecimiento de la poblacion de los censos. Lo genera
+ * `herramientas/crecimiento_resumen.py`, con las condiciones del dictamen del juez del 12/11/2026
+ * (`ORDENES-DEL-MASTER/juez-2026-11-12-quinquenios/DICTAMEN.md`):
+ *   1. Sin proyeccion de poblacion: la serie anterior se esta ajustando a la Intercensal 2025.
+ *   2. Sin «ha por cada 1,000 habitantes nuevos»: el techo observado y el suelo del automata no se comparan.
+ *   3. Lo observado se rotula como estimacion interpolada; techo y suelo en tablas separadas.
+ *   4. La densidad del automata es un supuesto del modelo, no un resultado.
+ *   5. Sensibilidad del umbral de expansion (10 a 30 %).
+ *   6. El automata se cita con la union del vector.
+ *   7. Tasas con las fechas reales de los censos.
+ * El detalle de una barra se abre con clic, no al pasar el cursor; en el autómata, el clic tambien cambia el horizonte.
  */
 
 type Ambito = 'municipio' | 'dentro_limite_urbano' | 'fuera_limite_urbano'
@@ -18,31 +23,24 @@ interface Partes {
   total_ha: number
 }
 
-interface Poblacion {
-  inicio: number
-  fin: number
-  aumento: number
-  tasa_anual: number
-  fuente: string
-}
-
 interface Observado extends Record<Ambito, Partes> {
   periodo: string
   inicio: number
   fin: number
-  poblacion: Poblacion
-  ha_por_1000_hab_nuevos: number
+  poblacion: { inicio: number; fin: number; aumento: number; anios: number; tasa_anual: number }
+  expansion_de_cada_100_por_umbral: Record<string, number>
 }
 
 interface Previsto extends Record<Ambito, Partes> {
   horizonte: number
-  automata: { poligonos: number; pob: number; hab_por_ha: number | null }
-  poblacion: Poblacion | null
-  ha_por_1000_hab_nuevos: number | null
+  automata: { poligonos: number; pob: number; hab_por_ha_supuesto: number | null; hab_por_vivienda_supuesto: number }
 }
 
 export interface DatosResumen {
   generado: string
+  observado_rotulo: string
+  automata_ha_union: number
+  fechas_censo: Record<string, string>
   observado: Observado[]
   previsto: Previsto[]
 }
@@ -68,6 +66,7 @@ const COLOR_CONSOLIDACION = '#a67652'
 const ha = (n: number) => Math.round(n).toLocaleString('es-MX')
 const pct = (n: number) => `${(n * 100).toFixed(1)} %`
 const miles = (n: number) => Math.round(n).toLocaleString('es-MX')
+const corto = (periodo: string) => periodo.replace(/(\d{2})(\d{2})-(\d{2})(\d{2})/, '$2-$4')
 
 interface Barra {
   clave: string
@@ -153,46 +152,30 @@ function Barras({
   )
 }
 
-/** Tasa anual por quinquenio, del censo y de la proyeccion; el hueco 2020-2025 se marca, no se rellena. */
-function Tasas({ observado, previsto }: { observado: Observado[]; previsto: Previsto[] }) {
-  const filas = [
-    ...observado.map((o) => ({ clave: o.periodo, etiqueta: `${String(o.inicio).slice(2)}-${String(o.fin).slice(2)}`, tasa: o.poblacion.tasa_anual })),
-    { clave: '2020-2025', etiqueta: '20-25', tasa: null as number | null },
-    ...previsto
-      .filter((p) => p.poblacion)
-      .map((p) => ({ clave: String(p.horizonte), etiqueta: `${String(p.horizonte - 5).slice(2)}-${String(p.horizonte).slice(2)}`, tasa: p.poblacion!.tasa_anual })),
-  ]
+/** Tasa anual de los censos por quinquenio, con las fechas reales de levantamiento. */
+function Tasas({ observado }: { observado: Observado[] }) {
   const ancho = 440
-  const alto = 112
+  const alto = 104
   const arriba = 18
   const abajo = 22
   const util = alto - arriba - abajo
-  const maximo = Math.max(...filas.map((f) => f.tasa ?? 0))
-  const paso = ancho / filas.length
-  const grueso = Math.min(18, paso * 0.4)
+  const maximo = Math.max(...observado.map((o) => o.poblacion.tasa_anual))
+  const paso = ancho / observado.length
+  const grueso = Math.min(34, paso * 0.56)
   return (
-    <svg viewBox={`0 0 ${ancho} ${alto}`} className="resumen-grafica" role="img" aria-label="Crecimiento anual de la población por quinquenio">
+    <svg viewBox={`0 0 ${ancho} ${alto}`} className="resumen-grafica" role="img" aria-label="Crecimiento anual de la población por quinquenio, censos">
       <line x1={0} x2={ancho} y1={alto - abajo} y2={alto - abajo} className="resumen-base" />
-      <line x1={5 * paso} x2={5 * paso} y1={arriba - 10} y2={alto - abajo} className="resumen-corte" />
-      {filas.map((f, i) => {
+      {observado.map((o, i) => {
         const x = i * paso + (paso - grueso) / 2
-        const h = f.tasa === null ? 0 : (f.tasa / maximo) * util
+        const h = (o.poblacion.tasa_anual / maximo) * util
         return (
-          <g key={f.clave}>
-            {f.tasa === null ? (
-              <text x={i * paso + paso / 2} y={alto - abajo - 6} textAnchor="middle" className="resumen-eje">
-                —
-              </text>
-            ) : (
-              <>
-                <rect x={x} y={alto - abajo - h} width={grueso} height={h} rx={2} className="resumen-tasa" />
-                <text x={x + grueso / 2} y={alto - abajo - h - 6} textAnchor="middle" className="resumen-valor">
-                  {(f.tasa * 100).toFixed(1)}
-                </text>
-              </>
-            )}
+          <g key={o.periodo}>
+            <rect x={x} y={alto - abajo - h} width={grueso} height={h} rx={2} className="resumen-tasa" />
+            <text x={x + grueso / 2} y={alto - abajo - h - 6} textAnchor="middle" className="resumen-valor">
+              {(o.poblacion.tasa_anual * 100).toFixed(1)}
+            </text>
             <text x={i * paso + paso / 2} y={alto - 6} textAnchor="middle" className="resumen-eje">
-              {f.etiqueta}
+              {corto(o.periodo)}
             </text>
           </g>
         )
@@ -210,7 +193,8 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
 
   const obs = datos.observado.find((o) => o.periodo === periodo)
   const prev = datos.previsto.find((p) => String(p.horizonte) === horizonte)
-  const municipal = ambito === 'municipio'
+  const umbral = (o: Observado) =>
+    `con umbral de 10, 20 o 30 %, ${o.expansion_de_cada_100_por_umbral['10']}, ${o.expansion_de_cada_100_por_umbral['20']} o ${o.expansion_de_cada_100_por_umbral['30']} de cada 100 ha de techo nuevo son expansión`
 
   return (
     <section className="resumen px-4 py-3.5" data-testid="resumen-crecimiento">
@@ -235,12 +219,13 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
         <span><i style={{ background: COLOR_CONSOLIDACION }} />Consolidación</span>
       </p>
 
-      <h3 className="resumen-titulo">Observado: construcción nueva, ha de techo (GHSL)</h3>
+      <h3 className="resumen-titulo">Observado: techo nuevo, ha</h3>
+      <p className="resumen-pie">{datos.observado_rotulo}.</p>
       <Barras
-        titulo="Construcción nueva observada por quinquenio"
+        titulo="Techo nuevo estimado por quinquenio"
         barras={datos.observado.map((o) => ({
           clave: o.periodo,
-          etiqueta: o.periodo.replace(/(\d{2})(\d{2})-(\d{2})(\d{2})/, '$2-$4'),
+          etiqueta: corto(o.periodo),
           expansion: o[ambito].expansion_ha,
           consolidacion: o[ambito].consolidacion_ha,
         }))}
@@ -252,6 +237,11 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
       />
 
       <h3 className="resumen-titulo">Autómata: suelo previsto por horizonte, ha</h3>
+      <p className="resumen-pie">
+        {datos.automata_ha_union.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ha en total;
+        las barras reparten esa superficie por horizonte. Horizontes del modelo; año
+        base supuesto 2025.
+      </p>
       <Barras
         titulo="Suelo previsto por el autómata por horizonte"
         barras={datos.previsto.map((p) => ({
@@ -268,73 +258,87 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
         }}
       />
 
-      <h3 className="resumen-titulo">Población: crecimiento anual, % (municipio)</h3>
-      <Tasas observado={datos.observado} previsto={datos.previsto} />
-      <p className="resumen-pie">Censos de INEGI hasta 2020; proyección CONAPO/SAPAL desde 2025. 2020-2025 no se calcula: une dos fuentes.</p>
-
       <div className="resumen-detalle" aria-live="polite">
         {detalle === 'observado' && obs && (
           <p>
             <strong>{obs.periodo}:</strong> {ha(obs[ambito].total_ha)} ha de techo nuevo ({ha(obs[ambito].expansion_ha)} en expansión y{' '}
-            {ha(obs[ambito].consolidacion_ha)} en consolidación). La población creció {pct(obs.poblacion.tasa_anual)} al año (+
-            {miles(obs.poblacion.aumento)} habitantes)
-            {municipal ? `: ${obs.ha_por_1000_hab_nuevos.toFixed(1)} ha de techo por cada 1,000 habitantes nuevos.` : '.'}
+            {ha(obs[ambito].consolidacion_ha)} en consolidación). En el municipio, {umbral(obs)}.
           </p>
         )}
         {detalle === 'previsto' && prev && (
           <p>
             <strong>Horizonte {prev.horizonte}:</strong> {ha(prev[ambito].total_ha)} ha de suelo ({ha(prev[ambito].expansion_ha)} en expansión y{' '}
-            {ha(prev[ambito].consolidacion_ha)} en consolidación). El modelo le asigna {miles(prev.automata.pob)} habitantes
-            {prev.automata.hab_por_ha ? ` (${Math.round(prev.automata.hab_por_ha)} por ha)` : ''}.
-            {prev.poblacion
-              ? ` La proyección suma ${miles(prev.poblacion.aumento)} (${pct(prev.poblacion.tasa_anual)} al año)${
-                  municipal && prev.ha_por_1000_hab_nuevos !== null
-                    ? `: ${prev.ha_por_1000_hab_nuevos.toFixed(1)} ha de suelo por cada 1,000 habitantes nuevos.`
-                    : '.'
-                }`
-              : ' Sin par en la proyección: es el año base supuesto.'}
+            {ha(prev[ambito].consolidacion_ha)} en consolidación). El modelo le asigna {miles(prev.automata.pob)} habitantes con un
+            supuesto de {prev.automata.hab_por_ha_supuesto} hab/ha ({prev.automata.hab_por_vivienda_supuesto} hab/vivienda): es un
+            insumo del modelo, no un resultado.
           </p>
         )}
-        {!municipal && <p className="tenue">La población es municipal: la relación por habitante solo se da para el municipio.</p>}
       </div>
 
+      <h3 className="resumen-titulo">Población del municipio: crecimiento anual, %</h3>
+      <Tasas observado={datos.observado} />
       <p className="resumen-pie">
-        Expansión: celda de 100 m con menos de 20 % construido al inicio del periodo; consolidación, 20 % o más. Lo observado mide
-        techos y el autómata, suelo: no se comparan barra con barra. Horizontes del modelo; año base supuesto 2025.
+        Censos de INEGI (2015, Encuesta Intercensal), con las fechas reales de levantamiento. Siguiente paso: la proyección a
+        2050, una vez ajustada a la Intercensal 2025.
+      </p>
+
+      <p className="resumen-pie">
+        Expansión: celda de 100 m con menos de 20 % construido al inicio del periodo; consolidación, 20 % o más. El reparto
+        depende del umbral (de 10 a 30 %, en 2010-2015 la expansión va de 38 a 68 de cada 100) y la expansión incluye relleno de
+        borde y caserío disperso. Lo observado mide techo y el autómata, suelo: no se comparan entre sí.
       </p>
       <button type="button" className="enlace text-xs" onClick={() => setTabla((t) => !t)} aria-expanded={tabla}>
-        {tabla ? 'Ocultar tabla' : 'Ver tabla'}
+        {tabla ? 'Ocultar tablas' : 'Ver tablas'}
       </button>
       {tabla && (
         <div className="resumen-tabla">
           <table>
+            <caption>Techo nuevo, estimación GHSL (ha)</caption>
             <thead>
               <tr>
                 <th>Periodo</th>
-                <th>Expansión, ha</th>
-                <th>Consolidación, ha</th>
+                <th>Expansión</th>
+                <th>Consolidación</th>
+                <th>Expansión de cada 100, umbral 10/20/30 %</th>
                 <th>Población, % anual</th>
               </tr>
             </thead>
             <tbody>
               {datos.observado.map((o) => (
                 <tr key={o.periodo}>
-                  <td>{o.periodo} (techo)</td>
+                  <td>{o.periodo}</td>
                   <td>{ha(o[ambito].expansion_ha)}</td>
                   <td>{ha(o[ambito].consolidacion_ha)}</td>
+                  <td>
+                    {o.expansion_de_cada_100_por_umbral['10']}/{o.expansion_de_cada_100_por_umbral['20']}/{o.expansion_de_cada_100_por_umbral['30']}
+                  </td>
                   <td>{pct(o.poblacion.tasa_anual)}</td>
-                </tr>
-              ))}
-              {datos.previsto.map((p) => (
-                <tr key={p.horizonte}>
-                  <td>Horizonte {p.horizonte} (suelo)</td>
-                  <td>{ha(p[ambito].expansion_ha)}</td>
-                  <td>{ha(p[ambito].consolidacion_ha)}</td>
-                  <td>{p.poblacion ? pct(p.poblacion.tasa_anual) : '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <table>
+            <caption>Suelo previsto por el autómata (ha)</caption>
+            <thead>
+              <tr>
+                <th>Horizonte</th>
+                <th>Expansión</th>
+                <th>Consolidación</th>
+                <th>Habitantes del modelo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {datos.previsto.map((p) => (
+                <tr key={p.horizonte}>
+                  <td>{p.horizonte}</td>
+                  <td>{ha(p[ambito].expansion_ha)}</td>
+                  <td>{ha(p[ambito].consolidacion_ha)}</td>
+                  <td>{miles(p.automata.pob)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="resumen-pie">La sensibilidad del umbral y la población son del municipio.</p>
         </div>
       )}
     </section>

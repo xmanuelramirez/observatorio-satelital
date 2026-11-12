@@ -17,10 +17,9 @@ Uso: python herramientas/crecimiento_resumen.py [--publicar]
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 import zipfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import geopandas as gpd
@@ -40,10 +39,18 @@ CORTES = [2000, 2005, 2010, 2015, 2020]
 HORIZONTES = [2025, 2030, 2035, 2040, 2045, 2050]
 SUB = 10
 CONSOLIDADO = 0.2
-# INEGI: Censo 2000 (14/02), Conteo 2005 (17/10), Censo 2010 (31/05), Encuesta Intercensal 2015, Censo 2020 (15/03).
-# Verificado el 12/11/2026 en citypopulation.de (INEGI) y en el Diagnostico Municipal 2020 de IMPLAN Leon.
+# INEGI: Censo 2000, Conteo 2005, Censo 2010, Encuesta Intercensal 2015 y Censo 2020. Verificado el 12/11/2026 en
+# citypopulation.de (INEGI) y en el Diagnostico Municipal 2020 de IMPLAN Leon. Las tasas usan las fechas censales reales
+# (condicion 7 del juez, 12/11/2026), las mismas del juez.
 CENSOS = {2000: 1_134_842, 2005: 1_278_087, 2010: 1_436_480, 2015: 1_578_626, 2020: 1_721_215}
+FECHAS_CENSO = {2000: date(2000, 2, 14), 2005: date(2005, 10, 17), 2010: date(2010, 6, 12), 2015: date(2015, 3, 15),
+                2020: date(2020, 3, 15)}
+# Solo para el contraste interno 4 (no se publica): serie anterior de SAPAL, en revision (condicion 1 del juez).
 PROYECCION = APPS / "11. ANALISIS DE CUENTAS" / "public" / "data" / "proyeccion-municipal.json"
+UMBRALES_SENSIBILIDAD = [0.1, 0.2, 0.3]
+# Supuesto del automata (dictamen del juez): 85 % de superficie util, una vivienda por 194 m2 utiles, 4.2 hab/vivienda
+# (4.0 en 2025). viv de 2030 viene rota (las 416 partes de 2030a traen el area_eff del conjunto): se anula.
+HAB_POR_VIVIENDA = {2025: 4.0}
 
 
 def leer(corte: int, bounds):
@@ -61,6 +68,10 @@ def leer(corte: int, bounds):
 
 def tasa(p0: float, p1: float, anios: float = 5) -> float:
     return (p1 / p0) ** (1 / anios) - 1
+
+
+def anios_entre(a: int, z: int) -> float:
+    return (FECHAS_CENSO[z] - FECHAS_CENSO[a]).days / 365.25
 
 
 def main() -> None:
@@ -99,10 +110,14 @@ def main() -> None:
                 "consolidacion_ha": round(float((delta * f * ~exp).sum()) / 1e4, 1),
             }
             fila[k]["total_ha"] = round(fila[k]["expansion_ha"] + fila[k]["consolidacion_ha"], 1)
+        # Condicion 5: de cada 100 ha de techo nuevo, cuantas son expansion segun el umbral (municipio).
+        fm = frac["municipio"]
+        total = float((delta * fm).sum())
+        fila["expansion_de_cada_100_por_umbral"] = {
+            str(int(u * 100)): round(100 * float((delta * fm * (b0 / 1e4 < u)).sum()) / total) for u in UMBRALES_SENSIBILIDAD}
         p0, p1 = CENSOS[a], CENSOS[z]
-        fila["poblacion"] = {"inicio": p0, "fin": p1, "aumento": p1 - p0, "tasa_anual": round(tasa(p0, p1), 4),
-                             "fuente": "INEGI"}
-        fila["ha_por_1000_hab_nuevos"] = round(fila["municipio"]["total_ha"] / ((p1 - p0) / 1000), 2)
+        fila["poblacion"] = {"inicio": p0, "fin": p1, "aumento": p1 - p0, "anios": round(anios_entre(a, z), 2),
+                             "tasa_anual": round(tasa(p0, p1, anios_entre(a, z)), 4), "fuente": "INEGI"}
         observado.append(fila)
 
     # Automata: cada celda fina va al primer horizonte que la toca; clase por GHSL 2020 de su celda de 100 m.
@@ -115,6 +130,7 @@ def main() -> None:
     proy = json.loads(PROYECCION.read_text(encoding="utf-8"))
     pob = {int(k): v for k, v in proy["poblacion"].items()}
     previsto = []
+    interno_4 = {}
     for h in HORIZONTES:
         en_h = horizonte == h
         g = auto[auto["year"] == h]
@@ -124,20 +140,20 @@ def main() -> None:
             fila[k] = {"expansion_ha": round(float((sel & clase_fina).sum()) * ha_fino, 1),
                        "consolidacion_ha": round(float((sel & ~clase_fina).sum()) * ha_fino, 1)}
             fila[k]["total_ha"] = round(fila[k]["expansion_ha"] + fila[k]["consolidacion_ha"], 1)
-        fila["automata"] = {"poligonos": int(len(g)), "pob": int(round(float(g["pob"].sum()))), "viv": int(round(float(g["viv"].sum())))}
+        fila["automata"] = {"poligonos": int(len(g)), "pob": int(round(float(g["pob"].sum()))),
+                            "viv": None if h == 2030 else int(round(float(g["viv"].sum())))}
+        if h == 2030:
+            fila["automata"]["viv_nota"] = "anulada: las 416 partes de crecimiento_2030a traen el area_eff del conjunto"
         tot = fila["municipio"]["total_ha"]
-        fila["automata"]["hab_por_ha"] = round(fila["automata"]["pob"] / tot, 1) if tot else None
-        # Supuesto declarado: el horizonte h cubre (h-5, h], con ano base 2025. El de 2025 no tiene par de una sola fuente.
+        # Condicion 4: la densidad es un insumo del modelo, no un resultado.
+        fila["automata"]["hab_por_ha_supuesto"] = round(fila["automata"]["pob"] / tot) if tot else None
+        fila["automata"]["hab_por_vivienda_supuesto"] = HAB_POR_VIVIENDA.get(h, 4.2)
+        # Contraste 4, solo interno: con la serie anterior de SAPAL (en revision).
         if h - 5 in pob and h in pob:
-            p0, p1 = pob[h - 5], pob[h]
-            fila["poblacion"] = {"inicio": p0, "fin": p1, "aumento": p1 - p0, "tasa_anual": round(tasa(p0, p1), 4),
-                                 "fuente": proy["fuente"]}
-            fila["ha_por_1000_hab_nuevos"] = round(tot / ((p1 - p0) / 1000), 2)
-            fila["pob_automata_entre_aumento"] = round(fila["automata"]["pob"] / (p1 - p0), 2)
-        else:
-            fila["poblacion"] = None
-            fila["ha_por_1000_hab_nuevos"] = None
+            interno_4[h] = round(fila["automata"]["pob"] / (pob[h] - pob[h - 5]), 2)
         previsto.append(fila)
+    # Condicion 6: el automata se cita con la union del vector (EPSG:32614); el raster solo reparte.
+    union_vector = round(float(auto.to_crs(32614).union_all().area) / 1e4, 1)
 
     dentro = sum(f["dentro_limite_urbano"]["total_ha"] for f in observado)
     union = sum(f["municipio"]["total_ha"] for f in previsto)
@@ -148,8 +164,9 @@ def main() -> None:
         "2_automata_union_municipio_ha": {"medido": round(union, 1), "esperado": 4914.9,
                                           "dif_pct": round(100 * (union / 4914.9 - 1), 2)},
         "2b_automata_fuera_limite_pct": {"medido": round(100 * fuera / union, 1), "esperado": 89},
-        "3_tasa_2010_2020": {"medido": round(100 * tasa(CENSOS[2010], CENSOS[2020], 10), 2), "esperado": 1.8},
-        "4_pob_automata_entre_aumento": {f["horizonte"]: f.get("pob_automata_entre_aumento") for f in previsto},
+        "2c_automata_union_vector_ha": union_vector,
+        "3_tasa_2010_2020_nominal": {"medido": round(100 * tasa(CENSOS[2010], CENSOS[2020], 10), 2), "esperado": 1.8},
+        "4_pob_automata_entre_aumento_serie_anterior": interno_4,
     }
     salida = {
         "producto": "zonas-crecimiento",
@@ -157,14 +174,19 @@ def main() -> None:
         "metodo": "Sección 5 de la orden del 12/11/2026",
         "unidades": {"observado": "superficie construida añadida (techos), ha", "previsto": "suelo que el autómata prevé urbanizar, ha"},
         "regla_consolidacion": f"celda de 100 m con {int(CONSOLIDADO * 100)} % o más construido al inicio del periodo (GHSL 2020 para el autómata)",
+        "observado_rotulo": "Estimación GHSL a 100 m, interpolada entre 2000, 2014 y 2018 (2020 extrapolado)",
+        "automata_ha_union": union_vector,
+        "fechas_censo": {str(k): v.isoformat() for k, v in FECHAS_CENSO.items()},
+        "dictamen": "ORDENES-DEL-MASTER/juez-2026-11-12-quinquenios/DICTAMEN.md",
         "observado": observado,
         "previsto": previsto,
-        "contrastes": contrastes,
     }
     SALIDA.mkdir(parents=True, exist_ok=True)
-    (SALIDA / "resumen-quinquenios.json").write_text(json.dumps(salida, ensure_ascii=False, indent=1), encoding="utf-8")
+    # Lo publicado no lleva contrastes internos ni la serie anterior de poblacion (condicion 1).
+    interno = {**salida, "contrastes": contrastes}
+    (SALIDA / "resumen-quinquenios.json").write_text(json.dumps(interno, ensure_ascii=False, indent=1), encoding="utf-8")
     if "--publicar" in sys.argv:
-        shutil.copyfile(SALIDA / "resumen-quinquenios.json", PUBLICO)
+        PUBLICO.write_text(json.dumps(salida, ensure_ascii=False, indent=1), encoding="utf-8")
         # La capa avisa a la plataforma que trae tablero (`crecimiento_capa.py` lo conserva si el archivo existe).
         capa = PUBLICO.parent / "capa.json"
         datos = json.loads(capa.read_text(encoding="utf-8"))

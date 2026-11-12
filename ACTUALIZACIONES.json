@@ -334,5 +334,13 @@
     "resumen": "Cuatro botones bajo el título prenden y apagan cada grupo (observado 2000-2020, autómata, cambio reciente, factibilidades y convenios); de inicio solo se ven lo observado y el autómata. Cada horizonte del autómata tiene su color contrastante, validado para daltonismo, y al cambiar de horizonte la imagen se cambia en seco, sin barrido. La expansión y la consolidación 2000-2020 se ven como zonas limpias, sin escalones de 100 m ni manchas sueltas. No cambia ninguna cifra.",
     "seccion_manual": "Funciones · Capas globales",
     "evidencia": "Pedido de Carlos del 12/11/2026"
+  },
+  {
+    "fecha": "2026-11-12",
+    "tipo": "capacidad",
+    "titulo": "Zonas de crecimiento: tablero por quinquenio",
+    "resumen": "En el panel de Capas globales, con Zonas de crecimiento abierta: el techo nuevo estimado por GHSL de 2000 a 2020 y el suelo que el autómata prevé por horizonte, cada uno partido en expansión y consolidación, por municipio, dentro del límite urbano o fuera; y el crecimiento anual de la población de los censos de INEGI. Un clic en una barra del autómata cambia el horizonte del mapa. Techo y suelo no se comparan entre sí; la densidad del autómata se muestra como supuesto del modelo. La proyección de población a 2050 se agrega cuando quede ajustada a la Intercensal 2025.",
+    "seccion_manual": "Funciones · Capas globales",
+    "evidencia": "Pedido de Carlos del 12/11/2026; dictamen del juez del 12/11/2026 con condiciones 1 a 7 cumplidas"
   }
 ]
