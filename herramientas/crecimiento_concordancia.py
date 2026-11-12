@@ -124,10 +124,18 @@ def main() -> None:
     # Sensibilidad de la condicion 3: sin FAC 938 (ya convenida) y sin FAC 892 y 893.
     if "folio" in nd_full.columns:
         sens = {}
-        for nombre, quitar in (("sin_FAC_938", ["FAC 938"]), ("sin_FAC_892_893", ["FAC 892", "FAC 893"])):
+        # FAC 938, 876 y 878 son desarrollos ya convenidos (confirmado por ND y Carlos, 12/11/2026): cuentan doble el crecimiento.
+        for nombre, quitar in (("sin_FAC_938", ["FAC 938"]), ("sin_FAC_892_893", ["FAC 892", "FAC 893"]),
+                               ("sin_ya_convenidas_938_876_878", ["FAC 938", "FAC 876", "FAC 878"])):
             g = nd_full[~nd_full["folio"].isin(quitar)]
             u = g.union_all()
-            sens[nombre] = round(float(u.intersection(auto_todo).area) / float(u.area), 3)
+            sens[nombre] = {"poligonos": int(len(g)), "ha": round(float(u.area) / 1e4, 2),
+                            "a_2050": round(float(u.intersection(auto_todo).area) / float(u.area), 3),
+                            "a_2030_rango": [round(float(u.intersection(solo_2025).area) / float(u.area), 3),
+                                             round(float(u.intersection(auto_corto).area) / float(u.area), 3)],
+                            "dentro_limite_urbano_a_2050": round(float(u.intersection(urb).intersection(auto_todo).area) / float(u.intersection(urb).area), 3),
+                            "fuera_a_2050": round(float(u.difference(urb).intersection(auto_todo).area) / float(u.difference(urb).area), 3),
+                            "poligonos_que_tocan_automata": int(g.intersects(auto_todo).sum())}
         r["por_ambito"]["factibilidades_nd"]["sensibilidad_a_2050"] = sens
     (SALIDA / "concordancia.json").write_text(json.dumps(r, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps(r, ensure_ascii=False, indent=1))
