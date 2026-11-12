@@ -137,7 +137,7 @@ def main() -> None:
     tasa_30_50 = (p["2050"] / p["2030"]) ** (1 / 20) - 1
     notas = [
         "Zonas candidatas de cambio de cobertura (pérdida de vegetación o aumento de firma construida) entre 20/09/2025 y 22/09/2026, misma fase de lluvias. No es obra confirmada ni superficie urbanizada.",
-        f"Revisión a ojo en imagen de alta resolución: {n_rev} de {len(cand)} zonas revisadas, {n_conf} confirmadas y {n_desc} descartadas." if n_rev else f"{len(cand)} zonas candidatas, en revisión a ojo en imagen de alta resolución.",
+        f"Revisión a ojo: {n_rev} de {len(cand)} zonas revisadas ({n_conf} confirmadas y {n_desc} descartadas); las que tocan el límite urbano, con el color de Sentinel-2 de las dos fechas. La confirmación queda muy por debajo de la validación anterior, así que las zonas candidatas se muestran solo como mapa, sin superficie." if n_rev else f"{len(cand)} zonas candidatas, en revisión a ojo.",
         "Crecimiento 2000-2020: superficie construida (techos, sin calles), modelo GHSL R2023A (Centro Común de Investigación de la CE, CC BY 4.0). 2000 es época observada con Landsat; 2020 es modelada a partir de Sentinel-2 2018. Una celda de 100 m creció si subió 1 000 m² o más; es expansión si en 2000 tenía menos de 20 % construido.",
         f"Factibilidades nuevas: {len(fact) if fact is not None else 0} lotes del 30/09 al 21/10/2026 (Nuevos Desarrollos), solo contorno. Son solicitudes posteriores a las imágenes: todavía no se ven construidas.",
         f"Referencia, sin recalcular: Análisis de Cuentas proyecta para el municipio {tasa_25_30 * 100:.1f} % de crecimiento de población al año de 2025 a 2030 y {tasa_30_50 * 100:.1f} % de 2030 a 2050 ({proy['fuente']}).",
