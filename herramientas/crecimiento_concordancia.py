@@ -41,9 +41,15 @@ def main() -> None:
     auto_corto = auto[auto["year"].isin([2025, 2030])].union_all()
     conv = gpd.read_file(APPS / "0. CAPAS VARIAS" / "FACTIBILIDADES_CONVENIOS.geojson")[["anio", "geometry"]].to_crs(CRS)
     conv["geometry"] = conv.make_valid()
-    nd_full = gpd.read_file(APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "observatorio" / "factibilidades.geojson")[["folio", "fecha_lote", "geometry"]].to_crs(CRS)
-    # Reparacion de geometrias: make_valid, la misma del juez (FAC 943 viene invalida; ND la corrige en origen).
-    nd_full["geometry"] = nd_full.make_valid()
+    nd_full = gpd.read_file(APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "observatorio" / "factibilidades.geojson").to_crs(CRS)
+    # ND corrige las geometrias en origen desde el 12/11/2026 (campo `geometria`); aqui no se reparan. Las que ND marca
+    # «invalida» quedan fuera y se cuentan.
+    if "geometria" in nd_full.columns:
+        nd_invalidas = int((nd_full["geometria"] == "invalida").sum())
+        nd_full = nd_full[nd_full["geometria"] != "invalida"]
+    else:
+        nd_invalidas = None
+    nd_full = nd_full[["folio", "fecha_lote", "geometry"]]
     nd = nd_full[["fecha_lote", "geometry"]]
     sect = gpd.read_file(APPS / "2. BALANCE HÍDRICO" / "CAPAS-VIGENTES" / "2026-11-05" / "SECTORES.geojson").to_crs(CRS)
 
@@ -66,7 +72,7 @@ def main() -> None:
             "convenios": fraccion(g, conv_todo, "convenios"),
             "factibilidades_nd": fraccion(g, nd.union_all(), "factibilidades"),
         }
-    r["metrica_2"]["factibilidades_nd"] = {"poligonos": int(len(nd)), "automata": fraccion(nd, auto_todo, "automata"),
+    r["metrica_2"]["factibilidades_nd"] = {"poligonos": int(len(nd)), "invalidas_excluidas": nd_invalidas, "automata": fraccion(nd, auto_todo, "automata"),
                                           "automata_corto": fraccion(nd, auto_corto, "automata_corto")}
     for etiqueta, sel in (("convenios_2025_2026", conv["anio"] >= 2025), ("convenios_2019_2024", conv["anio"] <= 2024)):
         g = conv[sel]
