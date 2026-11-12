@@ -326,5 +326,13 @@
     "resumen": "En Capas globales > Zonas de crecimiento, seis botones bajo el título (2025, 2030, 2035, 2040, 2045 y 2050) recorren lo que el autómata celular de SAPAL prevé urbanizar hasta cada horizonte, en un azul más claro cuanto más lejano, junto al crecimiento observado de 2000 a 2020, las zonas candidatas recientes, los convenios y las factibilidades nuevas. No cambia ninguna cifra.",
     "seccion_manual": "Funciones · Capas globales",
     "evidencia": "Pedido de Carlos del 12/11/2026 para la reunión del 20/11"
+  },
+  {
+    "fecha": "2026-11-12",
+    "tipo": "mejora",
+    "titulo": "Zonas de crecimiento: vista limpia, un color por horizonte y capas que se prenden y apagan",
+    "resumen": "Cuatro botones bajo el título prenden y apagan cada grupo (observado 2000-2020, autómata, cambio reciente, factibilidades y convenios); de inicio solo se ven lo observado y el autómata. Cada horizonte del autómata tiene su color contrastante, validado para daltonismo, y al cambiar de horizonte la imagen se cambia en seco, sin barrido. La expansión y la consolidación 2000-2020 se ven como zonas limpias, sin escalones de 100 m ni manchas sueltas. No cambia ninguna cifra.",
+    "seccion_manual": "Funciones · Capas globales",
+    "evidencia": "Pedido de Carlos del 12/11/2026"
   }
 ]

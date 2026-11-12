@@ -35,7 +35,9 @@ import {
   type CondicionCn,
   type ResultadoEscurrimiento,
 } from './servicios/escurrimiento'
-import { cargarProducto, PRODUCTOS, type IdProducto, type PasosProducto } from './servicios/productos'
+import { cargarProducto, PRODUCTOS, type GrupoProducto, type IdProducto, type PasosProducto } from './servicios/productos'
+import { componerCapas } from './lib/componerCapas'
+import ResumenCrecimiento, { type DatosResumen } from './componentes/ResumenCrecimiento'
 import type { ResultadoSerie } from './servicios/serie'
 
 const TITULO_SECCION: Record<SeccionPanel, string> = {
@@ -176,6 +178,29 @@ function claveDe(modo: ModoVista, indice: DefinicionIndice | null): string {
   return modo === 'indice' ? `indice-${indice?.id ?? 'ndvi'}` : modo
 }
 
+/** Imagenes y leyenda de los grupos prendidos, en orden (el primero abajo); el automata toma la del paso elegido. */
+function capasVisibles(vista: {
+  grupos?: GrupoProducto[]
+  pasos?: PasosProducto & { elegido: string }
+  ruta?: string
+}): { urls: string[]; leyenda: EntradaLeyenda[] } {
+  const urls: string[] = []
+  const leyenda: EntradaLeyenda[] = []
+  for (const grupo of vista.grupos ?? []) {
+    if (!grupo.visible) continue
+    if (grupo.pasos) {
+      const paso = vista.pasos?.lista.find((p) => p.etiqueta === vista.pasos?.elegido)
+      if (!paso) continue
+      urls.push(`${vista.ruta}/${paso.imagen}`)
+      leyenda.push(...paso.leyenda)
+    } else if (grupo.imagen) {
+      urls.push(`${vista.ruta}/${grupo.imagen}`)
+      leyenda.push(...grupo.leyenda)
+    }
+  }
+  return { urls, leyenda }
+}
+
 export default function App() {
   const [datosCapas, setDatosCapas] = useState<Record<string, FeatureCollection>>({})
   const [errorCapas, setErrorCapas] = useState<string | null>(null)
@@ -259,6 +284,12 @@ export default function App() {
     notas: string[]
     /** Capas con varias imagenes (los horizontes del automata): se recorren con botones bajo el titulo. */
     pasos?: PasosProducto & { ruta: string; limites: [[number, number], [number, number]]; elegido: string }
+    /** Grupos de capas que se prenden y apagan; el mapa recibe su composicion. */
+    grupos?: GrupoProducto[]
+    ruta?: string
+    limites?: [[number, number], [number, number]]
+    /** Tablero por quinquenio, si la capa lo trae (solo con dictamen del juez). */
+    resumen?: DatosResumen
   } | null>(null)
   const [cargandoProducto, setCargandoProducto] = useState<IdProducto | null>(null)
   const [errorProducto, setErrorProducto] = useState<string | null>(null)
@@ -792,20 +823,32 @@ export default function App() {
             notas: string[]
             generado: string
             pasos?: PasosProducto
+            grupos?: GrupoProducto[]
+            resumen?: string
           }
+          const carpeta = ruta.slice(0, ruta.lastIndexOf('/'))
+          const resumen = datos.resumen
+            ? ((await fetch(`${carpeta}/${datos.resumen}`)
+                .then((r) => (r.ok ? r.json() : undefined))
+                .catch(() => undefined)) as DatosResumen | undefined)
+            : undefined
           // La capa de referencia manda sobre lo que hubiera pintado antes.
           soltarResultado()
-          const carpeta = ruta.slice(0, ruta.lastIndexOf('/'))
           const inicial = datos.pasos?.lista.find((p) => p.etiqueta === String(datos.pasos?.inicial))
+          const pasos =
+            datos.pasos && inicial
+              ? { ...datos.pasos, ruta: carpeta, limites: datos.limites, elegido: inicial.etiqueta }
+              : undefined
+          const base = { pasos, grupos: datos.grupos, ruta: carpeta, limites: datos.limites, resumen }
           setProductoVista({
-            fuente: inicial
-              ? { tipo: 'imagen', url: `${carpeta}/${inicial.imagen}`, limites: datos.limites, clave: `${carpeta}/${inicial.imagen}` }
-              : { tipo: 'imagen', url: `${ruta}.png`, limites: datos.limites, clave: ruta },
-            pasos:
-              datos.pasos && inicial
-                ? { ...datos.pasos, ruta: carpeta, limites: datos.limites, elegido: inicial.etiqueta }
-                : undefined,
-            leyenda: inicial?.leyenda ?? datos.leyenda,
+            // Con grupos, la imagen la pone la composicion (efecto de abajo).
+            fuente: datos.grupos
+              ? null
+              : inicial
+                ? { tipo: 'imagen', url: `${carpeta}/${inicial.imagen}`, limites: datos.limites, clave: `${carpeta}/${inicial.imagen}` }
+                : { tipo: 'imagen', url: `${ruta}.png`, limites: datos.limites, clave: ruta },
+            ...base,
+            leyenda: datos.grupos ? capasVisibles(base).leyenda : (inicial?.leyenda ?? datos.leyenda),
             notas: [
               ...datos.notas,
               `Precalculado al construir el sitio (${diaLocal(datos.generado)}), no en tu navegador.`,
@@ -846,14 +889,45 @@ export default function App() {
     setProductoVista((vista) => {
       const paso = vista?.pasos?.lista.find((p) => p.etiqueta === etiqueta)
       if (!vista?.pasos || !paso) return vista
+      const pasos = { ...vista.pasos, elegido: etiqueta }
+      if (vista.grupos) return { ...vista, pasos, leyenda: capasVisibles({ ...vista, pasos }).leyenda }
       const url = `${vista.pasos.ruta}/${paso.imagen}`
       return {
         ...vista,
         fuente: { tipo: 'imagen', url, limites: vista.pasos.limites, clave: url },
         leyenda: paso.leyenda,
-        pasos: { ...vista.pasos, elegido: etiqueta },
+        pasos,
       }
     })
+
+  const alternarGrupo = (id: string) =>
+    setProductoVista((vista) => {
+      if (!vista?.grupos) return vista
+      const grupos = vista.grupos.map((g) => (g.id === id ? { ...g, visible: !g.visible } : g))
+      return { ...vista, grupos, leyenda: capasVisibles({ ...vista, grupos }).leyenda }
+    })
+
+  // Las capas prendidas se juntan en una imagen; prender, apagar o cambiar de horizonte la cambia en seco (serie fija).
+  const capasCompuestas = productoVista?.grupos ? capasVisibles(productoVista).urls.join('|') : null
+  useEffect(() => {
+    if (capasCompuestas === null) return
+    let vigente = true
+    componerCapas(capasCompuestas ? capasCompuestas.split('|') : [])
+      .then((url) => {
+        if (!vigente) return
+        setProductoVista((vista) =>
+          vista?.grupos && vista.limites
+            ? { ...vista, fuente: { tipo: 'imagen', url, limites: vista.limites, clave: capasCompuestas, serie: 'grupos' } }
+            : vista,
+        )
+      })
+      .catch((error: unknown) => {
+        if (vigente) setErrorProducto(error instanceof Error ? error.message : String(error))
+      })
+    return () => {
+      vigente = false
+    }
+  }, [capasCompuestas])
 
   /** Abrir una herramienta ya muestra algo: no pide otro clic. */
   const alternarSeccion = (id: SeccionPanel) => {
@@ -1130,7 +1204,7 @@ export default function App() {
 
             {/* Los ids los usa el medidor de traslapes del departamento para nombrar el elemento en sus reportes. */}
             <div id="titulo">
-              <h1 key={`${frase}`} className="sube">
+              <h1 key={productoVista?.pasos ? `producto:${producto}` : `${frase}`} className="sube">
                 {frase}
               </h1>
               <p>
@@ -1154,7 +1228,23 @@ export default function App() {
                   ))}
                 </div>
               )}
-              {productoVista?.pasos && (
+              {productoVista?.grupos && (
+                <div className="indices" role="group" aria-label="Capas">
+                  {productoVista.grupos.map((grupo) => (
+                    <button
+                      key={grupo.id}
+                      type="button"
+                      aria-pressed={grupo.visible}
+                      data-testid={`grupo-${grupo.id}`}
+                      onClick={() => alternarGrupo(grupo.id)}
+                      className={grupo.visible ? 'activa' : ''}
+                    >
+                      {grupo.etiqueta}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {productoVista?.pasos && (!productoVista.grupos || productoVista.grupos.some((g) => g.pasos && g.visible)) && (
                 <div className="indices" role="radiogroup" aria-label={productoVista.pasos.rotulo}>
                   {productoVista.pasos.lista.map((paso) => (
                     <button
@@ -1217,7 +1307,7 @@ export default function App() {
           {seccion && (
             <aside
               id="panel-lateral"
-              className="flex max-h-[50%] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl bg-panel md:max-h-none md:w-96"
+              className={`flex max-h-[50%] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl bg-panel md:max-h-none ${seccion === 'referencia' && productoVista?.resumen ? 'md:w-[30rem]' : 'md:w-96'}`}
             >
               <div className="flex shrink-0 items-center justify-between border-b border-filete px-4 py-2">
                 <h2 className="text-[15px] font-semibold">{TITULO_SECCION[seccion]}</h2>
@@ -1341,6 +1431,7 @@ export default function App() {
                 )}
 
                 {seccion === 'referencia' && (
+                  <>
                   <PanelProductos
                     activo={producto}
                     cargando={cargandoProducto}
@@ -1351,6 +1442,17 @@ export default function App() {
                       setProductoVista(null)
                     }}
                   />
+                  {productoVista?.resumen && (
+                    <ResumenCrecimiento
+                      datos={productoVista.resumen}
+                      horizonte={productoVista.pasos?.elegido ?? null}
+                      onHorizonte={elegirPaso}
+                      colores={Object.fromEntries(
+                        (productoVista.pasos?.lista.at(-1)?.leyenda ?? []).map((e) => [e.etiqueta.match(/\d{4}/)?.[0] ?? '', e.color]),
+                      )}
+                    />
+                  )}
+                  </>
                 )}
 
                 {seccion === 'hidrologia' && (

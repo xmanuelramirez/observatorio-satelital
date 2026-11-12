@@ -1,15 +1,17 @@
 """
 Capa «Zonas de crecimiento» para la plataforma (orden del MASTER del 12/11/2026, pedido de Carlos para el 20/11).
 
-Junta, en una imagen en grados con su leyenda, en `public/apertura/crecimiento/` (no versionado; tras Access):
-  1. Crecimiento de largo plazo 2000-2020 de GHSL R2023A por celda de 100 m: expansion (menos de 20 % construido en
-     2000) o consolidacion (20 % o mas), si la superficie construida subio 1 000 m2 o mas.
-  2. Zonas candidatas de cambio de cobertura 20/09/2025 a 22/09/2026 (`herramientas/crecimiento-reciente.ts`), con su
-     revision a ojo si ya existe (`salidas/crecimiento/revision-zonas.csv`).
-  3. Factibilidades nuevas de Nuevos Desarrollos, solo contorno (ubicacion de predios: no sale de Access).
-  4. Autómatas celulares de SAPAL por horizonte (2025 a 2050): una imagen por horizonte (`capa-<año>.png`), con lo que el
-     autómata prevé urbanizar hasta ese año; `capa.png` es la de 2050. La plataforma deja recorrerlas.
-Metodo declarado antes de medir en la seccion 0 de `ORDENES-DEL-MASTER/2026-11-12-zonas-de-crecimiento.md`.
+Deja en `public/apertura/crecimiento/` (no versionado; tras Access) una imagen en grados por grupo de capas, que la
+plataforma prende y apaga y encima en el navegador:
+  1. `observado.png`: crecimiento 2000-2020 de GHSL R2023A por celda de 100 m: expansion (menos de 20 % construido en
+     2000) o consolidacion (20 % o mas), si la superficie construida subio 1 000 m2 o mas; limpio y con borde suavizado.
+  2. `automata-<año>.png`: autómatas celulares de SAPAL hasta cada horizonte (2025 a 2050), un color por horizonte.
+  3. `reciente.png`: zonas candidatas de cambio de cobertura 20/09/2025 a 22/09/2026 (`herramientas/crecimiento-reciente.ts`)
+     que no se descartaron en la revision a ojo (`salidas/crecimiento/revision-zonas.csv`).
+  4. `tramites.png`: factibilidades nuevas de Nuevos Desarrollos y convenios 2025-2026, solo contorno (ubicacion de
+     predios: no sale de Access).
+`capa.png` junta todo a 2050, de respaldo. Metodo declarado antes de medir en las secciones 0 y 5 de
+`ORDENES-DEL-MASTER/2026-11-12-zonas-de-crecimiento.md`.
 
 Uso: python herramientas/crecimiento_capa.py
 """
@@ -31,28 +33,39 @@ from rasterio.features import rasterize
 from rasterio.io import MemoryFile
 from rasterio.transform import from_bounds
 from rasterio.warp import reproject
+from scipy import ndimage
 
 RAIZ = Path(__file__).resolve().parents[1]
 SALIDA = RAIZ / "salidas" / "crecimiento"
 DESTINO = RAIZ / "public" / "apertura" / "crecimiento"
 GHSL = RAIZ / "salidas" / "construida" / "ghsl"
 FACTIBILIDADES = RAIZ.parent / "13. NUEVOS DESARROLLOS" / "salidas" / "observatorio" / "factibilidades.geojson"
+APPS = RAIZ.parent
 MARGEN = 0.03
-ANCHO = 2000
+# Unos 10 m por pixel: el borde suavizado de GHSL y los poligonos del automata se ven limpios, sin escalones de 100 m.
+ANCHO = 3000
 UMBRAL_M2 = 1000
 CONSOLIDADO = 0.2
+# Limpieza de GHSL (seccion 5 de la orden): manchas de menos de 3 ha fuera, huecos de menos de 2 ha rellenos, y borde
+# suavizado con una gaussiana de 45 m y umbral 0.5. No agrega resolucion de origen: GHSL es de 100 m.
+MANCHA_MINIMA_HA = 3
+# La consolidacion es por naturaleza celdas sueltas dentro de la ciudad: con 3 ha se perdia el 80 %. Se queda toda celda.
+MANCHA_MINIMA_CONSOLIDACION_HA = 0.9
+HUECO_MAXIMO_HA = 2
+SIGMA_M = 45
+# Una celda suelta de consolidacion con 45 m se encoge a la mitad; con 30 m conserva cerca del 80 % de su area.
+SIGMA_CONSOLIDACION_M = 30
 
-EXPANSION = (232, 140, 60, 210)
-CONSOLIDACION = (176, 88, 52, 120)
+# Lo observado, en tonos palidos (ya paso); el automata, en colores vivos (lo previsto).
+EXPANSION = (241, 220, 176, 175)
+CONSOLIDACION = (166, 118, 82, 200)
 CANDIDATA = (255, 214, 10, 255)
-DESCARTADA = (150, 150, 150, 200)
 FACTIBILIDAD = (255, 255, 255, 255)
-# Un azul por horizonte, de oscuro (lo más próximo) a claro (lo más lejano): al recorrerlos se lee qué se suma en cada uno.
-HORIZONTES = {2025: (24, 78, 160), 2030: (44, 108, 190), 2035: (72, 138, 212), 2040: (104, 164, 226), 2045: (142, 190, 236),
-              2050: (184, 216, 246)}
-ALFA_AUTOMATA = 180
 CONVENIO = (120, 220, 220, 255)
-APPS = RAIZ.parent
+# Un color contrastante por horizonte, validado contra daltonismo sobre fondo oscuro (dataviz, 12/11/2026).
+HORIZONTES = {2025: (213, 81, 129), 2030: (57, 135, 229), 2035: (201, 133, 0), 2040: (25, 158, 112), 2045: (144, 133, 233),
+              2050: (230, 103, 103)}
+ALFA_AUTOMATA = 225
 
 
 def ghsl(corte: int, t, forma) -> np.ndarray:
@@ -65,6 +78,23 @@ def ghsl(corte: int, t, forma) -> np.ndarray:
     return destino
 
 
+def limpiar(mascara: np.ndarray, ha_pixel: float, sigma_px: float, minima_ha: float) -> np.ndarray:
+    """Quita manchas chicas, rellena huecos chicos y suaviza el borde."""
+    etiquetas, n = ndimage.label(mascara, structure=np.ones((3, 3)))
+    if n:
+        tam = ndimage.sum(mascara, etiquetas, index=np.arange(1, n + 1)) * ha_pixel
+        mascara = np.isin(etiquetas, np.flatnonzero(tam >= minima_ha) + 1)
+    huecos, n = ndimage.label(~mascara)
+    if n:
+        tam = ndimage.sum(~mascara, huecos, index=np.arange(1, n + 1)) * ha_pixel
+        mascara = mascara | np.isin(huecos, np.flatnonzero(tam < HUECO_MAXIMO_HA) + 1)
+    return ndimage.gaussian_filter(mascara.astype("float32"), sigma_px) >= 0.5
+
+
+def guardar(rgba: np.ndarray, nombre: str) -> None:
+    Image.fromarray(rgba, "RGBA").save(DESTINO / nombre, optimize=True)
+
+
 def main() -> None:
     urbano = gpd.read_file(RAIZ / "public" / "capas" / "LIMITE_URBANO.geojson").to_crs(4326)
     municipio = gpd.read_file(RAIZ / "public" / "capas" / "LIMITE.geojson").to_crs(4326)
@@ -73,17 +103,20 @@ def main() -> None:
     alto = int(ANCHO * (y1 - y0) / (x1 - x0) / np.cos(np.radians((y0 + y1) / 2)))
     t = from_bounds(x0, y0, x1, y1, ANCHO, alto)
     forma = (alto, ANCHO)
+    m_px = (x1 - x0) / ANCHO * 111_320 * np.cos(np.radians((y0 + y1) / 2))
+    ha_pixel = m_px * m_px / 1e4
     dentro = rasterize([(municipio.union_all(), 1)], out_shape=forma, transform=t, dtype="uint8").astype(bool)
 
+    # 1. Crecimiento observado 2000-2020, limpio.
     g00, g20 = ghsl(2000, t, forma), ghsl(2020, t, forma)
     crecio = (g20 - g00 >= UMBRAL_M2) & dentro
-    expansion = crecio & (g00 / 1e4 < CONSOLIDADO)
-    consolidacion = crecio & ~expansion
-
+    consolidacion = limpiar(crecio & (g00 / 1e4 >= CONSOLIDADO), ha_pixel, SIGMA_CONSOLIDACION_M / m_px, MANCHA_MINIMA_CONSOLIDACION_HA) & dentro
+    expansion = limpiar(crecio & (g00 / 1e4 < CONSOLIDADO), ha_pixel, SIGMA_M / m_px, MANCHA_MINIMA_HA) & dentro & ~consolidacion
     observado = np.zeros((alto, ANCHO, 4), np.uint8)
-    observado[consolidacion] = CONSOLIDACION
     observado[expansion] = EXPANSION
+    observado[consolidacion] = CONSOLIDACION
 
+    # 2. Automata por horizonte.
     auto = gpd.read_file(APPS / "0. CAPAS VARIAS" / "AUTOMATAS_CELULARES" / "COMBINADO.shp").to_crs(4326)
     auto["geometry"] = auto.make_valid()
     # COMBINADO trae las seis capas crecimiento_2025 a crecimiento_2050 tal cual (campo `layer`); crecimiento_2030a no entra:
@@ -91,18 +124,15 @@ def main() -> None:
     # del periodo: en pantalla va como «horizonte del modelo», con el ano base supuesto.
     # Cada poligono es lo que el automata suma en su horizonte (los horizontes casi no se traslapan: 16 ha de 4 915). Una
     # celda queda con el primer horizonte que la toca.
+    assert set(auto["layer"]) == {f"crecimiento_{h}" for h in HORIZONTES}
     horizonte = np.zeros(forma, np.int32)
     for anio in sorted(HORIZONTES):
         g = auto[auto["year"] == anio]
         if len(g):
-            m = rasterize(g.geometry, out_shape=forma, transform=t, all_touched=True).astype(bool)
+            m = rasterize(g.geometry, out_shape=forma, transform=t).astype(bool)
             horizonte[m & (horizonte == 0)] = anio
-    conv = gpd.read_file(APPS / "0. CAPAS VARIAS" / "FACTIBILIDADES_CONVENIOS.geojson")[["anio", "geometry"]]
-    conv = conv[conv["anio"] >= 2025].to_crs(4326)
-    encima = np.zeros((alto, ANCHO, 4), np.uint8)
-    if len(conv):
-        m = rasterize(conv.boundary.buffer(0.00008), out_shape=forma, transform=t, all_touched=True).astype(bool)
-        encima[m] = CONVENIO
+
+    # 3. Cambio reciente: solo las zonas candidatas vigentes (las descartadas en la revision ya no se pintan).
     cand = gpd.read_file(SALIDA / "candidatas-2025-2026.geojson")
     rev = SALIDA / "revision-zonas.csv"
     if rev.exists():
@@ -110,73 +140,92 @@ def main() -> None:
         cand["revision"] = cand["id"].map(r["es_cambio_real"]).fillna("sin revisar")
     else:
         cand["revision"] = "sin revisar"
-    descartadas = cand[cand["revision"] == "no"]
     vigentes = cand[cand["revision"] != "no"]
-    for capa, color in ((descartadas, DESCARTADA), (vigentes, CANDIDATA)):
-        if len(capa):
-            m = rasterize(capa.geometry, out_shape=forma, transform=t, all_touched=True).astype(bool)
-            encima[m] = color
+    reciente = np.zeros((alto, ANCHO, 4), np.uint8)
+    if len(vigentes):
+        reciente[rasterize(vigentes.geometry, out_shape=forma, transform=t, all_touched=True).astype(bool)] = CANDIDATA
 
-    fact = gpd.read_file(FACTIBILIDADES).to_crs(4326) if FACTIBILIDADES.exists() else None
+    # 4. Factibilidades nuevas y convenios 2025-2026, solo contorno (ancho en metros, en EPSG:32614).
+    conv = gpd.read_file(APPS / "0. CAPAS VARIAS" / "FACTIBILIDADES_CONVENIOS.geojson")[["anio", "geometry"]]
+    conv = conv[conv["anio"] >= 2025].to_crs(32614)
+    fact = gpd.read_file(FACTIBILIDADES).to_crs(32614) if FACTIBILIDADES.exists() else None
+    tramites = np.zeros((alto, ANCHO, 4), np.uint8)
+    if len(conv):
+        bordes = conv.boundary.buffer(9).to_crs(4326)
+        tramites[rasterize(bordes, out_shape=forma, transform=t, all_touched=True).astype(bool)] = CONVENIO
     if fact is not None and len(fact):
-        bordes = fact.boundary.buffer(0.00012)
-        m = rasterize(bordes, out_shape=forma, transform=t, all_touched=True).astype(bool)
-        encima[m] = FACTIBILIDAD
+        bordes = fact.boundary.buffer(12).to_crs(4326)
+        tramites[rasterize(bordes, out_shape=forma, transform=t, all_touched=True).astype(bool)] = FACTIBILIDAD
+
     DESTINO.mkdir(parents=True, exist_ok=True)
-    for viejo in DESTINO.glob("capa-*.png"):
+    for viejo in [*DESTINO.glob("capa-*.png"), *DESTINO.glob("automata-*.png")]:
         viejo.unlink()
-    pasos = []
-    for anio in sorted(HORIZONTES):
-        rgba = observado.copy()
-        fondo = rgba[..., 3] == 0
-        for h in sorted(HORIZONTES):
-            if h > anio:
-                break
-            rgba[(horizonte == h) & fondo] = (*HORIZONTES[h], ALFA_AUTOMATA)
-        tapa = encima[..., 3] > 0
-        rgba[tapa] = encima[tapa]
-        Image.fromarray(rgba, "RGBA").save(DESTINO / f"capa-{anio}.png", optimize=True)
-        pasos.append(anio)
-    (DESTINO / "capa.png").write_bytes((DESTINO / f"capa-{max(pasos)}.png").read_bytes())
+    guardar(observado, "observado.png")
+    guardar(reciente, "reciente.png")
+    guardar(tramites, "tramites.png")
+    pasos = sorted(HORIZONTES)
+    for anio in pasos:
+        rgba = np.zeros((alto, ANCHO, 4), np.uint8)
+        for h in pasos:
+            if h <= anio:
+                rgba[horizonte == h] = (*HORIZONTES[h], ALFA_AUTOMATA)
+        guardar(rgba, f"automata-{anio}.png")
+    # Imagen completa de respaldo (todo prendido, a 2050), para quien lea solo `capa.png`.
+    todo = observado.copy()
+    for capa in (np.array(Image.open(DESTINO / f"automata-{max(pasos)}.png")), reciente, tramites):
+        tapa = capa[..., 3] > 0
+        todo[tapa] = capa[tapa]
+    guardar(todo, "capa.png")
 
     hex_ = lambda c: "#%02x%02x%02x" % c[:3]  # noqa: E731
     n_rev = int((cand["revision"] != "sin revisar").sum())
     n_conf = int((cand["revision"] == "si").sum())
     n_desc = int((cand["revision"] == "no").sum())
-    leyenda = [
-        {"color": hex_(CANDIDATA), "etiqueta": "Zona candidata de cambio, sep-2025 a sep-2026"},
-        {"color": hex_(EXPANSION), "etiqueta": "Crecimiento 2000-2020: expansión"},
-        {"color": hex_(CONSOLIDACION), "etiqueta": "Crecimiento 2000-2020: consolidación"},
-        {"color": hex_(FACTIBILIDAD), "etiqueta": f"Factibilidad nueva ({len(fact) if fact is not None else 0}, contorno)"},
-        {"color": hex_(CONVENIO), "etiqueta": f"Convenio 2025-2026 ({len(conv)}, contorno)"},
+    n_fact = 0 if fact is None else len(fact)
+    grupos = [
+        {"id": "observado", "etiqueta": "Observado 2000-2020", "visible": True, "imagen": "observado.png",
+         "leyenda": [{"color": hex_(EXPANSION), "etiqueta": "Observado 2000-2020: expansión"},
+                     {"color": hex_(CONSOLIDACION), "etiqueta": "Observado 2000-2020: consolidación"}]},
+        {"id": "automata", "etiqueta": "Autómata", "visible": True, "pasos": True, "leyenda": []},
+        {"id": "reciente", "etiqueta": "Cambio reciente", "visible": False, "imagen": "reciente.png",
+         "leyenda": [{"color": hex_(CANDIDATA), "etiqueta": "Zona candidata de cambio, sep-2025 a sep-2026"}]},
+        {"id": "tramites", "etiqueta": "Factibilidades y convenios", "visible": False, "imagen": "tramites.png",
+         "leyenda": [{"color": hex_(FACTIBILIDAD), "etiqueta": f"Factibilidad nueva ({n_fact}, contorno)"},
+                     {"color": hex_(CONVENIO), "etiqueta": f"Convenio 2025-2026 ({len(conv)}, contorno)"}]},
     ]
-    if n_desc:
-        leyenda.insert(1, {"color": hex_(DESCARTADA), "etiqueta": "Candidata descartada en la revisión"})
-    proy = json.loads((RAIZ.parent / "11. ANALISIS DE CUENTAS" / "public" / "data" / "proyeccion-municipal.json").read_text(encoding="utf-8"))
+    proy = json.loads((APPS / "11. ANALISIS DE CUENTAS" / "public" / "data" / "proyeccion-municipal.json").read_text(encoding="utf-8"))
     p = proy["poblacion"]
     tasa_25_30 = (p["2030"] / p["2025"]) ** (1 / 5) - 1
     tasa_30_50 = (p["2050"] / p["2030"]) ** (1 / 20) - 1
+    revision = (f"Revisión a ojo: {n_rev} de {len(cand)} zonas revisadas ({n_conf} confirmadas y {n_desc} descartadas, que ya "
+                "no se pintan); se muestran solo como mapa, sin superficie.") if n_rev else f"{len(cand)} zonas candidatas, en revisión a ojo."
     notas = [
-        "Zonas candidatas de cambio de cobertura (pérdida de vegetación o aumento de firma construida) entre 20/09/2025 y 22/09/2026, misma fase de lluvias. No es obra confirmada ni superficie urbanizada.",
-        f"Revisión a ojo: {n_rev} de {len(cand)} zonas revisadas ({n_conf} confirmadas y {n_desc} descartadas); las que tocan el límite urbano, con el color de Sentinel-2 de las dos fechas. La confirmación queda muy por debajo de la validación anterior, así que las zonas candidatas se muestran solo como mapa, sin superficie." if n_rev else f"{len(cand)} zonas candidatas, en revisión a ojo.",
-        "Crecimiento 2000-2020: superficie construida (techos, sin calles), modelo GHSL R2023A (Centro Común de Investigación de la CE, CC BY 4.0). 2000 es época observada con Landsat; 2020 es modelada a partir de Sentinel-2 2018. Una celda de 100 m creció si subió 1 000 m² o más; es expansión si en 2000 tenía menos de 20 % construido.",
-        f"Factibilidades nuevas: {len(fact) if fact is not None else 0} lotes del 30/09 al 21/10/2026 (Nuevos Desarrollos), solo contorno. Son solicitudes posteriores a las imágenes: todavía no se ven construidas.",
+        "Los botones de arriba prenden y apagan cada grupo de capas; de inicio se ven lo observado 2000-2020 y el autómata.",
+        "Observado 2000-2020: superficie construida (techos, sin calles), modelo GHSL R2023A (Centro Común de Investigación de la CE, CC BY 4.0). 2000 es época observada con Landsat; 2020 es modelada a partir de Sentinel-2 2018. Una celda de 100 m creció si subió 1 000 m² o más; es expansión si en 2000 tenía menos de 20 % construido. Para leerla limpia se quitan manchas de expansión de menos de 3 ha y huecos de menos de 2 ha, y el borde se suaviza; la resolución de origen sigue siendo de 100 m.",
+        "Autómatas celulares: modelo de crecimiento de SAPAL (2025), horizontes de 2025 a 2050; año base supuesto 2025. Los años son horizontes del modelo, no fechas ciertas. Cada horizonte tiene su color y se suma a los anteriores.",
+        "Cambio reciente: zonas candidatas de cambio de cobertura (pérdida de vegetación o aumento de firma construida) entre 20/09/2025 y 22/09/2026, misma fase de lluvias. No es obra confirmada ni superficie urbanizada. " + revision,
+        f"Factibilidades nuevas: {n_fact} lotes del 30/09 al 21/10/2026 (Nuevos Desarrollos), solo contorno; son solicitudes posteriores a las imágenes. Convenios: desarrollos con factibilidad convenida de 2025 y 2026, solo contorno.",
         f"Referencia, sin recalcular: Análisis de Cuentas proyecta para el municipio {tasa_25_30 * 100:.1f} % de crecimiento de población al año de 2025 a 2030 y {tasa_30_50 * 100:.1f} % de 2030 a 2050 ({proy['fuente']}).",
-        "Autómatas celulares: modelo de crecimiento de SAPAL (2025), horizontes de 2025 a 2050; año base supuesto 2025. Los años son horizontes del modelo, no fechas ciertas. Cada horizonte suma lo que el modelo prevé urbanizar, en un azul más claro cuanto más lejano; los botones de arriba recorren los horizontes. Donde ya hubo crecimiento 2000-2020 se ve lo observado. Convenios: desarrollos con factibilidad convenida de 2025 y 2026, solo contorno.",
         "La concordancia entre el crecimiento observado, las factibilidades, los convenios y el autómata está en revisión del juez; sus cifras no se muestran todavía.",
     ]
-    def leyenda_de(anio: int) -> list[dict]:
-        return leyenda + [{"color": hex_(HORIZONTES[h]), "etiqueta": f"Autómata celular, horizonte {h}"}
-                          for h in sorted(HORIZONTES) if h <= anio]
 
+    def leyenda_automata(anio: int) -> list[dict]:
+        return [{"color": hex_(HORIZONTES[h]), "etiqueta": f"Autómata, horizonte {h}"} for h in pasos if h <= anio]
+
+    leyenda_todo = [e for g in grupos for e in g["leyenda"]] + leyenda_automata(max(pasos))
     datos = {"producto": "zonas-crecimiento", "limites": [[float(y0), float(x0)], [float(y1), float(x1)]],
-             "leyenda": leyenda_de(max(pasos)), "notas": notas, "generado": datetime.now(timezone.utc).isoformat(),
-             "pasos": {"rotulo": "Horizonte del autómata", "nota": "Horizontes del modelo; año base supuesto 2025", "inicial": max(pasos),
-                       "lista": [{"etiqueta": str(a), "imagen": f"capa-{a}.png", "leyenda": leyenda_de(a)} for a in pasos]}}
+             "leyenda": leyenda_todo, "notas": notas, "generado": datetime.now(timezone.utc).isoformat(),
+             "grupos": grupos,
+             "pasos": {"rotulo": "Horizonte del autómata", "nota": "Horizontes del modelo; año base supuesto 2025",
+                       "inicial": max(pasos),
+                       "lista": [{"etiqueta": str(a), "imagen": f"automata-{a}.png", "leyenda": leyenda_automata(a)} for a in pasos]}}
+    # El tablero por quinquenio (`crecimiento_resumen.py --publicar`) solo se enlaza si ya se publico con dictamen.
+    if (DESTINO / "resumen.json").exists():
+        datos["resumen"] = "resumen.json"
     (DESTINO / "capa.json").write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(json.dumps({"celdas_expansion": int(expansion.sum()), "celdas_consolidacion": int(consolidacion.sum()),
-                      "candidatas": len(cand), "factibilidades": 0 if fact is None else len(fact),
-                      "tasa_25_30": round(tasa_25_30 * 100, 2), "tasa_30_50": round(tasa_30_50 * 100, 2)}, indent=1))
+    print(json.dumps({"pixel_m": round(m_px, 1), "ha_expansion": round(float(expansion.sum()) * ha_pixel),
+                      "ha_consolidacion": round(float(consolidacion.sum()) * ha_pixel),
+                      "candidatas_vigentes": len(vigentes), "factibilidades": n_fact}, indent=1))
 
 
 if __name__ == "__main__":

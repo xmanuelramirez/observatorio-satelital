@@ -26,6 +26,16 @@ export interface PasosProducto {
   lista: { etiqueta: string; imagen: string; leyenda: EntradaLeyenda[] }[]
 }
 
+/** Un grupo de capas que se prende y apaga (una imagen propia, o la del paso elegido si `pasos`). */
+export interface GrupoProducto {
+  id: string
+  etiqueta: string
+  visible: boolean
+  imagen?: string
+  pasos?: boolean
+  leyenda: EntradaLeyenda[]
+}
+
 export type IdProducto = 'agua-historica' | 'cobertura' | 'evapotranspiracion' | 'espacio-verde' | 'zonas-crecimiento'
 
 interface Interpretacion {
