@@ -310,5 +310,13 @@
     "resumen": "Con la regla de NBS (NOM-001-SEDATU-2021), un deportivo sin vegetación es espacio público pero no espacio verde. El porcentaje de la población de la zona urbana a 400 m de un espacio verde de 0.5 ha o más queda en 8.9 a 17.3 %; el 11.2 a 19.2 % se conserva solo como variante de espacio público. Las zonas prioritarias que se sostienen en los tres escenarios pasan de 14 a 15: siguen las 14 y entra una más.",
     "seccion_manual": "Funciones · Capas globales",
     "evidencia": "Regla de NBS del 09/11/2026 transmitida por el MASTER; condición 1 del dictamen de la revisión ciega"
+  },
+  {
+    "fecha": "2026-11-12",
+    "tipo": "capacidad",
+    "titulo": "Nueva capa: zonas de crecimiento",
+    "resumen": "En Capas globales, una vista que junta el crecimiento de la superficie construida de 2000 a 2020 (GHSL, expansión y consolidación), las zonas candidatas de cambio de cobertura entre septiembre de 2025 y septiembre de 2026 (misma fase de lluvias, revisadas a ojo; no son obra confirmada), las factibilidades nuevas de cada semana, los convenios de 2025 y 2026 y el crecimiento previsto por los autómatas celulares de SAPAL. La concordancia entre ellas está en revisión técnica y no se muestra todavía.",
+    "seccion_manual": "Funciones · Capas globales",
+    "evidencia": "Orden del MASTER del 12/11/2026 (pedido de Carlos para la reunión del 20/11)"
   }
 ]

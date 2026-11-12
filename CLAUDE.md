@@ -52,6 +52,12 @@ de `herramientas/espacio_verde*.py`, en orden `espacio_verde`, `espacio_verde_ci
 revisión de la muestra viven en `salidas/espacio-verde/`. El A-1 se publica solo como rango (dictamen del juez del
 09/11/2026). La imagen de Esri se usó solo para revisar la muestra: no entra a la app.
 
+La capa «Zonas de crecimiento» (`public/apertura/crecimiento/`) tampoco la genera `npm run desplegar`: sale de
+`herramientas/crecimiento-reciente.ts`, `crecimiento_capa.py` y `crecimiento_concordancia.py`. Lee capas internas que no
+entran al repositorio (autómatas celulares y convenios en `0. CAPAS VARIAS`, factibilidades de Nuevos Desarrollos con
+ubicación de predios): solo viajan en la imagen precalculada, tras Access. La cifra de obra nueva sigue retenida: las
+zonas van como «candidatas», sin hectáreas en pantalla.
+
 Cada cambio visible para quien usa la plataforma se anota en `ACTUALIZACIONES.json`, en el
 formato del MASTER. De ahí salen la bitácora de SISPLAN y el control de versiones del manual.
 

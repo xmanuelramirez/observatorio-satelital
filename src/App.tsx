@@ -62,6 +62,12 @@ const COLECCION_DEL_MODO: Partial<Record<ModoVista, string>> = {
   calor: 'landsat-c2-l2',
 }
 
+/** Atribucion que exige la licencia de cada capa propia, visible en el mapa mientras esta puesta. */
+const ATRIBUCION_PRODUCTO: Partial<Record<IdProducto, string>> = {
+  'espacio-verde': '© colaboradores de OpenStreetMap (ODbL)',
+  'zonas-crecimiento': 'GHSL © Unión Europea (CC BY 4.0)',
+}
+
 const NOMBRE_AREA: Partial<Record<IdCapa, string>> = {
   LIMITE: 'Municipio',
   LIMITE_URBANO: 'Zona urbana',
@@ -1083,7 +1089,7 @@ export default function App() {
           <section id="mapa">
             <div className="mapa-entra h-full">
               <Mapa
-                atribucion={producto === 'espacio-verde' && productoVista ? '© colaboradores de OpenStreetMap (ODbL)' : null}
+                atribucion={productoVista && producto ? (ATRIBUCION_PRODUCTO[producto] ?? null) : null}
                 capas={CAPAS}
                 datosCapas={datosCapas}
                 visibles={visibles}

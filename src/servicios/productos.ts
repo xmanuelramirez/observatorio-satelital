@@ -17,7 +17,7 @@ import type { AssetBanda, Bbox } from '../tipos'
  * entrega firma anonima.
  */
 
-export type IdProducto = 'agua-historica' | 'cobertura' | 'evapotranspiracion' | 'espacio-verde'
+export type IdProducto = 'agua-historica' | 'cobertura' | 'evapotranspiracion' | 'espacio-verde' | 'zonas-crecimiento'
 
 interface Interpretacion {
   bandas: Float32Array[]
@@ -80,6 +80,19 @@ function hectareas(celdas: number, hectareasPorCelda: number): string {
 }
 
 export const PRODUCTOS: DefinicionProducto[] = [
+  {
+    id: 'zonas-crecimiento',
+    etiqueta: 'Zonas de crecimiento',
+    descripcion: 'Crecimiento 2000-2020, cambio reciente entre imágenes y factibilidades nuevas',
+    coleccion: '',
+    asset: '',
+    metros: 100,
+    fuente: 'GHSL R2023A, Sentinel-2 y Nuevos Desarrollos',
+    soloPrecalculado: 'apertura/crecimiento/capa',
+    interpretar: () => {
+      throw new Error('Esta capa solo existe precalculada')
+    },
+  },
   {
     id: 'espacio-verde',
     etiqueta: 'Distancia a espacio verde',
