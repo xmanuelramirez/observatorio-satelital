@@ -128,7 +128,9 @@ def main() -> None:
         horizonte[m & (horizonte == 0)] = h
     clase_fina = np.repeat(np.repeat(capas[2020][0] / 1e4 < CONSOLIDADO, SUB, axis=0), SUB, axis=1)
     proy = json.loads(PROYECCION.read_text(encoding="utf-8"))
-    pob = {int(k): v for k, v in proy["poblacion"].items()}
+    # Desde el 01/12/2026 la serie trae la llave 2020 (censo): se ignoran los anos anteriores a anio_base, para que el
+    # horizonte 2025 siga sin par de una sola fuente (aviso del MASTER, 12/11/2026).
+    pob = {int(k): v for k, v in proy["poblacion"].items() if int(k) >= int(proy.get("anio_base", 2025))}
     previsto = []
     interno_4 = {}
     # Superficie por horizonte del vector (EPSG:32614), cada parte en el primer horizonte que la toca: suma la union de
