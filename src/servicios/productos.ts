@@ -17,6 +17,13 @@ import type { AssetBanda, Bbox } from '../tipos'
  * entrega firma anonima.
  */
 
+/** Una capa precalculada con varias imagenes que se recorren (los horizontes del automata en «Zonas de crecimiento»). */
+export interface PasosProducto {
+  rotulo: string
+  inicial: number | string
+  lista: { etiqueta: string; imagen: string; leyenda: EntradaLeyenda[] }[]
+}
+
 export type IdProducto = 'agua-historica' | 'cobertura' | 'evapotranspiracion' | 'espacio-verde' | 'zonas-crecimiento'
 
 interface Interpretacion {
@@ -83,11 +90,11 @@ export const PRODUCTOS: DefinicionProducto[] = [
   {
     id: 'zonas-crecimiento',
     etiqueta: 'Zonas de crecimiento',
-    descripcion: 'Crecimiento 2000-2020, cambio reciente entre imágenes y factibilidades nuevas',
+    descripcion: 'Crecimiento 2000-2020, cambio reciente entre imágenes, factibilidades nuevas y autómata celular por horizonte, de 2025 a 2050',
     coleccion: '',
     asset: '',
     metros: 100,
-    fuente: 'GHSL R2023A, Sentinel-2 y Nuevos Desarrollos',
+    fuente: 'GHSL R2023A, Sentinel-2, Nuevos Desarrollos y autómata celular de SAPAL',
     soloPrecalculado: 'apertura/crecimiento/capa',
     interpretar: () => {
       throw new Error('Esta capa solo existe precalculada')

@@ -35,7 +35,7 @@ import {
   type CondicionCn,
   type ResultadoEscurrimiento,
 } from './servicios/escurrimiento'
-import { cargarProducto, PRODUCTOS, type IdProducto } from './servicios/productos'
+import { cargarProducto, PRODUCTOS, type IdProducto, type PasosProducto } from './servicios/productos'
 import type { ResultadoSerie } from './servicios/serie'
 
 const TITULO_SECCION: Record<SeccionPanel, string> = {
@@ -257,6 +257,8 @@ export default function App() {
     fuente: FuenteRaster
     leyenda: EntradaLeyenda[]
     notas: string[]
+    /** Capas con varias imagenes (los horizontes del automata): se recorren con botones bajo el titulo. */
+    pasos?: PasosProducto & { ruta: string; limites: [[number, number], [number, number]]; elegido: string }
   } | null>(null)
   const [cargandoProducto, setCargandoProducto] = useState<IdProducto | null>(null)
   const [errorProducto, setErrorProducto] = useState<string | null>(null)
@@ -789,12 +791,21 @@ export default function App() {
             leyenda: EntradaLeyenda[]
             notas: string[]
             generado: string
+            pasos?: PasosProducto
           }
           // La capa de referencia manda sobre lo que hubiera pintado antes.
           soltarResultado()
+          const carpeta = ruta.slice(0, ruta.lastIndexOf('/'))
+          const inicial = datos.pasos?.lista.find((p) => p.etiqueta === String(datos.pasos?.inicial))
           setProductoVista({
-            fuente: { tipo: 'imagen', url: `${ruta}.png`, limites: datos.limites, clave: ruta },
-            leyenda: datos.leyenda,
+            fuente: inicial
+              ? { tipo: 'imagen', url: `${carpeta}/${inicial.imagen}`, limites: datos.limites, clave: `${carpeta}/${inicial.imagen}` }
+              : { tipo: 'imagen', url: `${ruta}.png`, limites: datos.limites, clave: ruta },
+            pasos:
+              datos.pasos && inicial
+                ? { ...datos.pasos, ruta: carpeta, limites: datos.limites, elegido: inicial.etiqueta }
+                : undefined,
+            leyenda: inicial?.leyenda ?? datos.leyenda,
             notas: [
               ...datos.notas,
               `Precalculado al construir el sitio (${diaLocal(datos.generado)}), no en tu navegador.`,
@@ -830,6 +841,19 @@ export default function App() {
     },
     [areaBbox, datosCapas, area, soltarResultado],
   )
+
+  const elegirPaso = (etiqueta: string) =>
+    setProductoVista((vista) => {
+      const paso = vista?.pasos?.lista.find((p) => p.etiqueta === etiqueta)
+      if (!vista?.pasos || !paso) return vista
+      const url = `${vista.pasos.ruta}/${paso.imagen}`
+      return {
+        ...vista,
+        fuente: { tipo: 'imagen', url, limites: vista.pasos.limites, clave: url },
+        leyenda: paso.leyenda,
+        pasos: { ...vista.pasos, elegido: etiqueta },
+      }
+    })
 
   /** Abrir una herramienta ya muestra algo: no pide otro clic. */
   const alternarSeccion = (id: SeccionPanel) => {
@@ -934,7 +958,7 @@ export default function App() {
   const etiquetaArea = NOMBRE_AREA[area] ?? area
 
   const tituloResultado = productoVista
-    ? (PRODUCTOS.find((p) => p.id === producto)?.etiqueta ?? 'Capa de referencia')
+    ? `${PRODUCTOS.find((p) => p.id === producto)?.etiqueta ?? 'Capa de referencia'}${productoVista.pasos ? ` · autómata a ${productoVista.pasos.elegido}` : ''}`
     : diaActual
       ? `${ETIQUETA_MODO[modo]} · ${diaActual}`
       : 'Resultado'
@@ -1126,6 +1150,23 @@ export default function App() {
                       className={indice?.id === definicion.id ? 'activa' : ''}
                     >
                       {definicion.id.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {productoVista?.pasos && (
+                <div className="indices" role="radiogroup" aria-label={productoVista.pasos.rotulo}>
+                  {productoVista.pasos.lista.map((paso) => (
+                    <button
+                      key={paso.etiqueta}
+                      type="button"
+                      role="radio"
+                      aria-checked={productoVista.pasos?.elegido === paso.etiqueta}
+                      onClick={() => elegirPaso(paso.etiqueta)}
+                      title={`${productoVista.pasos?.rotulo}: ${paso.etiqueta}`}
+                      className={productoVista.pasos?.elegido === paso.etiqueta ? 'activa' : ''}
+                    >
+                      {paso.etiqueta}
                     </button>
                   ))}
                 </div>

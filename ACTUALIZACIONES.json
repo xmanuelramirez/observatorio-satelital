@@ -318,5 +318,13 @@
     "resumen": "En Capas globales, una vista que junta el crecimiento de la superficie construida de 2000 a 2020 (GHSL, expansión y consolidación), las zonas candidatas de cambio de cobertura entre septiembre de 2025 y septiembre de 2026 (misma fase de lluvias, revisadas a ojo; no son obra confirmada), las factibilidades nuevas de cada semana, los convenios de 2025 y 2026 y el crecimiento previsto por los autómatas celulares de SAPAL. La concordancia entre ellas está en revisión técnica y no se muestra todavía.",
     "seccion_manual": "Funciones · Capas globales",
     "evidencia": "Orden del MASTER del 12/11/2026 (pedido de Carlos para la reunión del 20/11)"
+  },
+  {
+    "fecha": "2026-11-12",
+    "tipo": "mejora",
+    "titulo": "Zonas de crecimiento: el autómata celular por horizonte",
+    "resumen": "En Capas globales > Zonas de crecimiento, seis botones bajo el título (2025, 2030, 2035, 2040, 2045 y 2050) recorren lo que el autómata celular de SAPAL prevé urbanizar hasta cada horizonte, en un azul más claro cuanto más lejano, junto al crecimiento observado de 2000 a 2020, las zonas candidatas recientes, los convenios y las factibilidades nuevas. No cambia ninguna cifra.",
+    "seccion_manual": "Funciones · Capas globales",
+    "evidencia": "Pedido de Carlos del 12/11/2026 para la reunión del 20/11"
   }
 ]
