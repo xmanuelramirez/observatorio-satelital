@@ -58,6 +58,10 @@ entran al repositorio (autómatas celulares y convenios en `0. CAPAS VARIAS`, fa
 ubicación de predios): solo viajan en la imagen precalculada, tras Access. La cifra de obra nueva sigue retenida: las
 zonas van como «candidatas», sin hectáreas en pantalla.
 
+**Todo deploy lleva antes el visto bueno de SEGURIDAD sobre el diff** (regla del MASTER del 18/11/2026), también los
+cambios de configuración como `wrangler.jsonc`. Que SEGURIDAD recomiende un cambio no es visto bueno: se le manda el diff
+y se espera su respuesta antes de `wrangler deploy`. La puerta `npm audit` de «Verificar» tampoco se toca sin su regla.
+
 Cada cambio visible para quien usa la plataforma se anota en `ACTUALIZACIONES.json`, en el
 formato del MASTER. De ahí salen la bitácora de SISPLAN y el control de versiones del manual.
 

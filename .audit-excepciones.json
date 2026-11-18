@@ -1,0 +1,8 @@
+[
+  {
+    "id": "GHSA-fc5q-39xc-vjpf",
+    "paquete": "picomatch",
+    "motivo": "solo compilación; sin parche (19/10/2026)",
+    "vence": "2026-12-18"
+  }
+]

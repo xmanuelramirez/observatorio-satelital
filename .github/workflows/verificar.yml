@@ -43,6 +43,13 @@ jobs:
           fi
 
       # Bloquea solo por severidad alta o critica. Bloquear por todo entrena a
-      # la gente a ignorar la alerta.
+      # la gente a ignorar la alerta. Las excepciones llevan nombre y fecha de
+      # vencimiento en .audit-excepciones.json (regla de SEGURIDAD, 18/11/2026).
       - name: Dependencias
-        run: npm audit --audit-level=high
+        run: |
+          npm audit --json > audit.json || true
+          node herramientas/auditar-dependencias.mjs audit.json
+
+      # Puerta estricta de lo que llega al sitio: sin excepciones.
+      - name: Dependencias del sitio
+        run: npm audit --omit=dev --audit-level=moderate
