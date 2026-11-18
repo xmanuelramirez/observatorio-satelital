@@ -16,6 +16,9 @@
   // Sin secretos aqui: la app no usa ninguno.
   "name": "observatorio-satelital",
   "compatibility_date": "2026-09-17",
+  // Sin URL de vista previa por version (<version>-observatorio-satelital...): ya estaba tras Access, pero esa
+  // puerta no debe depender de como este armada la aplicacion de Access (SEGURIDAD, 18/11/2026, como H-07 de ND).
+  "preview_urls": false,
   "assets": {
     "directory": "./dist"
   }
