@@ -19,6 +19,7 @@ Uso: python herramientas/crecimiento_capa.py
 from __future__ import annotations
 
 import json
+import os
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,7 +38,8 @@ from scipy import ndimage
 
 RAIZ = Path(__file__).resolve().parents[1]
 SALIDA = RAIZ / "salidas" / "crecimiento"
-DESTINO = RAIZ / "public" / "apertura" / "crecimiento"
+# CRECIMIENTO_DESTINO deja la capa en otra carpeta para revisarla sin publicarla (p. ej. antes de un corte mensual).
+DESTINO = Path(os.environ.get("CRECIMIENTO_DESTINO", RAIZ / "public" / "apertura" / "crecimiento"))
 GHSL = RAIZ / "salidas" / "construida" / "ghsl"
 FACTIBILIDADES = RAIZ.parent / "13. NUEVOS DESARROLLOS" / "salidas" / "observatorio" / "factibilidades.geojson"
 APPS = RAIZ.parent
@@ -132,7 +134,8 @@ def main() -> None:
             m = rasterize(g.geometry, out_shape=forma, transform=t).astype(bool)
             horizonte[m & (horizonte == 0)] = anio
 
-    # 3. Cambio reciente: solo las zonas candidatas vigentes (las descartadas en la revision ya no se pintan).
+    # 3. Cambio reciente: las confirmadas con relleno y las dudosas solo con contorno; nunca juntas en una cifra (dictamen
+    # del juez del 18/11/2026, condicion 1). Las descartadas no se pintan.
     cand = gpd.read_file(SALIDA / "candidatas-2025-2026.geojson")
     rev = SALIDA / "revision-zonas.csv"
     if rev.exists():
@@ -141,9 +144,15 @@ def main() -> None:
     else:
         cand["revision"] = "sin revisar"
     vigentes = cand[cand["revision"] != "no"]
+    confirmadas = cand[cand["revision"] == "si"]
+    dudosas = cand[cand["revision"].isin(["dudoso", "sin revisar"])]
     reciente = np.zeros((alto, ANCHO, 4), np.uint8)
-    if len(vigentes):
-        reciente[rasterize(vigentes.geometry, out_shape=forma, transform=t, all_touched=True).astype(bool)] = CANDIDATA
+    if len(dudosas):
+        bordes = gpd.GeoSeries([gpd.GeoSeries(list(g.geoms), crs=4326).union_all() for g in dudosas.geometry], crs=4326)
+        bordes = bordes.to_crs(32614).boundary.buffer(12).to_crs(4326)
+        reciente[rasterize(bordes, out_shape=forma, transform=t, all_touched=True).astype(bool)] = CANDIDATA
+    if len(confirmadas):
+        reciente[rasterize(confirmadas.geometry, out_shape=forma, transform=t, all_touched=True).astype(bool)] = CANDIDATA
 
     # 4. Factibilidades nuevas y convenios 2025-2026, solo contorno (ancho en metros, en EPSG:32614).
     conv = gpd.read_file(APPS / "0. CAPAS VARIAS" / "FACTIBILIDADES_CONVENIOS.geojson")[["anio", "geometry"]]
@@ -181,6 +190,7 @@ def main() -> None:
     n_rev = int((cand["revision"] != "sin revisar").sum())
     n_conf = int((cand["revision"] == "si").sum())
     n_desc = int((cand["revision"] == "no").sum())
+    n_dud = int(len(dudosas))
     n_fact = 0 if fact is None else len(fact)
     grupos = [
         {"id": "observado", "etiqueta": "Observado 2000-2020", "visible": True, "imagen": "observado.png",
@@ -188,13 +198,17 @@ def main() -> None:
                      {"color": hex_(CONSOLIDACION), "etiqueta": "Observado 2000-2020: consolidación"}]},
         {"id": "automata", "etiqueta": "Autómata", "visible": True, "pasos": True, "leyenda": []},
         {"id": "reciente", "etiqueta": "Cambio reciente", "visible": False, "imagen": "reciente.png",
-         "leyenda": [{"color": hex_(CANDIDATA), "etiqueta": "Zona candidata de cambio, sep-2025 a sep-2026"}]},
+         "leyenda": [{"color": hex_(CANDIDATA), "etiqueta": f"Cambio confirmado, sep-2025 a sep-2026 ({n_conf}, relleno)"},
+                     {"color": hex_(CANDIDATA), "etiqueta": f"Dudosa ({n_dud}, contorno)"}]},
         {"id": "tramites", "etiqueta": "Factibilidades y convenios", "visible": False, "imagen": "tramites.png",
          "leyenda": [{"color": hex_(FACTIBILIDAD), "etiqueta": f"Factibilidad nueva ({n_fact}, contorno)"},
                      {"color": hex_(CONVENIO), "etiqueta": f"Convenio 2025-2026 ({len(conv)}, contorno)"}]},
     ]
-    revision = (f"Revisión a ojo: {n_rev} de {len(cand)} zonas revisadas ({n_conf} confirmadas y {n_desc} descartadas, que ya "
-                "no se pintan); se muestran solo como mapa, sin superficie.") if n_rev else f"{len(cand)} zonas candidatas, en revisión a ojo."
+    revision = (f"Revisión a ojo con Sentinel-2 de las mismas fechas: {n_rev} de {len(cand)} zonas. {n_conf} son cambio confirmado "
+                f"(relleno), {n_dud} son dudosas (contorno) y {n_desc} se descartaron y ya no se pintan. Dudosa: cambio que Sentinel-2 "
+                "a 10 m no resuelve (nube, bruma o mezcla de usos). No es crecimiento confirmado ni descartado. La revisión la hizo "
+                "una persona, sin ser ciega; el juez midió un acuerdo kappa de 0.62 en una muestra ciega de 30 zonas. Se muestran "
+                "solo como mapa, sin superficie.") if n_rev else f"{len(cand)} zonas candidatas, en revisión a ojo."
     notas = [
         "Los botones de arriba prenden y apagan cada grupo de capas; de inicio se ven lo observado 2000-2020 y el autómata.",
         "Observado 2000-2020: superficie construida (techos, sin calles), modelo GHSL R2023A (Centro Común de Investigación de la CE, CC BY 4.0). Es una estimación: las épocas observadas son 2000 y 2014 (Landsat) y 2018 (Sentinel-2); 2020 es extrapolada desde 2018. Una celda de 100 m creció si subió 1 000 m² o más; es expansión si en 2000 tenía menos de 20 % construido. Para leerla limpia se quitan manchas de expansión de menos de 3 ha y huecos de menos de 2 ha, y el borde se suaviza; la resolución de origen sigue siendo de 100 m.",

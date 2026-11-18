@@ -62,6 +62,11 @@ zonas van como «candidatas», sin hectáreas en pantalla.
 cambios de configuración como `wrangler.jsonc`. Que SEGURIDAD recomiende un cambio no es visto bueno: se le manda el diff
 y se espera su respuesta antes de `wrangler deploy`. La puerta `npm audit` de «Verificar» tampoco se toca sin su regla.
 
+**Corte del 01/12/2026, zonas de crecimiento:** regenerar la capa en `public/` (con las dudosas aparte), anotar en
+`ACTUALIZACIONES.json`, visto bueno de SEGURIDAD y desplegar. Pasos en la sección 7 de
+`ORDENES-DEL-MASTER/2026-11-12-zonas-de-crecimiento.md`. Antes del corte, la capa nueva vive solo en
+`salidas/crecimiento/corte-2026-12-01/`.
+
 Cada cambio visible para quien usa la plataforma se anota en `ACTUALIZACIONES.json`, en el
 formato del MASTER. De ahí salen la bitácora de SISPLAN y el control de versiones del manual.
 
