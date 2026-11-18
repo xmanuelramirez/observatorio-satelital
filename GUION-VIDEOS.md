@@ -87,7 +87,7 @@ con 27 días que con dos años.
 
 ---
 
-## 3. Ver la isla de calor con la térmica de Landsat
+## 3. Ver la temperatura de superficie con la térmica de Landsat
 
 **Para qué:** es la variable que más se entiende de un vistazo y la que más se pide para mostrar
 en una reunión.
@@ -102,10 +102,11 @@ en una reunión.
 | 6 | En el grupo `Una fecha`, clic | `Calor` | `modo-calor` |
 | 7 | Clic | `Calcular sobre el área` | `calcular` |
 
-**Dato de ejemplo:** zona urbana, una escena de Landsat de mayo de 2026, que es el final de la
-temporada seca y cuando más contrasta la ciudad contra el campo.
+**Dato de ejemplo:** zona urbana, una escena de Landsat de mayo de 2026, al final de la temporada
+seca.
 **Resultado esperado:** el mapa se pinta con la temperatura de superficie y la simbología da el
-rango en grados. Se ve el centro urbano más caliente que el entorno agrícola.
+rango en grados. Es la temperatura del suelo y los techos, no la del aire. No se dice que la ciudad
+sea más caliente que el campo: en estiaje depende del lado y del año (dictamen del juez del 18/11/2026).
 **Duración:** 45 a 60 s.
 
 ---

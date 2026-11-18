@@ -67,7 +67,7 @@
     "fecha": "2026-09-17",
     "tipo": "capacidad",
     "titulo": "Temperatura de superficie con la banda térmica de Landsat",
-    "resumen": "Mapa de temperatura de superficie en grados Celsius para ver islas de calor urbano.",
+    "resumen": "Mapa de temperatura de superficie (del suelo y los techos, no del aire) en grados Celsius.",
     "seccion_manual": "Funciones · Temperatura",
     "evidencia": "cf9a13a"
   },
