@@ -195,7 +195,7 @@ def main() -> None:
     grupos = [
         {"id": "observado", "etiqueta": "Observado 2000-2020", "visible": True, "imagen": "observado.png",
          "leyenda": [{"color": hex_(EXPANSION), "etiqueta": "Observado 2000-2020: expansión"},
-                     {"color": hex_(CONSOLIDACION), "etiqueta": "Observado 2000-2020: consolidación"}]},
+                     {"color": hex_(CONSOLIDACION), "etiqueta": "Observado 2000-2020: densificación"}]},
         {"id": "automata", "etiqueta": "Autómata", "visible": True, "pasos": True, "leyenda": []},
         {"id": "reciente", "etiqueta": "Cambio reciente", "visible": False, "imagen": "reciente.png",
          "leyenda": [{"color": hex_(CANDIDATA), "etiqueta": f"Cambio confirmado, sep-2025 a sep-2026 ({n_conf}, relleno)"},
@@ -211,7 +211,7 @@ def main() -> None:
                 "solo como mapa, sin superficie.") if n_rev else f"{len(cand)} zonas candidatas, en revisión a ojo."
     notas = [
         "Los botones de arriba prenden y apagan cada grupo de capas; de inicio se ven lo observado 2000-2020 y el autómata.",
-        "Observado 2000-2020: superficie construida (techos, sin calles), modelo GHSL R2023A (Centro Común de Investigación de la CE, CC BY 4.0). Es una estimación: las épocas observadas son 2000 y 2014 (Landsat) y 2018 (Sentinel-2); 2020 es extrapolada desde 2018. Una celda de 100 m creció si subió 1 000 m² o más; es expansión si en 2000 tenía menos de 20 % construido. Para leerla limpia se quitan manchas de expansión de menos de 3 ha y huecos de menos de 2 ha, y el borde se suaviza; la resolución de origen sigue siendo de 100 m.",
+        "Observado 2000-2020: superficie construida (techos, sin calles), modelo GHSL R2023A (Centro Común de Investigación de la CE, CC BY 4.0). Es una estimación: las épocas observadas son 2000 y 2014 (Landsat) y 2018 (Sentinel-2); 2020 es extrapolada desde 2018. Una celda de 100 m creció si subió 1 000 m² o más; es expansión si en 2000 tenía menos de 20 % construido y densificación si ya tenía 20 % o más (zona urbana que ganó techo; no quiere decir construida al 100 %). Para leerla limpia se quitan manchas de expansión de menos de 3 ha y huecos de menos de 2 ha, y el borde se suaviza; la resolución de origen sigue siendo de 100 m.",
         "Autómatas celulares: modelo de crecimiento de SAPAL (2025), horizontes de 2025 a 2050; año base supuesto 2025. Los años son horizontes del modelo, no fechas ciertas. Cada horizonte tiene su color y se suma a los anteriores.",
         "Cambio reciente: zonas candidatas de cambio de cobertura (pérdida de vegetación o aumento de firma construida) entre 20/09/2025 y 22/09/2026, misma fase de lluvias. No es obra confirmada ni superficie urbanizada. " + revision,
         f"Factibilidades nuevas: {n_fact} lotes del 30/09 al 21/10/2026 (Nuevos Desarrollos), solo contorno; son solicitudes posteriores a las imágenes. Convenios: desarrollos con factibilidad convenida de 2025 y 2026, solo contorno.",

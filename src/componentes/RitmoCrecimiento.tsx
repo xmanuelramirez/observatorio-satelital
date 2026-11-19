@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import TituloConAyuda from './Ayuda'
 
 /**
  * «Ritmo de crecimiento»: tomas, convenios, factibilidades y satélite por año, en una sola lectura. Pedido de Carlos del
@@ -176,6 +177,20 @@ export default function RitmoCrecimiento({ datos }: { datos: DatosRitmo }) {
         viviendas habitadas más ({c.razon.toFixed(2)}).
       </p>
 
+      <TituloConAyuda titulo="Tomas y unidades convenidas por año">
+        <p>
+          <strong>Tomas:</strong> cuentas domésticas del padrón activo al corte, contadas por el año de su fecha de contrato (Análisis
+          de Cuentas). Las cuentas dadas de baja antes del corte no aparecen, así que los años viejos van algo cortos.
+        </p>
+        <p>
+          <strong>Unidades convenidas:</strong> viviendas o unidades que cada convenio firmado ese año compromete (Balance Hídrico).
+        </p>
+        <p>
+          <strong>Fuera del límite:</strong> tomas nuevas de todas las tarifas cuya ubicación cae fuera del límite urbano.{' '}
+          <strong>En convenios desde 2020:</strong> tomas del año que caen dentro de un polígono de convenio firmado desde 2020;
+          es cota inferior porque los convenios anteriores no están en la capa.
+        </p>
+      </TituloConAyuda>
       <p className="resumen-leyenda mt-2">
         <span><i style={{ background: COLOR_TOMAS }} />Tomas domésticas nuevas, miles</span>
         <span><i style={{ background: COLOR_CONVENIOS }} />Unidades convenidas</span>
@@ -205,28 +220,56 @@ export default function RitmoCrecimiento({ datos }: { datos: DatosRitmo }) {
         </div>
       )}
 
-      <h3 className="resumen-titulo">Del convenio al contrato: de cada 100 unidades, acumulado</h3>
+      <TituloConAyuda titulo="Del convenio al contrato: de cada 100 unidades, acumulado">
+        <p>
+          Por cada año de firma, cuántas de las unidades convenidas ya tienen contrato al cierre de cada año siguiente («firma» es
+          el mismo año, «+1» el siguiente). Una unidad cuenta como contratada si hay una toma activa dentro del polígono del
+          convenio, sin pasar del número de unidades convenidas.
+        </p>
+        <p>Solo años completos: un año de firma entra a «+k» solo si ya cerró ese año. Las líneas gruesas son las que llegan a +4.</p>
+      </TituloConAyuda>
       <Cohortes cohortes={datos.cohortes} />
       <p className="resumen-pie">
         Una línea por año de firma; solo años completos. {datos.lectura.consolidacion} Por contratar a{' '}
         {datos.corte}: {n(datos.por_contratar_unidades)} unidades.
       </p>
 
-      <h3 className="resumen-titulo">Factibilidades: oferta en trámite, no ritmo</h3>
+      <TituloConAyuda titulo="Factibilidades: oferta en trámite, no ritmo">
+        <p>
+          Base oficial de factibilidades de Nuevos Desarrollos. Superficie: unión de los polígonos solicitados cada año, sin
+          contar dos veces lo que se traslapa.
+        </p>
+        <p>
+          Paso a convenio: de la superficie nueva de cada año, qué parte queda dentro de un convenio firmado ese año o después. Se
+          mide por superficie y no por número de solicitudes, porque una etapa chica de convenio dentro de una factibilidad grande
+          contaría la factibilidad entera.
+        </p>
+      </TituloConAyuda>
       <p className="resumen-pie">
         De {n(Math.round(Math.min(...fac) / 100) * 100)} a {n(Math.round(Math.max(...fac) / 100) * 100)} ha al año con polígono, sin
         tendencia a la baja. De cada 100 ha nuevas, de {Math.min(...facConv)} a {Math.max(...facConv)} quedan bajo convenio en los años
         siguientes.
       </p>
 
-      <h3 className="resumen-titulo">Satélite</h3>
+      <TituloConAyuda titulo="Satélite">
+        <p>
+          Techo por toma: techo nuevo del modelo GHSL en 2000-2020 entre las tomas domésticas nuevas del mismo periodo. Incluye
+          techo no habitacional, y por quinquenio no se cita porque el modelo interpola entre 2000, 2014 y 2018.
+        </p>
+        <p>Autómata: polígonos del horizonte 2025-2030 y qué parte de su superficie cae fuera del límite urbano.</p>
+      </TituloConAyuda>
       <p className="resumen-pie">
         Unos {datos.techo_m2_por_toma_2000_2020} m² de techo por toma doméstica nueva en 2000-2020 (incluye techo no habitacional). El
         autómata prevé {n(datos.automata_2025_2030.ha)} ha al horizonte 2025-2030, {datos.automata_2025_2030.fuera_limite_de_cada_100} de
         cada 100 fuera del límite urbano.
       </p>
 
-      <h3 className="resumen-titulo">Coherencia</h3>
+      <TituloConAyuda titulo="Coherencia">
+        <p>
+          Una medida confirma a otra solo si salen de fuentes independientes. Tomas (padrón) contra viviendas habitadas (censo de
+          INEGI) lo son; convenios, factibilidades y autómata comparten insumos, así que entre ellos no se prueban.
+        </p>
+      </TituloConAyuda>
       <p className="resumen-pie">
         {datos.lectura.coherencia}
       </p>

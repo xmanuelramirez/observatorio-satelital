@@ -358,5 +358,13 @@
     "resumen": "Junta por año, de 2020 a 2026, las tomas domésticas nuevas, los convenios y su paso a contrato por año de firma, las factibilidades y lo que ve el satélite, con una cifra única de tomas nuevas al año contrastada con el censo y una lectura de coherencia. Solo totales por año, tras Access; sin habitantes y con la cota inferior rotulada, como pidió el juez.",
     "seccion_manual": "Funciones · Capas globales",
     "evidencia": "Dictamen del juez del 18/11/2026; decisión de Carlos del 19/11/2026"
+  },
+  {
+    "fecha": "2026-11-19",
+    "tipo": "correccion",
+    "titulo": "Zonas de crecimiento: «densificación» en lugar de «consolidación» y «?» con el cálculo de cada sección",
+    "resumen": "En SAPAL «consolidado» quiere decir construido al 100 %; aquí la categoría es la celda que ya era urbana y ganó techo, así que pasa a llamarse densificación. Las cifras no cambian. Cada sección de los paneles de quinquenio y de ritmo trae un «?» que abre, con clic, cómo se calculó.",
+    "seccion_manual": "Funciones · Capas globales",
+    "evidencia": "Pedido de Carlos del 19/11/2026"
   }
 ]

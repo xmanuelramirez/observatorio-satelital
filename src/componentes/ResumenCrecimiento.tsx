@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import TituloConAyuda from './Ayuda'
 
 /**
  * Tablero de «Zonas de crecimiento»: expansion y consolidacion por quinquenio, observadas (estimacion GHSL 2000-2020) y
@@ -13,6 +14,8 @@ import { useState } from 'react'
  *   6. El automata se cita con la union del vector.
  *   7. Tasas con las fechas reales de los censos.
  * El detalle de una barra se abre con clic, no al pasar el cursor; en el autómata, el clic tambien cambia el horizonte.
+ * «Densificacion» (antes «consolidacion», 19/11/2026): en SAPAL «consolidado» es construido al 100 %; aqui es la celda que ya
+ * era urbana y gano techo. Los nombres internos (`consolidacion_ha`) no cambian para no tocar los datos publicados.
  */
 
 type Ambito = 'municipio' | 'dentro_limite_urbano' | 'fuera_limite_urbano'
@@ -219,11 +222,24 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
 
       <p className="resumen-leyenda">
         <span><i style={{ background: COLOR_EXPANSION }} />Expansión</span>
-        <span><i style={{ background: COLOR_CONSOLIDACION }} />Consolidación</span>
+        <span><i style={{ background: COLOR_CONSOLIDACION }} />Densificación</span>
       </p>
 
-      <h3 className="resumen-titulo">Observado: techo nuevo, ha</h3>
-      <p className="resumen-pie">{datos.observado_rotulo}.</p>
+      <TituloConAyuda titulo="Observado: techo nuevo, ha">
+        <p>
+          Fuente: modelo GHSL (Comisión Europea), que da por cada celda de 100 × 100 m cuántos m² son techo; no cuenta calles,
+          banquetas ni patios. {datos.observado_rotulo}.
+        </p>
+        <p>
+          Una celda creció si ganó 1,000 m² de techo o más en el periodo. Es <strong>expansión</strong> si al inicio tenía menos de
+          20 % de techo (suelo casi vacío que se urbanizó) y <strong>densificación</strong> si ya tenía 20 % o más (zona urbana que
+          ganó techo). Una celda urbana nunca llega a 100 % de techo, por eso el corte es 20 %.
+        </p>
+        <p>
+          Con cortes de 10 a 30 % el reparto cambia (en 2010-2015 la expansión va de 38 a 68 de cada 100), y la expansión incluye
+          relleno de borde y caserío disperso. Lo observado mide techo y el autómata, suelo: no se comparan entre sí.
+        </p>
+      </TituloConAyuda>
       <Barras
         titulo="Techo nuevo estimado por quinquenio"
         barras={datos.observado.map((o) => ({
@@ -239,12 +255,17 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
         }}
       />
 
-      <h3 className="resumen-titulo">Autómata: suelo previsto por horizonte, ha</h3>
-      <p className="resumen-pie">
-        {datos.automata_ha_union.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ha en total;
-        cada barra es la superficie del vector en su horizonte. Horizontes del modelo; año
-        base supuesto 2025.
-      </p>
+      <TituloConAyuda titulo="Autómata: suelo previsto por horizonte, ha">
+        <p>
+          Modelo de crecimiento por autómatas celulares de SAPAL (2025), con horizontes de 2025 a 2050 y año base supuesto 2025:
+          los años son horizontes del modelo, no fechas ciertas.{' '}
+          {datos.automata_ha_union.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ha en total; cada
+          barra es la superficie de los polígonos de su horizonte.
+        </p>
+        <p>
+          El reparto entre expansión y densificación usa el techo observado en 2020 bajo cada polígono, con el mismo corte de 20 %.
+        </p>
+      </TituloConAyuda>
       <Barras
         titulo="Suelo previsto por el autómata por horizonte"
         barras={datos.previsto.map((p) => ({
@@ -265,31 +286,31 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
         {detalle === 'observado' && obs && (
           <p>
             <strong>{obs.periodo}:</strong> {ha(obs[ambito].total_ha)} ha de techo nuevo ({ha(obs[ambito].expansion_ha)} en expansión y{' '}
-            {ha(obs[ambito].consolidacion_ha)} en consolidación). En el municipio, {umbral(obs)}.
+            {ha(obs[ambito].consolidacion_ha)} en densificación). En el municipio, {umbral(obs)}.
           </p>
         )}
         {detalle === 'previsto' && prev && (
           <p>
             <strong>Horizonte {prev.horizonte}:</strong> {ha(prev[ambito].total_ha)} ha de suelo ({ha(prev[ambito].expansion_ha)} en expansión y{' '}
-            {ha(prev[ambito].consolidacion_ha)} en consolidación). El modelo le asigna {miles(prev.automata.pob)} habitantes con un
+            {ha(prev[ambito].consolidacion_ha)} en densificación). El modelo le asigna {miles(prev.automata.pob)} habitantes con un
             supuesto de {prev.automata.hab_por_ha_supuesto} hab/ha ({prev.automata.hab_por_vivienda_supuesto} hab/vivienda): es un
             insumo del modelo, no un resultado.
           </p>
         )}
       </div>
 
-      <h3 className="resumen-titulo">Población del municipio: crecimiento anual, %</h3>
+      <TituloConAyuda titulo="Población del municipio: crecimiento anual, %">
+        <p>
+          Tasa compuesta entre dos levantamientos de INEGI: (población final / población inicial) elevado a (1 / años entre
+          fechas) menos 1. Censos 2000, 2010 y 2020, Conteo 2005 y Encuesta Intercensal 2015, con sus fechas reales de
+          levantamiento (no años redondos).
+        </p>
+        <p>
+          Ejemplo 2015-2020: 1,578,626 a 1,721,215 habitantes en 5.0 años, 1.74 % anual.
+        </p>
+      </TituloConAyuda>
       <Tasas observado={datos.observado} />
-      <p className="resumen-pie">
-        Censos de INEGI (2015, Encuesta Intercensal), con las fechas reales de levantamiento. Siguiente paso: la proyección a
-        2050, una vez ajustada a la Intercensal 2025.
-      </p>
-
-      <p className="resumen-pie">
-        Expansión: celda de 100 m con menos de 20 % construido al inicio del periodo; consolidación, 20 % o más. El reparto
-        depende del umbral (de 10 a 30 %, en 2010-2015 la expansión va de 38 a 68 de cada 100) y la expansión incluye relleno de
-        borde y caserío disperso. Lo observado mide techo y el autómata, suelo: no se comparan entre sí.
-      </p>
+      <p className="resumen-pie">Siguiente paso: la proyección a 2050, una vez ajustada a la Intercensal 2025.</p>
       <button type="button" className="enlace text-xs" onClick={() => setTabla((t) => !t)} aria-expanded={tabla}>
         {tabla ? 'Ocultar tablas' : 'Ver tablas'}
       </button>
@@ -301,7 +322,7 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
               <tr>
                 <th>Periodo</th>
                 <th>Expansión</th>
-                <th>Consolidación</th>
+                <th>Densificación</th>
                 <th>Expansión de cada 100, umbral 10/20/30 %</th>
                 <th>Población, % anual</th>
               </tr>
@@ -326,7 +347,7 @@ export default function ResumenCrecimiento({ datos, horizonte, onHorizonte, colo
               <tr>
                 <th>Horizonte</th>
                 <th>Expansión</th>
-                <th>Consolidación</th>
+                <th>Densificación</th>
                 <th>Habitantes del modelo</th>
               </tr>
             </thead>
