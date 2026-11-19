@@ -38,6 +38,7 @@ import {
 import { cargarProducto, PRODUCTOS, type GrupoProducto, type IdProducto, type PasosProducto } from './servicios/productos'
 import { componerCapas } from './lib/componerCapas'
 import ResumenCrecimiento, { type DatosResumen } from './componentes/ResumenCrecimiento'
+import RitmoCrecimiento, { type DatosRitmo } from './componentes/RitmoCrecimiento'
 import type { ResultadoSerie } from './servicios/serie'
 
 const TITULO_SECCION: Record<SeccionPanel, string> = {
@@ -290,6 +291,8 @@ export default function App() {
     limites?: [[number, number], [number, number]]
     /** Tablero por quinquenio, si la capa lo trae (solo con dictamen del juez). */
     resumen?: DatosResumen
+    /** Ritmo de crecimiento por año, si la capa lo trae (dictamen del juez del 18/11/2026). */
+    ritmo?: DatosRitmo
   } | null>(null)
   const [cargandoProducto, setCargandoProducto] = useState<IdProducto | null>(null)
   const [errorProducto, setErrorProducto] = useState<string | null>(null)
@@ -825,12 +828,18 @@ export default function App() {
             pasos?: PasosProducto
             grupos?: GrupoProducto[]
             resumen?: string
+            ritmo?: string
           }
           const carpeta = ruta.slice(0, ruta.lastIndexOf('/'))
           const resumen = datos.resumen
             ? ((await fetch(`${carpeta}/${datos.resumen}`)
                 .then((r) => (r.ok ? r.json() : undefined))
                 .catch(() => undefined)) as DatosResumen | undefined)
+            : undefined
+          const ritmo = datos.ritmo
+            ? ((await fetch(`${carpeta}/${datos.ritmo}`)
+                .then((r) => (r.ok ? r.json() : undefined))
+                .catch(() => undefined)) as DatosRitmo | undefined)
             : undefined
           // La capa de referencia manda sobre lo que hubiera pintado antes.
           soltarResultado()
@@ -839,7 +848,7 @@ export default function App() {
             datos.pasos && inicial
               ? { ...datos.pasos, ruta: carpeta, limites: datos.limites, elegido: inicial.etiqueta }
               : undefined
-          const base = { pasos, grupos: datos.grupos, ruta: carpeta, limites: datos.limites, resumen }
+          const base = { pasos, grupos: datos.grupos, ruta: carpeta, limites: datos.limites, resumen, ritmo }
           setProductoVista({
             // Con grupos, la imagen la pone la composicion (efecto de abajo).
             fuente: datos.grupos
@@ -1452,6 +1461,7 @@ export default function App() {
                       )}
                     />
                   )}
+                  {productoVista?.ritmo && <RitmoCrecimiento datos={productoVista.ritmo} />}
                   </>
                 )}
 

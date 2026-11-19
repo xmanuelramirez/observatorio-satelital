@@ -58,6 +58,11 @@ entran al repositorio (autómatas celulares y convenios en `0. CAPAS VARIAS`, fa
 ubicación de predios): solo viajan en la imagen precalculada, tras Access. La cifra de obra nueva sigue retenida: las
 zonas van como «candidatas», sin hectáreas en pantalla.
 
+El panel «Ritmo de crecimiento» (`public/apertura/crecimiento/ritmo.json`) sale de `herramientas/ritmo_crecimiento_json.py`,
+con la tabla de `salidas/ritmo-crecimiento/` y la matriz de cohortes de Balance Hídrico. Cifras del dictamen del juez del
+18/11 (`ORDENES-DEL-MASTER/2026-11-18-DICTAMEN-JUEZ-RITMO-CRECIMIENTO.md`): sin habitantes, cota inferior rotulada, solo
+años completos. `crecimiento_capa.py` lo enlaza si existe; en el corte del 01/12 no se borra.
+
 **Todo deploy lleva antes el visto bueno de SEGURIDAD sobre el diff** (regla del MASTER del 18/11/2026), también los
 cambios de configuración como `wrangler.jsonc`. Que SEGURIDAD recomiende un cambio no es visto bueno: se le manda el diff
 y se espera su respuesta antes de `wrangler deploy`. La puerta `npm audit` de «Verificar» tampoco se toca sin su regla.
@@ -103,7 +108,9 @@ cita a la app dueña. Si se calcula aquí, con la misma fuente y el mismo métod
   interna que sí lleve el número de curva.
 - **Estaciones EMA**: su ubicación dejó de ser reservada el 24/09/2026. La capa sigue sin
   publicarse porque no aporta al análisis de escenas, no porque esté prohibida.
-- Padrón, SCADA y contenido del PSH y PRH no entran a esta app en ninguna forma.
+- **Padrón:** solo los totales anuales de tomas nuevas del panel «Ritmo de crecimiento» (decisión de Carlos del
+  19/11/2026), en la imagen precalculada tras Access y fuera del repositorio. Ninguna cuenta, coordenada ni dato por toma.
+- SCADA y contenido del PSH y PRH no entran a esta app en ninguna forma.
 
 ## Detrás de Access (decisión de Carlos, 30/09/2026; activo desde el 08/10/2026)
 

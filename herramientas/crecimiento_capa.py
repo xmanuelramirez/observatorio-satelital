@@ -215,7 +215,7 @@ def main() -> None:
         "Autómatas celulares: modelo de crecimiento de SAPAL (2025), horizontes de 2025 a 2050; año base supuesto 2025. Los años son horizontes del modelo, no fechas ciertas. Cada horizonte tiene su color y se suma a los anteriores.",
         "Cambio reciente: zonas candidatas de cambio de cobertura (pérdida de vegetación o aumento de firma construida) entre 20/09/2025 y 22/09/2026, misma fase de lluvias. No es obra confirmada ni superficie urbanizada. " + revision,
         f"Factibilidades nuevas: {n_fact} lotes del 30/09 al 21/10/2026 (Nuevos Desarrollos), solo contorno; son solicitudes posteriores a las imágenes. Convenios: desarrollos con factibilidad convenida de 2025 y 2026, solo contorno.",
-        "La concordancia entre el crecimiento observado, las factibilidades, los convenios y el autómata está en revisión del juez; sus cifras no se muestran todavía.",
+        "El ritmo anual de tomas, convenios y factibilidades está en el panel «Ritmo de crecimiento». La concordancia zona por zona entre lo observado, los trámites y el autómata sigue en revisión.",
     ]
 
     def leyenda_automata(anio: int) -> list[dict]:
@@ -231,6 +231,9 @@ def main() -> None:
     # El tablero por quinquenio (`crecimiento_resumen.py --publicar`) solo se enlaza si ya se publico con dictamen.
     if (DESTINO / "resumen.json").exists():
         datos["resumen"] = "resumen.json"
+    # El ritmo por año (`ritmo_crecimiento_json.py`, dictamen del juez del 18/11/2026) va en su propio panel.
+    if (DESTINO / "ritmo.json").exists():
+        datos["ritmo"] = "ritmo.json"
     (DESTINO / "capa.json").write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps({"pixel_m": round(m_px, 1), "ha_expansion": round(float(expansion.sum()) * ha_pixel),
                       "ha_consolidacion": round(float(consolidacion.sum()) * ha_pixel),

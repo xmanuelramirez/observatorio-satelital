@@ -470,8 +470,11 @@ publicarse porque no aporta al analisis de una escena. Publicarla son tres
 pasos: sacarla del `.gitignore`, moverla al arreglo publico de `capas.ts` y
 agregarla a la lista blanca de `podar-capas.mjs`.
 
-El padron, el estado del SCADA y el contenido del PSH y PRH no entran a esta
-app en ninguna forma.
+El estado del SCADA y el contenido del PSH y PRH no entran a esta app en ninguna
+forma. Del padron entran solo los totales anuales de tomas nuevas del panel
+«Ritmo de crecimiento» (decision de Carlos del 19 de noviembre de 2026), en la
+imagen precalculada tras Access y fuera del repositorio; ninguna cuenta,
+coordenada ni dato por toma.
 
 ## Despliegue
 

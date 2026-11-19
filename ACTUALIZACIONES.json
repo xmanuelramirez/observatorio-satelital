@@ -350,5 +350,13 @@
     "resumen": "Las barras del autómata por horizonte ahora suman las 4,914.9 ha de la capa (superficie de cada polígono, no de la rejilla de 10 m, que daba 4,936); la rejilla solo reparte entre expansión y consolidación. Cada horizonte baja menos de 1 %. La gráfica de población pasa a color propio, sin gris.",
     "seccion_manual": "Funciones · Capas globales",
     "evidencia": "Revisión del MASTER del 12/11/2026"
+  },
+  {
+    "fecha": "2026-11-19",
+    "tipo": "capacidad",
+    "titulo": "Panel «Ritmo de crecimiento» en la capa Zonas de crecimiento",
+    "resumen": "Junta por año, de 2020 a 2026, las tomas domésticas nuevas, los convenios y su paso a contrato por año de firma, las factibilidades y lo que ve el satélite, con una cifra única de tomas nuevas al año contrastada con el censo y una lectura de coherencia. Solo totales por año, tras Access; sin habitantes y con la cota inferior rotulada, como pidió el juez.",
+    "seccion_manual": "Funciones · Capas globales",
+    "evidencia": "Dictamen del juez del 18/11/2026; decisión de Carlos del 19/11/2026"
   }
 ]
