@@ -124,6 +124,7 @@ def tomas() -> dict:
         "tasa_sector_p10_p50_p90": [r(x) for x in np.percentile(con_tasa["tasa_compuesta_2017_2025"].dropna(), [10, 50, 90])],
         "fuera_de_sectores": sec.loc[sec["sector"] == FUERA].iloc[0].to_dict(),
         "contribucion_suma": r(suma_contrib, 6),
+        "contribucion_rotulo": "promedio anual 2017-2025; suma el promedio de la tasa municipal",
         "tasa_municipal_media_simple": r(media_mun, 6),
         "mayor_contribucion": sec.sort_values("contribucion_tasa_municipal", ascending=False).head(10)[
             ["sector", "altas_al_anio_2017_2025", "tasa_compuesta_2017_2025", "frente_nuevo", "contribucion_tasa_municipal"]].to_dict("records"),
@@ -278,7 +279,8 @@ def factibilidades(sec: gpd.GeoDataFrame) -> dict:
     return {"union_ha_por_anio": {int(a): r(h, 1) for a, h in zip(u.anio, u.ha)},
             "fuera_de_sectores_ha": {int(a): r(v, 1) for a, v in por.loc[FUERA].items()},
             "sectores_con_factibilidad_2025": int((por.drop(index=FUERA).get(2025, pd.Series(dtype=float)) > 0).sum()),
-            "nota": "incluye giros no habitacionales; 2021 arrastra trámites anteriores; sin denominador"}
+            "nota": "incluye giros no habitacionales; 2021 arrastra trámites anteriores; sin denominador",
+            "rotulo_fuera": "unas 6 de cada 10 ha fuera de la cobertura de sectores"}
 
 
 def automata(mun_moll) -> dict:
@@ -288,7 +290,15 @@ def automata(mun_moll) -> dict:
     rev = pd.read_csv(RAIZ / "salidas" / "crecimiento" / "revision-zonas.csv").set_index("id")
     cand["revision"] = cand["id"].map(rev["es_cambio_real"]).fillna("sin revisar")
     conf = cand[cand["revision"] == "si"].to_crs(UTM)
-    zonas = unary_union(conf.geometry.make_valid())
+    # Las candidatas son celdas que se tocan en un MultiPolygon: make_valid pierde area (dictamen del juez del 19/11 sobre el
+    # RESULTADO, hallazgo 1). Se usa la union de sus celdas, como `crecimiento_concordancia.py`, y se comprueba contra la
+    # suma de las celdas.
+    celdas = [c for g in conf.geometry for c in g.geoms]
+    zonas = unary_union(celdas)
+    suma_celdas = sum(c.area for c in celdas)
+    assert abs(zonas.area - suma_celdas) <= 0.005 * suma_celdas, "el area de las zonas confirmadas no cuadra con sus celdas"
+    urb = gpd.read_file(APPS / "0. CAPAS VARIAS" / "LIMITES_VIGENTES" / "LIMITE_URBANO_POTE_2020" / "Limite_Urbano_Pote_2020.shp")
+    urb = (urb if urb.crs else urb.set_crs(UTM)).to_crs(UTM).geometry.make_valid().union_all()
 
     # (a) diagnostico: techo GHSL 2020 dentro de cada horizonte (celda por su centro).
     g20, t = cr.leer(2020, mun_moll.bounds)
@@ -315,24 +325,30 @@ def automata(mun_moll) -> dict:
             "c_tomas_2025": int(clases.loc[k, "2025"]),
             "c_tomas_2025_ene_sep": int(clases.loc[k, "2025_ene_sep"]),
             "c_tomas_2026_ene_sep": int(clases.loc[k, "2026"]),
-            "c_tomas_desde_2025_por_ha": r(desde_2025 / ha_h, 3),
+            "c_tomas_ene_2025_a_sep_2026_por_ha": r(desde_2025 / ha_h, 3),
             "supuesto_modelo_viviendas_por_ha": r(VIV_POR_HA_MODELO, 1),
             "a_techo_2020_ha_diagnostico": r(float(g20[ids == i + 1].sum()) / 1e4, 1),
         })
-    # Fuera del automata: hectareas solo de (b), en clases excluyentes.
-    en_huella = restante.intersection(huella).area / 1e4
-    no_prevista = restante.difference(huella).area / 1e4
+    # Fuera del automata: hectareas solo de (b). Lo firme es dentro o fuera de todo horizonte; relleno contra expansion no
+    # prevista depende de la huella y va como rango con dos huellas (condicion 3 del dictamen del RESULTADO).
+    en_horizonte = sum(f.geometry.intersection(zonas).area for _, f in ex.iterrows()) / 1e4
+    fuera_todo = restante.area / 1e4
+    huellas = {"ghsl_2020": huella, "ghsl_2020_con_pote": huella.union(urb)}
+    por_huella = {k: {"relleno": r(restante.intersection(h).area / 1e4, 1), "expansion_no_prevista": r(restante.difference(h).area / 1e4, 1)}
+                  for k, h in huellas.items()}
+    no_prev = [v["expansion_no_prevista"] for v in por_huella.values()]
     fuera = {
-        "ha_b": {"en_horizonte": r(sum(h["b_ha_cambio_confirmado"] for h in horizontes), 1),
-                 "huella_base_relleno": r(en_huella, 1), "expansion_no_prevista": r(no_prevista, 1),
-                 "total_confirmado": r(zonas.area / 1e4, 1), "zonas_confirmadas": int(len(conf))},
-        "tomas_c": {a: {"en_horizonte": int(clases.loc[[f"horizonte_{h['horizonte']}" for h in horizontes], a].sum()),
-                        "huella_base_relleno": int(clases.loc["huella_base", a]),
-                        "expansion_no_prevista": int(clases.loc["expansion_no_prevista", a])}
-                    for a in ["2020", "2021", "2022", "2023", "2024", "2025", "2025_ene_sep", "2026"]},
-        "nota": "hectáreas solo de (b) y tomas solo de (c), nunca sumadas; huella base GHSL 2020 con 20 % de techo",
+        "ha_b": {"zonas_confirmadas": int(len(conf)), "total_confirmado": r(zonas.area / 1e4, 1),
+                 "en_algun_horizonte": r(en_horizonte, 1), "fuera_de_todo_horizonte": r(fuera_todo, 1),
+                 "por_huella": por_huella, "expansion_no_prevista_rango": [min(no_prev), max(no_prev)]},
+        # Tomas: solo «en algun horizonte» por año. La serie relleno / expansion no prevista se retira (condicion 2).
+        "tomas_en_algun_horizonte": {a: int(clases.loc[[f"horizonte_{h['horizonte']}" for h in horizontes], a].sum())
+                                     for a in ["2020", "2021", "2022", "2023", "2024", "2025", "2025_ene_sep", "2026"]},
+        "rotulo": "22 zonas confirmadas a ojo en un año; muestra chica",
     }
-    assert abs(fuera["ha_b"]["en_horizonte"] + en_huella + no_prevista - zonas.area / 1e4) < 0.5, "clases de (b) no cuadran"
+    assert abs(en_horizonte + fuera_todo - zonas.area / 1e4) < 0.05, "dentro + fuera de horizontes no cuadra"
+    for v in por_huella.values():
+        assert abs(v["relleno"] + v["expansion_no_prevista"] - fuera_todo) < 0.2, "clases de (b) no cuadran"
     return {"horizontes": horizontes, "fuera_del_automata": fuera}
 
 
