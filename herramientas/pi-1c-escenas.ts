@@ -30,7 +30,11 @@ const MARGEN = 0.01
 const METROS = 10
 
 async function main() {
-  const coleccion = buscarColeccion('sentinel-2-c1-l2a')
+  const c1 = buscarColeccion('sentinel-2-c1-l2a')
+  // COLECCION=vieja usa sentinel-2-l2a (dictamen del 19/11 sobre el RESULTADO: 2022 solo esta ahi), con la guarda de escena;
+  // SUFIJO marca sus archivos para compararla con c1 en un año comun.
+  const coleccion = process.env.COLECCION === 'vieja' ? ({ ...c1, id: 'sentinel-2-l2a' } as typeof c1) : c1
+  const sufijo = process.env.SUFIJO ?? ''
   const conv = JSON.parse(await readFile(CONVENIOS, 'utf-8')) as FeatureCollection
   const [x0, y0, x1, y1] = bboxDe(conv)
   const bbox: [number, number, number, number] = [x0 - MARGEN, y0 - MARGEN, x1 + MARGEN, y1 + MARGEN]
@@ -40,7 +44,7 @@ async function main() {
   const rejilla = rejillaDe(bbox, ancho, alto)
   await mkdir(SALIDA, { recursive: true })
   const porId = (id: string) => INDICES.find((i) => i.id === id)!
-  const escenas: Record<string, { dia: string; nubes: number | null; escenas: number; trae_mil_sin_restar?: boolean }> = {}
+  const escenas: Record<string, { coleccion?: string; dia: string; nubes: number | null; escenas: number; trae_mil_sin_restar?: boolean }> = {}
 
   // ANIOS=2022 NUBES=60 rehace solo esos años con otra tolerancia de nubes (la mascara de nubes quita lo nublado).
   const soloAnios = process.env.ANIOS?.split(',').map(Number)
@@ -69,10 +73,10 @@ async function main() {
     const { pila } = await obtenerMosaico(g.escenas, coleccion, ['swir1', 'nir', 'rojo', 'verde'], rejilla, true)
     for (const id of ['ndvi', 'ndbi', 'mndwi']) {
       const v = calcularIndice(pila, porId(id)).valores
-      await writeFile(join(SALIDA, `${anio}-${id}.bin`), Buffer.from(new Float32Array(v).buffer))
+      await writeFile(join(SALIDA, `${anio}${sufijo}-${id}.bin`), Buffer.from(new Float32Array(v).buffer))
     }
     // Guarda de escena del observatorio (dictamen del 30/10): el +1000 sin restar sube lo mas oscuro de la escena.
-    escenas[anio] = { dia: g.dia, nubes: g.nubes, escenas: g.escenas.length, trae_mil_sin_restar: traeMilSinRestar(pila.bandas.rojo) }
+    escenas[`${anio}${sufijo}`] = { coleccion: coleccion.id, dia: g.dia, nubes: g.nubes, escenas: g.escenas.length, trae_mil_sin_restar: traeMilSinRestar(pila.bandas.rojo) }
     console.log(`${anio}: ${g.dia}, nubes ${g.nubes}, ${g.escenas.length} escenas`)
   }
   await writeFile(

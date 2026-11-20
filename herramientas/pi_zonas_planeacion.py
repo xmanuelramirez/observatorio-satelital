@@ -53,16 +53,19 @@ def main() -> None:
     conv = gpd.read_file(CONV).to_crs(UTM)
     conv["geometry"] = conv.geometry.make_valid()
     r1b = pd.read_csv(SAL / "1b-por-convenio.csv")
-    conv = conv.merge(r1b[["id", "habitacional", "clase", "edad_meses", "contratadas_con_tope"]], on="id", how="inner", suffixes=("_nd", ""))
+    conv = conv.merge(r1b[["id", "habitacional", "clase", "clase_base", "por_revisar", "edad_meses", "contratadas_con_tope"]], on="id", how="inner", suffixes=("_nd", ""))
     conv = conv[conv.habitacional == True].copy()  # noqa: E712
     conv["unidades"] = r1b.set_index("id").loc[conv.id, "unidades"].values
     conv["por_contratar_menos_4_anios"] = np.where(conv.edad_meses < 48, conv.unidades - conv.contratadas_con_tope, 0)
     conv["por_contratar_4_anios_o_mas"] = np.where(conv.edad_meses >= 48, conv.unidades - conv.contratadas_con_tope, 0)
+    # Clase calculada (con los dudosos, que van «por revisar»; dictamen del 19/11 sobre el RESULTADO).
+    por_rev = conv.por_revisar.map(lambda v: str(v).strip().lower() == "true")
     for c in ["alta", "media", "baja"]:
-        conv[f"unidades_{c}"] = np.where(conv.clase == c, conv.unidades, 0)
-    conv["unidades_sin_clasificar"] = np.where(~conv.clase.isin(["alta", "media", "baja"]), conv.unidades, 0)
+        conv[f"unidades_{c}"] = np.where((conv.clase_base == c) & ~por_rev, conv.unidades, 0)
+    conv["unidades_por_revisar"] = np.where(por_rev, conv.unidades, 0)
+    conv["unidades_sin_clasificar"] = np.where(~conv.clase_base.isin(["alta", "media", "baja"]), conv.unidades, 0)
     campos_c = ["unidades", "contratadas_con_tope", "por_contratar_menos_4_anios", "por_contratar_4_anios_o_mas",
-                "unidades_alta", "unidades_media", "unidades_baja", "unidades_sin_clasificar"]
+                "unidades_alta", "unidades_media", "unidades_baja", "unidades_por_revisar", "unidades_sin_clasificar"]
     t_conv = repartir(conv[campos_c + ["geometry"]], campos_c, plan)
 
     # 4: union de factibilidad 2021-2026 (de la capa del frente 4).
@@ -78,7 +81,7 @@ def main() -> None:
 
     t = t_conv.join(t_fac, how="outer").join(t_2a, how="outer").fillna(0)
     t["consolidacion"] = np.where(t.unidades > 0, t.contratadas_con_tope / t.unidades, np.nan)
-    t["tomas_sobre_habitadas_2020"] = np.where(t.vph_2020 >= 200, t.tomas_2020 / t.vph_2020, np.nan)
+    # Por sector de planeacion solo absolutos de 2a (condicion 3): sin razones.
     t["zona"] = [zona_de.get(s, "otra" if s != FUERA else "") for s in t.index]
     z = t.groupby("zona")[campos_c + ["ha_factibilidad_union_2021_2026", "vph_2020", "vpart_2020", "tomas_2020", "demanda_lps"]].sum()
     z["consolidacion"] = z.contratadas_con_tope / z.unidades
@@ -90,6 +93,8 @@ def main() -> None:
            "chequeo_unidades": [round(float(t.unidades.sum()), 1), float(conv.unidades.sum())],
            "zonas": z.round(1).to_dict("index")}
     assert abs(res["chequeo_unidades"][0] - res["chequeo_unidades"][1]) < 1, "reparto de unidades no cuadra"
+    cl = ["unidades_alta", "unidades_media", "unidades_baja", "unidades_por_revisar", "unidades_sin_clasificar"]
+    assert np.allclose(t[cl].sum(axis=1), t.unidades, atol=1), "las clases no suman las unidades"
     (SAL / "zonas-planeacion-resumen.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps(res, ensure_ascii=False, indent=1))
 

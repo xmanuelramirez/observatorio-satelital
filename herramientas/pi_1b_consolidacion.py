@@ -81,8 +81,22 @@ def main() -> None:
     res = pd.DataFrame(resumen)
     piv = curvas.pivot(index="id", columns="edad_meses", values="consolidacion")
 
-    # Referencia R(a).
-    base_ref = res[res.habitacional & (res.unidades >= 20) & (res.edad_meses >= 36)].id
+    # Marcas de Cuentas. Huella previa: GHSL 2015 (dictamen del 19/11 sobre el RESULTADO, condicion 1), si ya llego.
+    huella_col = "en_huella_base_ghsl2015" if "en_huella_base_ghsl2015" in marcas.columns else "en_huella_base_ghsl2020"
+    res = res.join(marcas[["tomas_post_firma", "consumen_por_100", "con_algun_consumo_por_100", "en_traslape", "sin_coordenada_propia",
+                           huella_col]], on="id")
+    post = res.tomas_post_firma.replace(0, np.nan)
+    res["huella_usada"] = huella_col.replace("en_huella_base_", "")
+    res["huella_previa_de_cada_100"] = (100 * res[huella_col] / post).round(1)
+    res["sin_coordenada_de_cada_100"] = (100 * res.sin_coordenada_propia / post).round(1)
+    res["dudoso_motivo"] = np.select(
+        [res.exceso_sobre_unidades > 0.10 * res.unidades, res.sin_coordenada_de_cada_100 > 10, res.huella_previa_de_cada_100 > 10],
+        ["exceso sobre unidades", "sin coordenada propia", "tomas en techo " + huella_col.replace("en_huella_base_", "").upper()], default="")
+    res["contratado_sin_ocupar"] = res.consumen_por_100 < 70
+    res["consolidacion_con_consumo"] = (res.contratadas_con_tope * res.consumen_por_100.fillna(0) / 100 / res.unidades).round(4)
+
+    # Referencia R(a), sin los dudosos (condicion 1).
+    base_ref = res[res.habitacional & (res.unidades >= 20) & (res.edad_meses >= 36) & (res.dudoso_motivo == "")].id
     rb = piv.loc[base_ref]
     ref, ref25, ref75 = rb.median(), rb.quantile(0.25), rb.quantile(0.75)
     R24 = float(ref[EDAD_CLASE])
@@ -90,18 +104,6 @@ def main() -> None:
 
     def clase_r(r: float) -> str:
         return "baja" if r < corte_baja else ("alta" if r >= corte_alta else "media")
-
-    # Marcas de Cuentas.
-    res = res.join(marcas[["tomas_post_firma", "consumen_por_100", "con_algun_consumo_por_100", "en_traslape", "sin_coordenada_propia",
-                           "en_huella_base_ghsl2020"]], on="id")
-    post = res.tomas_post_firma.replace(0, np.nan)
-    res["huella_previa_de_cada_100"] = (100 * res.en_huella_base_ghsl2020 / post).round(1)
-    res["sin_coordenada_de_cada_100"] = (100 * res.sin_coordenada_propia / post).round(1)
-    res["dudoso_motivo"] = np.select(
-        [res.exceso_sobre_unidades > 0.10 * res.unidades, res.sin_coordenada_de_cada_100 > 10, res.huella_previa_de_cada_100 > 10],
-        ["exceso sobre unidades", "sin coordenada propia", "tomas en techo GHSL 2020"], default="")
-    res["contratado_sin_ocupar"] = res.consumen_por_100 < 70
-    res["consolidacion_con_consumo"] = (res.contratadas_con_tope * res.consumen_por_100.fillna(0) / 100 / res.unidades).round(4)
 
     clase, r_col, a_col, c_col = [], [], [], []
     for _, f in res.iterrows():
@@ -112,10 +114,10 @@ def main() -> None:
             et = "no habitacional"
         elif f.unidades < 20:
             et = "sin clasificar, muestra chica"
-        elif f.dudoso_motivo:
-            et = "sin clasificar, poligono o denominador dudoso"
         elif f.edad_meses < 12:
             et = "sin clasificar, muy reciente"
+        elif f.dudoso_motivo:
+            et = f"{clase_r(r)} (por revisar)"
         else:
             et = clase_r(r)
         clase.append(et)
@@ -123,7 +125,9 @@ def main() -> None:
         a_col.append(a)
         c_col.append(round(float(cval), 4) if pd.notna(cval) else None)
     res["edad_eval"], res["c_eval"], res["r"], res["clase"] = a_col, c_col, r_col, clase
-    res["provisional"] = res.clase.isin(CLASES) & (res.edad_meses < EDAD_CLASE)
+    res["clase_base"] = res.clase.str.replace(" (por revisar)", "", regex=False)
+    res["por_revisar"] = res.clase.str.endswith("(por revisar)")
+    res["provisional"] = res.clase_base.isin(CLASES) & (res.edad_meses < EDAD_CLASE)
 
     # Prueba de estabilidad declarada: a* = 24 contra a* = 36.
     mad = res[res.clase.isin(CLASES) & (res.edad_meses >= 36)]
@@ -133,13 +137,18 @@ def main() -> None:
 
     # Desarrollo: r ponderado por unidades de sus secciones clasificadas.
     hab = res[res.habitacional]
-    elig = hab[hab.clase.isin(CLASES)]
+    elig = hab[hab.clase_base.isin(CLASES)]
+    hab = hab.assign(con_consumo_u=hab.consolidacion_con_consumo * hab.unidades)
     des = hab.groupby("desarrollo").agg(convenios=("id", "count"), primera_firma=("firma", "min"), ultima_firma=("firma", "max"),
-                                        unidades=("unidades", "sum"), contratadas_con_tope=("contratadas_con_tope", "sum")).reset_index()
+                                        unidades=("unidades", "sum"), contratadas_con_tope=("contratadas_con_tope", "sum"),
+                                        con_consumo_u=("con_consumo_u", "sum"), secciones_por_revisar=("por_revisar", "sum")).reset_index()
     rp = elig.groupby("desarrollo").apply(lambda d: np.average(d.r, weights=d.unidades), include_groups=False)
     des["r_ponderado"] = des.desarrollo.map(rp).round(4)
     des["clase"] = des.r_ponderado.map(lambda r: clase_r(r) if pd.notna(r) else "sin clasificar")
+    des.loc[(des.secciones_por_revisar > 0) & des.clase.isin(CLASES), "clase"] += " (por revisar)"
     des["consolidacion_actual"] = (des.contratadas_con_tope / des.unidades).round(4)
+    des["consolidacion_con_consumo"] = (des.con_consumo_u / des.unidades).round(4)
+    des = des.drop(columns="con_consumo_u")
 
     # Sector de cada convenio (punto representativo).
     sec = gpd.read_file(SECTORES).to_crs(4326).rename(columns={"Sect": "sector"})[["sector", "geometry"]]
@@ -163,6 +172,8 @@ def main() -> None:
                        "p25_mediana_p75": {int(a): [round(float(ref25[a]), 3), round(float(ref[a]), 3), round(float(ref75[a]), 3)] for a in (6, 12, 18, 24, 36)}},
         "cortes_r": [round(corte_baja, 4), round(corte_alta, 4)],
         "clases_habitacionales": hab.clase.value_counts().to_dict(),
+        "huella_previa_usada": res.huella_usada.iloc[0],
+        "por_revisar": hab[hab.por_revisar].clase.value_counts().to_dict(),
         "a_24_meses": hab[hab.clase.isin(CLASES) & ~hab.provisional].clase.value_counts().to_dict(),
         "provisionales": hab[hab.provisional].clase.value_counts().to_dict(),
         "dudosos_por_motivo": hab[hab.dudoso_motivo != ""].dudoso_motivo.value_counts().to_dict(),

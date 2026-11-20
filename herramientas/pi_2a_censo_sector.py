@@ -124,7 +124,10 @@ def main() -> None:
     dem = c.groupby("sector").agg(m3=("m3", "sum"), tomas_mes=("tomas_facturadas", "mean"))
     d["demanda_lps"] = (dem.m3 * 1000 / seg).reindex(d.index)
     d["litros_por_toma_dia"] = (dem.m3 * 1000 / (dem.tomas_mes * seg / 86400)).reindex(d.index)
-    d.round(4).to_csv(SAL / "2a-censo-tomas-demanda-por-sector.csv", encoding="utf-8")
+    # El crecimiento 2010-2020 por sector queda fuera del paquete del 25/11 (dictamen del 19/11 sobre el RESULTADO, condicion 4).
+    crec = ["vph_2010", "tomas_2010", "aumento_vph", "altas_tomas", "razon_crecimiento"]
+    d[crec].round(4).to_csv(SAL / "2a-crecimiento-2010-2020-FUERA-DEL-PAQUETE.csv", encoding="utf-8")
+    d.drop(columns=crec).round(4).to_csv(SAL / "2a-censo-tomas-demanda-por-sector.csv", encoding="utf-8")
 
     v = d.drop(index=FUERA, errors="ignore")
     res = {

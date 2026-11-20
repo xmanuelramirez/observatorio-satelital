@@ -86,10 +86,17 @@ def main() -> None:
     meta = json.loads((S2 / "rejilla.json").read_text(encoding="utf-8"))
     ancho, alto = meta["ancho"], meta["alto"]
     tr = from_origin(meta["xmin"], meta["ymax"], meta["pixelAncho"], meta["pixelAlto"])
-    anios = sorted(int(a) for a in meta["escenas"])
+    # 2022 solo existe en sentinel-2-l2a (archivos «2022v»); 2023 se mide en las dos colecciones para compararlas.
+    claves = {int(a): a for a in meta["escenas"] if a.isdigit()}
+    # El 19/11 la comparacion del mismo dia (2023-09-21) entre colecciones dio NDVI +0.52 de mediana en sentinel-2-l2a:
+    # no es comparable (offset), asi que 2022 no se usa y esas firmas van con «antes = 2021». USAR_2022V=1 lo fuerza.
+    import os
+    if "2022v" in meta["escenas"] and os.environ.get("USAR_2022V") == "1":
+        claves[2022] = "2022v"
+    anios = sorted(claves)
 
-    def capa(anio, idx):
-        return np.fromfile(S2 / f"{anio}-{idx}.bin", dtype="float32").reshape(alto, ancho)
+    def capa(anio, idx, clave=None):
+        return np.fromfile(S2 / f"{clave or claves[anio]}-{idx}.bin", dtype="float32").reshape(alto, ancho)
 
     vieja_geom, mun = ciudad_vieja()
     vieja = rasterize([(vieja_geom, 1)], out_shape=(alto, ancho), transform=tr, fill=0).astype(bool)
@@ -106,7 +113,8 @@ def main() -> None:
         valido = np.isfinite(ndvi) & np.isfinite(ndbi) & np.isfinite(mndwi)
         T = float(np.percentile(ndbi[vieja & valido], 25))
         rural_bajo = float(np.mean(ndvi[rural & valido] <= NDVI_MAX))
-        escenas[anio] = {"dia": meta["escenas"][str(anio)]["dia"], "guarda_mil_sin_restar": meta["escenas"][str(anio)].get("trae_mil_sin_restar"),
+        me = meta["escenas"][claves[anio]]
+        escenas[anio] = {"coleccion": me.get("coleccion", "sentinel-2-c1-l2a"), "dia": me["dia"], "guarda_mil_sin_restar": me.get("trae_mil_sin_restar"),
                          "rural_ndvi_bajo_de_cada_100": round(100 * rural_bajo, 1), "urbanizado_dudoso": bool(rural_bajo > RURAL_MAX),
                          "T_ndbi_diagnostico": round(T, 4)}
         urb = valido & (ndvi <= NDVI_MAX) & (mndwi < 0)
@@ -121,6 +129,18 @@ def main() -> None:
             filas.append({"unidad": f.unidad, "anio": anio, "pixeles": int(n[k]), "urbanizado": round(nu[k] / n[k], 4),
                           "firma_construida_diagnostico": round(nc[k] / n[k], 4)})
     serie = pd.DataFrame(filas)
+
+    # Comparacion de colecciones en 2023 (c1 contra sentinel-2-l2a), por unidad.
+    comparacion = None
+    if "2023v" in meta["escenas"]:
+        def urb(clave):
+            nd, mw = capa(2023, "ndvi", clave), capa(2023, "mndwi", clave)
+            ok = np.isfinite(nd) & np.isfinite(mw)
+            n = np.bincount(ids[ok], minlength=len(u) + 1)
+            k = np.bincount(ids[ok & (nd <= NDVI_MAX) & (mw < 0)], minlength=len(u) + 1)
+            return np.where(n[1:] >= 5, k[1:] / np.maximum(n[1:], 1), np.nan)
+        dif = np.abs(urb("2023") - urb("2023v"))
+        comparacion = {"unidades": int(np.isfinite(dif).sum()), "diferencia_absoluta_p50_p90": [round(float(x), 4) for x in np.nanpercentile(dif, [50, 90])]}
     serie.to_csv(SAL / "1c-serie-por-unidad.csv", index=False, encoding="utf-8")
 
     par = []
@@ -134,16 +154,17 @@ def main() -> None:
         base = max(previos)
         par.append({"unidad": f.unidad, "desarrollo": f.desarrollo, "firma": f.firma, "ha": round(f.ha, 2), "vertical": bool(f.vertical),
                     "anio_antes": base, "anio_antes_sustituido": bool(base != base_pedida),
+                    "escena_antes": escenas[base]["dia"],
                     "urbanizado_antes": s.loc[base, "urbanizado"], "urbanizado_2026": s.loc[2026, "urbanizado"],
                     "consolidacion_tomas_2026": round(float(f.consolidacion_actual), 4) if not f.vertical else None, "clase_tomas": f.clase})
     par = pd.DataFrame(par)
     par.to_csv(SAL / "1c-par-antes-despues.csv", index=False, encoding="utf-8")
 
     casos = par[par.desarrollo.str.match(r"^(MARROKA|ZANDA|EL MOLINO)")].sort_values(["desarrollo", "firma"])
-    res = {"escenas": escenas, "unidades": int(len(u)), "convenios_de_2ha_o_mas": int((~u.unidad.str.startswith("DES:")).sum()),
+    res = {"escenas": escenas, "comparacion_colecciones_2023": comparacion, "unidades": int(len(u)), "convenios_de_2ha_o_mas": int((~u.unidad.str.startswith("DES:")).sum()),
            "desarrollos_sumados": int(u.unidad.str.startswith("DES:").sum()), "verticales": int(u.vertical.sum()),
            "con_par": int(len(par)), "casos": casos.round(3).to_dict("records"),
-           "rotulo": "superficie urbanizada (sin vegetación ni agua), Sentinel-2, NDVI a 10 m, MNDWI y NDBI a 20 m; polígonos de 2 ha o más; no es conteo de viviendas"}
+           "rotulo": "suelo sin vegetación ni agua en la escena de sep-oct, Sentinel-2 (NDVI 10 m; MNDWI 20 m); 2 ha o más; no es conteo de viviendas ni separa casa de lote raspado; el suelo trabajado que se revegeta deja de contar"}
     (SAL / "1c-resumen.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print(json.dumps({k: v for k, v in res.items() if k != "casos"}, ensure_ascii=False, indent=1, default=str))
     print(casos[["desarrollo", "firma", "ha", "anio_antes", "urbanizado_antes", "urbanizado_2026", "consolidacion_tomas_2026"]].round(2).to_string())
