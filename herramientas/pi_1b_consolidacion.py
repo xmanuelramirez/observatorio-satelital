@@ -34,9 +34,9 @@ import os  # noqa: E402
 V1 = os.environ.get("PI_V1") == "1"
 CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / ("convenios-2019-hoy.geojson" if V1 else "convenios-2019-hoy-v2.geojson")
 NOMBRES = APPS / "0. CAPAS VARIAS" / "FACTIBILIDADES_CONVENIOS.geojson"
-ENT = Path(os.environ["PI_ENT"]) if os.environ.get("PI_ENT") else APPS / "11. ANALISIS DE CUENTAS" / "ORDENES-DEL-MASTER" / "entregas" / "2026-11-19-planeacion-integral-satelite"
+ENT = Path(os.environ["PI_ENT"]) if os.environ.get("PI_ENT") else APPS / "11. ANALISIS DE CUENTAS" / "ORDENES-DEL-MASTER" / "entregas" / "2026-11-20-planeacion-integral-1b-v3-oct"
 SECTORES = APPS / "2. BALANCE HÍDRICO" / "CAPAS-VIGENTES" / "2026-11-05" / "SECTORES.geojson"
-CORTE = pd.Period("2026-09", "M")
+CORTE = pd.Period(os.environ.get("PI_CORTE", "2026-10"), "M")  # corte unico con el Informe de tomas de octubre (MASTER, 20/11)
 EDAD_CLASE = 24
 CASOS = {"MARROKA": r"^MARROKA", "ZANDA": r"^ZANDA", "EL MOLINO": r"^EL MOLINO"}
 CLASES = ["baja", "media", "alta"]
