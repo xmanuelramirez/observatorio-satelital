@@ -131,6 +131,8 @@ def main() -> None:
 
     puntos = conv[conv.habitacional == True].copy()  # noqa: E712
     puntos["geometry"] = puntos.geometry.representative_point()
+    # Booleano real en el GPKG (MAPAS, 19/11: llegaba como texto «True»/«False»).
+    puntos["provisional"] = puntos.provisional.map(lambda v: str(v).strip().lower() == "true").astype(bool)
     puntos = puntos[["id", "desarrollo", "anio", "edad_meses", "unidades", "contratadas_con_tope", "por_contratar", "consolidacion_actual", "clase", "provisional", "geometry"]]
 
     # Por sector.
