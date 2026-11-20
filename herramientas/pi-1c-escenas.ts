@@ -70,7 +70,13 @@ async function main() {
       console.warn(`${anio}: sin escena`)
       continue
     }
-    const { pila } = await obtenerMosaico(g.escenas, coleccion, ['swir1', 'nir', 'rojo', 'verde'], rejilla, true)
+    // En sentinel-2-l2a el metadato declara offset -0.1 pero los valores ya vienen sin el +1000: aplicarlo resta dos veces
+    // e infla el NDVI (dictamen del 19/11; mismo arreglo que `historia.ts`). La guarda de abajo atrapa la escena que si
+    // trae el +1000 sin restar.
+    const escenasG = coleccion.id === 'sentinel-2-l2a'
+      ? g.escenas.map((e) => ({ ...e, assets: Object.fromEntries(Object.entries(e.assets).map(([k, a]) => [k, { ...a, desplazamiento: 0 }])) }))
+      : g.escenas
+    const { pila } = await obtenerMosaico(escenasG, coleccion, ['swir1', 'nir', 'rojo', 'verde'], rejilla, true)
     for (const id of ['ndvi', 'ndbi', 'mndwi']) {
       const v = calcularIndice(pila, porId(id)).valores
       await writeFile(join(SALIDA, `${anio}${sufijo}-${id}.bin`), Buffer.from(new Float32Array(v).buffer))

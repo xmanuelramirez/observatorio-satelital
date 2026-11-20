@@ -88,8 +88,9 @@ def main() -> None:
     tr = from_origin(meta["xmin"], meta["ymax"], meta["pixelAncho"], meta["pixelAlto"])
     # 2022 solo existe en sentinel-2-l2a (archivos «2022v»); 2023 se mide en las dos colecciones para compararlas.
     claves = {int(a): a for a in meta["escenas"] if a.isdigit()}
-    # El 19/11 la comparacion del mismo dia (2023-09-21) entre colecciones dio NDVI +0.52 de mediana en sentinel-2-l2a:
-    # no es comparable (offset), asi que 2022 no se usa y esas firmas van con «antes = 2021». USAR_2022V=1 lo fuerza.
+    # 2022 sale de sentinel-2-l2a sin desplazamiento (offset doble corregido en `pi-1c-escenas.ts`); el mismo dia de 2023
+    # coincide con c1. Para el paquete del 25/11 esas firmas se quedan con «antes = 21/09/2021» por eleccion (MASTER,
+    # 19/11), marcadas. USAR_2022V=1 usa la escena del 16/10/2022.
     import os
     if "2022v" in meta["escenas"] and os.environ.get("USAR_2022V") == "1":
         claves[2022] = "2022v"
