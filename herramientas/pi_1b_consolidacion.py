@@ -28,9 +28,13 @@ import pandas as pd
 RAIZ = Path(__file__).resolve().parents[1]
 APPS = RAIZ.parent
 SAL = RAIZ / "salidas" / "planeacion-integral"
-CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / "convenios-2019-hoy.geojson"
+# Version 2 de los convenios (ND, 20/11/2026: 2019 de Edith y 2026 a octubre), con nombre de desarrollo y firma propios.
+# PI_V1=1 vuelve a la version 1 (con la liga de nombres por la regla del id).
+import os  # noqa: E402
+V1 = os.environ.get("PI_V1") == "1"
+CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / ("convenios-2019-hoy.geojson" if V1 else "convenios-2019-hoy-v2.geojson")
 NOMBRES = APPS / "0. CAPAS VARIAS" / "FACTIBILIDADES_CONVENIOS.geojson"
-ENT = APPS / "11. ANALISIS DE CUENTAS" / "ORDENES-DEL-MASTER" / "entregas" / "2026-11-19-planeacion-integral-satelite"
+ENT = Path(os.environ["PI_ENT"]) if os.environ.get("PI_ENT") else APPS / "11. ANALISIS DE CUENTAS" / "ORDENES-DEL-MASTER" / "entregas" / "2026-11-19-planeacion-integral-satelite"
 SECTORES = APPS / "2. BALANCE HÍDRICO" / "CAPAS-VIGENTES" / "2026-11-05" / "SECTORES.geojson"
 CORTE = pd.Period("2026-09", "M")
 EDAD_CLASE = 24
@@ -45,14 +49,19 @@ def desarrollo(nombre: str) -> str:
 def main() -> None:
     SAL.mkdir(parents=True, exist_ok=True)
     conv = gpd.read_file(CONV)
-    nom = gpd.read_file(NOMBRES).sort_values(["anio", "nombre"], kind="stable")
-    nom["id"] = nom.groupby("anio").cumcount().add(1).map("{:03d}".format).radd("CONV-" + nom["anio"].astype(str) + "-")
-    m = conv.merge(nom[["id", "nombre", "unidades", "area_m2"]], on="id", how="left", suffixes=("", "_n"))
-    ok_u = m.unidades.fillna(-1) == m.unidades_n.fillna(-1)
-    ok_a = np.isclose(m.area_ha * 1e4, m.area_m2, rtol=0.02)
-    assert ok_u.all() and ok_a.mean() > 0.97, f"la liga de nombres no cuadra: unidades {ok_u.mean():.3f}, area {ok_a.mean():.3f}"
-    m["desarrollo"] = m.nombre.map(desarrollo)
-    m["firma"] = pd.PeriodIndex(m.fecha.fillna(m.anio.astype(str) + "-01"), freq="M")
+    if V1:
+        nom = gpd.read_file(NOMBRES).sort_values(["anio", "nombre"], kind="stable")
+        nom["id"] = nom.groupby("anio").cumcount().add(1).map("{:03d}".format).radd("CONV-" + nom["anio"].astype(str) + "-")
+        m = conv.merge(nom[["id", "nombre", "unidades", "area_m2"]], on="id", how="left", suffixes=("", "_n"))
+        ok_u = m.unidades.fillna(-1) == m.unidades_n.fillna(-1)
+        ok_a = np.isclose(m.area_ha * 1e4, m.area_m2, rtol=0.02)
+        assert ok_u.all() and ok_a.mean() > 0.97, f"la liga de nombres no cuadra: unidades {ok_u.mean():.3f}, area {ok_a.mean():.3f}"
+        m["desarrollo"] = m.nombre.map(desarrollo)
+        m["firma"] = pd.PeriodIndex(m.fecha.fillna(m.anio.astype(str) + "-01"), freq="M")
+    else:
+        m = conv.copy()
+        m["desarrollo"] = m.desarrollo.map(lambda x: re.sub(r"\s+", " ", str(x)).strip().upper())
+        m["firma"] = pd.PeriodIndex(m.firma, freq="M")
     m["habitacional"] = (m.tipo == "habitacional") & (m.unidades.fillna(0) >= 5)
 
     t = pd.read_csv(ENT / "A-tomas-dom-mix-convenio-mes.csv")
@@ -60,7 +69,8 @@ def main() -> None:
     t = t[t.mes.str.match(r"^\d{4}-\d{2}$")].copy()
     t["mes"] = pd.PeriodIndex(t.mes, freq="M")
     marcas = pd.read_csv(ENT / "1b-juez-consumo-y-marcas-por-convenio.csv").set_index("id")
-    prueba = pd.read_csv(ENT / "1b-juez-prueba-codigo-regla-balance.csv")
+    ruta_prueba = ENT / "1b-juez-prueba-codigo-regla-balance.csv"
+    prueba = pd.read_csv(ruta_prueba) if ruta_prueba.exists() else pd.DataFrame()
 
     filas, resumen = [], []
     for _, c in m.iterrows():

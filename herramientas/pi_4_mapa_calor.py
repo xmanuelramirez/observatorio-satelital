@@ -29,7 +29,7 @@ import indicadores_medir as im  # noqa: E402  (lector del KMZ de factibilidades 
 RAIZ = Path(__file__).resolve().parents[1]
 APPS = RAIZ.parent
 SAL = RAIZ / "salidas" / "planeacion-integral"
-CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / "convenios-2019-hoy.geojson"
+CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / ("convenios-2019-hoy.geojson" if __import__("os").environ.get("PI_V1") == "1" else "convenios-2019-hoy-v2.geojson")
 UTM = 32614
 LADO = 500.0
 FUERA = "fuera_de_sectores"
@@ -116,6 +116,7 @@ def main() -> None:
     conv = gpd.read_file(CONV).to_crs(UTM)
     conv["geometry"] = conv.geometry.make_valid()
     r1b = pd.read_csv(SAL / "1b-por-convenio.csv")
+    conv = conv.drop(columns=["desarrollo"], errors="ignore")  # la v2 trae su propio nombre; manda el de 1b
     conv = conv.merge(r1b[["id", "desarrollo", "habitacional", "contratadas_con_tope", "consolidacion_actual", "clase", "provisional", "edad_meses"]], on="id", how="left")
     conv = conv[conv.unidades.notna()].copy()
     conv["por_contratar"] = conv.unidades - conv.contratadas_con_tope.fillna(0)

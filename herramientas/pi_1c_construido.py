@@ -35,7 +35,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 APPS = RAIZ.parent
 SAL = RAIZ / "salidas" / "planeacion-integral"
 S2 = SAL / "s2"
-CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / "convenios-2019-hoy.geojson"
+CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / ("convenios-2019-hoy.geojson" if __import__("os").environ.get("PI_V1") == "1" else "convenios-2019-hoy-v2.geojson")
 HUELLA = RAIZ / "salidas" / "indicadores" / "huella_base_ghsl2020.gpkg"
 NDVI_MAX = 0.30
 HA_MIN = 2.0
@@ -57,6 +57,7 @@ def ciudad_vieja():
 
 def unidades_de_analisis() -> gpd.GeoDataFrame:
     conv = gpd.read_file(CONV).to_crs(32614)
+    conv["geometry"] = conv.geometry.make_valid().buffer(0)
     r1b = pd.read_csv(SAL / "1b-por-convenio.csv")
     conv = conv.merge(r1b[["id", "desarrollo", "habitacional", "firma", "unidades", "contratadas_con_tope", "consolidacion_actual", "clase"]],
                       on="id", how="inner", suffixes=("_nd", ""))

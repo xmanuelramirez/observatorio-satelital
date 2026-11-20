@@ -25,7 +25,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 APPS = RAIZ.parent
 SAL = RAIZ / "salidas" / "planeacion-integral"
 PLAN = APPS / "12. SISPLAN" / "public" / "shapefiles" / "SECTORES_DE_PLANEACION.geojson"
-CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / "convenios-2019-hoy.geojson"
+CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / ("convenios-2019-hoy.geojson" if __import__("os").environ.get("PI_V1") == "1" else "convenios-2019-hoy-v2.geojson")
 SECT = APPS / "2. BALANCE HÍDRICO" / "CAPAS-VIGENTES" / "2026-11-05" / "SECTORES.geojson"
 UTM = 32614
 ZONAS = {"oriente": ["HEROES DE LEON", "LAS TORRES", "LA LUZ", "TAJO SANTA ANA", "LOS LOPEZ", "NORORIENTE"],
