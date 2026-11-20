@@ -1,4 +1,4 @@
-# Zonas de crecimiento, verificación: regla del ranking (versión 2, 20/11/2026)
+# Zonas de crecimiento, verificación: regla del ranking (versión 2.1, 20/11/2026)
 
 **Por qué existe:** Carlos pidió comprobar con datos propios los 8 sectores de la presentación de referencia.
 - Versión 1: método del 20/11 en la orden del MASTER.
@@ -46,5 +46,9 @@ Los 17 sectores de planeación de SISPLAN (`SECTORES_DE_PLANEACION.geojson`, sha
   - números romanos o arábigos finales;
   - frases de sección o etapa («1RA Y 2DA.SECC», «SECCION», «ETAPA»).
   - Así Brisas del Campestre (6 convenios, 5,037 viviendas) cuenta como un solo desarrollo.
+  - **Grafías unidas por orden del juez** (revisión de la v2, 20/11/2026):
+    - «HACIENDA STA.FE» → «HACIENDA STA. FE»;
+    - «URBI VILLA ROBLE» → «URBIVILLA DEL ROBLE».
+  - Cualquier otra unión se agrega aquí antes de medir.
 - **Tabla:** los 10 desarrollos con más viviendas convenidas fuera, más qué parte del total de fuera suman.
 - **Frase de «la mayoría del crecimiento está fuera»:** solo con viviendas convenidas. Las tomas de fuera incluyen la ciudad consolidada y no se presentan como expansión.

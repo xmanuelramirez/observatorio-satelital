@@ -62,8 +62,13 @@ def union_factibilidad() -> gpd.GeoSeries:
     return gpd.GeoSeries([unary_union(list(g))], crs=UTM)
 
 
+# Grafias del mismo desarrollo unidas por orden del juez (revision de la v2, 20/11/2026); la lista vive en la regla versionada.
+ALIAS = {"HACIENDA STA.FE": "HACIENDA STA. FE", "URBI VILLA ROBLE": "URBIVILLA DEL ROBLE"}
+
+
 def nombre_base(d: str) -> str:
-    d = str(d).split("_")[0].upper()
+    d = str(d).split("_")[0].upper().strip()
+    d = ALIAS.get(re.sub(r"\s+", " ", d), d)
     d = re.sub(r"\b\d+\s*(RA|DA|A)?\s*Y\s*\d+\s*(RA|DA|A)?\.?\s*SECC?\.?\w*", "", d)
     d = re.sub(r"\b(SECCION|SECC|ETAPA)\b.*$", "", d)
     d = re.sub(r"(\s+([IVXL]+|\d+))+\s*$", "", d.strip())
