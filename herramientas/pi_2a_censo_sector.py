@@ -27,7 +27,7 @@ APPS = RAIZ.parent
 SAL = RAIZ / "salidas" / "planeacion-integral"
 INEGI = APPS / "8. CAUCE" / "inundaciones" / "insumos" / "inegi"
 SECT = APPS / "2. BALANCE HÍDRICO" / "CAPAS-VIGENTES" / "2026-11-05" / "SECTORES.geojson"
-PI = APPS / "11. ANALISIS DE CUENTAS" / "ORDENES-DEL-MASTER" / "entregas" / "2026-11-19-planeacion-integral-satelite"
+PI = APPS / "11. ANALISIS DE CUENTAS" / "ORDENES-DEL-MASTER" / "entregas" / "2026-11-20-planeacion-integral-1b-v3-oct"
 IND = APPS / "11. ANALISIS DE CUENTAS" / "ORDENES-DEL-MASTER" / "entregas" / "2026-11-19-indicadores-segunda-entrega"
 UTM = 32614
 FUERA = "fuera_de_sectores"
@@ -119,7 +119,7 @@ def main() -> None:
     d["razon_crecimiento"] = np.where(d.aumento_vph >= 100, d.altas_tomas / d.aumento_vph, np.nan)
 
     c = pd.read_csv(PI / "C-consumo-dom-mix-sector-mes.csv")
-    c = c[c.mes >= "2025-10"]
+    c = c[c.mes >= "2025-11"]  # 12 meses, nov-2025 a oct-2026 (corte unico de octubre)
     seg = int(pd.PeriodIndex(c.mes.unique(), freq="M").days_in_month.to_numpy().sum()) * 86400
     dem = c.groupby("sector").agg(m3=("m3", "sum"), tomas_mes=("tomas_facturadas", "mean"))
     d["demanda_lps"] = (dem.m3 * 1000 / seg).reindex(d.index)
@@ -141,7 +141,7 @@ def main() -> None:
         "fuera_de_sectores": {k: round(float(d.loc[FUERA, k]), 1) for k in ["vph_2020", "vpart_2020", "tomas_2020"]} if FUERA in d.index else None,
         "sectores_crecimiento_2010_2020": {"n": int(v.razon_crecimiento.notna().sum()),
                                            "p10_p50_p90": [round(float(x), 3) for x in np.nanpercentile(v.razon_crecimiento, [10, 50, 90])]},
-        "demanda_oct2025_sep2026": {"municipal_lps": round(float(dem.m3.sum() * 1000 / seg), 1), "m3": int(dem.m3.sum()),
+        "demanda_nov2025_oct2026": {"municipal_lps": round(float(dem.m3.sum() * 1000 / seg), 1), "m3": int(dem.m3.sum()),
                                     "litros_por_toma_dia_p10_p50_p90": [round(float(x)) for x in np.nanpercentile(v.litros_por_toma_dia.dropna(), [10, 50, 90])]},
         "supuestos": ["2020 por manzana del centroide al sector; manzana suprimida con el resto de su AGEB por superficie",
                       "2010 por AGEB con densidad uniforme", "parque 2010 por prorrateo de las altas de 2010 (163/365)",
