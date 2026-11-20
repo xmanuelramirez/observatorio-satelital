@@ -20,6 +20,7 @@ import { obtenerMosaico } from '../src/servicios/pilas'
 import { rejillaDe } from '../src/servicios/raster'
 import { INDICES, calcularIndice } from '../src/servicios/indices'
 import { buscarColeccion } from '../src/datos/colecciones'
+import { traeMilSinRestar } from './guarda-escena'
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SALIDA = join(RAIZ, 'salidas', 'planeacion-integral', 's2')
@@ -39,7 +40,7 @@ async function main() {
   const rejilla = rejillaDe(bbox, ancho, alto)
   await mkdir(SALIDA, { recursive: true })
   const porId = (id: string) => INDICES.find((i) => i.id === id)!
-  const escenas: Record<string, { dia: string; nubes: number | null; escenas: number }> = {}
+  const escenas: Record<string, { dia: string; nubes: number | null; escenas: number; trae_mil_sin_restar?: boolean }> = {}
 
   // ANIOS=2022 NUBES=60 rehace solo esos años con otra tolerancia de nubes (la mascara de nubes quita lo nublado).
   const soloAnios = process.env.ANIOS?.split(',').map(Number)
@@ -70,7 +71,8 @@ async function main() {
       const v = calcularIndice(pila, porId(id)).valores
       await writeFile(join(SALIDA, `${anio}-${id}.bin`), Buffer.from(new Float32Array(v).buffer))
     }
-    escenas[anio] = { dia: g.dia, nubes: g.nubes, escenas: g.escenas.length }
+    // Guarda de escena del observatorio (dictamen del 30/10): el +1000 sin restar sube lo mas oscuro de la escena.
+    escenas[anio] = { dia: g.dia, nubes: g.nubes, escenas: g.escenas.length, trae_mil_sin_restar: traeMilSinRestar(pila.bandas.rojo) }
     console.log(`${anio}: ${g.dia}, nubes ${g.nubes}, ${g.escenas.length} escenas`)
   }
   await writeFile(

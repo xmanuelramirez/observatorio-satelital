@@ -108,29 +108,36 @@ def main() -> None:
     for _, u in union.iterrows():
         d = repartir(gpd.GeoDataFrame([u], crs=UTM), [], hexs, f"factibilidad_{int(u.anio)}")
         tabla = tabla.join(d)
-    tabla["ha_factibilidad_2021_2026"] = tabla.filter(like="ha_factibilidad_").sum(axis=1)
+    # Una sola union 2021-2026 (dictamen del 19/11, condicion 9): nunca la suma de uniones anuales.
+    union_total = gpd.GeoDataFrame(geometry=[union.union_all()], crs=UTM)
+    tabla = tabla.join(repartir(union_total, [], hexs, "factibilidad_union_2021_2026"))
 
     # Convenios con su consolidacion (1b).
     conv = gpd.read_file(CONV).to_crs(UTM)
     conv["geometry"] = conv.geometry.make_valid()
     r1b = pd.read_csv(SAL / "1b-por-convenio.csv")
-    conv = conv.merge(r1b[["id", "desarrollo", "habitacional", "contratadas_con_tope", "consolidacion_actual", "clase", "provisional"]], on="id", how="left")
+    conv = conv.merge(r1b[["id", "desarrollo", "habitacional", "contratadas_con_tope", "consolidacion_actual", "clase", "provisional", "edad_meses"]], on="id", how="left")
     conv = conv[conv.unidades.notna()].copy()
     conv["por_contratar"] = conv.unidades - conv.contratadas_con_tope.fillna(0)
-    d = repartir(conv[["unidades", "contratadas_con_tope", "por_contratar", "geometry"]], ["unidades", "contratadas_con_tope", "por_contratar"], hexs, "convenio")
+    # Por contratar separado por edad del convenio a sep-2026 (condicion 9).
+    conv["por_contratar_menos_4_anios"] = np.where(conv.edad_meses < 48, conv.por_contratar, 0)
+    conv["por_contratar_4_anios_o_mas"] = np.where(conv.edad_meses >= 48, conv.por_contratar, 0)
+    campos = ["unidades", "contratadas_con_tope", "por_contratar", "por_contratar_menos_4_anios", "por_contratar_4_anios_o_mas"]
+    d = repartir(conv[campos + ["geometry"]], campos, hexs, "convenio")
     tabla = tabla.join(d).fillna(0)
     tabla["consolidacion_hex"] = np.where(tabla.unidades > 0, tabla.contratadas_con_tope / tabla.unidades, np.nan)
     hx = hexs.join(tabla, on="hex")
-    hx = hx[(hx.ha_factibilidad_2021_2026 > 0) | (hx.unidades > 0)]
+    hx = hx[(hx.ha_factibilidad_union_2021_2026 > 0) | (hx.unidades > 0)]
 
     puntos = conv[conv.habitacional == True].copy()  # noqa: E712
     puntos["geometry"] = puntos.geometry.representative_point()
-    puntos = puntos[["id", "desarrollo", "anio", "unidades", "contratadas_con_tope", "por_contratar", "consolidacion_actual", "clase", "provisional", "geometry"]]
+    puntos = puntos[["id", "desarrollo", "anio", "edad_meses", "unidades", "contratadas_con_tope", "por_contratar", "consolidacion_actual", "clase", "provisional", "geometry"]]
 
     # Por sector.
     por_sec = {}
-    for nombre, capa, campos in [("convenio", conv[["unidades", "por_contratar", "geometry"]], ["unidades", "por_contratar"]),
-                                 ("factibilidad", union.assign(uno=1.0)[["uno", "geometry"]], [])]:
+    campos_sec = ["unidades", "por_contratar", "por_contratar_menos_4_anios", "por_contratar_4_anios_o_mas"]
+    for nombre, capa, campos in [("convenio", conv[campos_sec + ["geometry"]], campos_sec),
+                                 ("factibilidad", union_total.assign(uno=1.0)[["uno", "geometry"]], [])]:
         capa = capa.copy()
         capa["a0"] = capa.area
         x = gpd.overlay(capa, sec, how="intersection", keep_geom_type=True)
@@ -140,8 +147,9 @@ def main() -> None:
             g[c] = (x[c] * x.f).groupby(x.sector).sum()
         por_sec[nombre] = pd.DataFrame(g)
     ts = por_sec["convenio"].join(por_sec["factibilidad"], how="outer").fillna(0)
-    ts.loc[FUERA] = {"unidades": conv.unidades.sum() - ts.unidades.sum(), "por_contratar": conv.por_contratar.sum() - ts.por_contratar.sum(),
-                     "ha_convenio": conv.area.sum() / 1e4 - ts.ha_convenio.sum(), "ha_factibilidad": union.area.sum() / 1e4 - ts.ha_factibilidad.sum()}
+    fuera = {c: conv[c].sum() - ts[c].sum() for c in campos_sec}
+    fuera.update({"ha_convenio": conv.area.sum() / 1e4 - ts.ha_convenio.sum(), "ha_factibilidad": union_total.area.sum() / 1e4 - ts.ha_factibilidad.sum()})
+    ts.loc[FUERA] = fuera
 
     # Contrastes declarados: sumas exactas.
     fac_ha = union.set_index("anio").area / 1e4
@@ -150,6 +158,8 @@ def main() -> None:
         "factibilidad_ha_por_anio": {int(a): [round(float(hx[f"ha_factibilidad_{a}"].sum()), 1), round(float(fac_ha[a]), 1)] for a in fac_ha.index},
         "unidades_convenidas_total": [round(float(hx.unidades.sum()), 1), float(con_u.sum())],
         "por_contratar_total": [round(float(hx.por_contratar.sum()), 1), float(conv.por_contratar.sum())],
+        "factibilidad_union_2021_2026_ha": [round(float(hx.ha_factibilidad_union_2021_2026.sum()), 1), round(float(union_total.area.sum() / 1e4), 1)],
+        "nota": "sumas exactas: prueba de codigo, no de metodo",
     }
     for a, (h, t) in chequeo["factibilidad_ha_por_anio"].items():
         assert abs(h - t) <= 0.5, f"factibilidad {a} no cuadra"
@@ -166,7 +176,8 @@ def main() -> None:
         "chequeo": chequeo,
         "fuera_de_sectores": {k: round(float(v), 1) for k, v in ts.loc[FUERA].items()},
         "por_contratar_habitacional": int(conv[conv.habitacional == True].por_contratar.sum()),  # noqa: E712
-        "top_hex_por_contratar": hx.sort_values("por_contratar", ascending=False).head(5)[["hex", "unidades", "por_contratar", "ha_factibilidad_2021_2026"]].round(1).to_dict("records"),
+        "por_contratar_por_edad": {"menos_de_4_anios": int(conv.por_contratar_menos_4_anios.sum()), "4_anios_o_mas": int(conv.por_contratar_4_anios_o_mas.sum())},
+        "top_hex_por_contratar": hx.sort_values("por_contratar", ascending=False).head(5)[["hex", "unidades", "por_contratar", "por_contratar_menos_4_anios", "ha_factibilidad_union_2021_2026"]].round(1).to_dict("records"),
         "clases_puntos": puntos.clase.value_counts().to_dict(),
     }
     (SAL / "4-resumen.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")

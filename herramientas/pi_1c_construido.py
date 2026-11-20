@@ -1,14 +1,17 @@
 """
-Planeacion Integral, frente 1c: sin construir contra construido por convenio, desde las escenas de `pi-1c-escenas.ts`.
-Metodo declarado en `ORDENES-DEL-MASTER/2026-11-19-planeacion-integral-METODO.md` (seccion 1c). Solo agregados.
+Planeacion Integral, frente 1c: superficie urbanizada por convenio, desde las escenas de `pi-1c-escenas.ts`. Metodo
+corregido con el dictamen del juez del 19/11/2026 (`ORDENES-DEL-MASTER/2026-11-19-planeacion-integral-METODO.md`,
+seccion «Metodo corregido»). Solo agregados.
 
-Por convenio habitacional y año (septiembre 2019-2026):
-  - % urbanizado: NDVI <= 0.30 y MNDWI < 0 (sin vegetacion ni agua);
-  - % con firma construida: NDBI >= T del año, con T = percentil 25 del NDBI en pixeles de ciudad vieja de la misma
-    escena (celdas GHSL con 40 % de techo o mas en 2000 y en 2020).
-Par «antes / despues»: septiembre anterior a la firma contra el 22/09/2026.
-Contrastes declarados: (1) en poligonos con 70 % o mas de vegetacion «antes», construido «antes» < 10 %; (2) en
-convenios con 80 % o mas de consolidacion por tomas, construido 2026 >= 50 %.
+- Alcance: convenios habitacionales de 2 ha o mas, o el desarrollo sumado si sus convenios juntos llegan a 2 ha, con
+  buffer interior de 20 m. Los verticales (mas de 150 unidades por ha) quedan fuera del cruce con tomas.
+- Medida: % urbanizado = NDVI <= 0.30 y MNDWI < 0 (sin vegetacion ni agua). NDVI a 10 m; MNDWI y NDBI usan B11, a 20 m.
+- Sin control de alta resolucion no hay «% construido»: la firma construida (NDBI >= T) queda solo como diagnostico.
+- Por escena: guarda del observatorio (en `s2/rejilla.json`) y referencia rural: % de pixeles con NDVI <= 0.30 fuera de la
+  huella GHSL 2020 y fuera de convenios; si pasa de 30 %, el urbanizado de esa escena se marca dudoso.
+- Par «antes / despues»: septiembre anterior a la firma contra el 22/09/2026; 2022 no tiene escena y se usa 2021.
+Rotulo: «superficie urbanizada (sin vegetacion ni agua), Sentinel-2, NDVI a 10 m, MNDWI y NDBI a 20 m; poligonos de 2 ha
+o mas; no es conteo de viviendas».
 
 Uso: python herramientas/pi_1c_construido.py
 """
@@ -33,18 +36,50 @@ APPS = RAIZ.parent
 SAL = RAIZ / "salidas" / "planeacion-integral"
 S2 = SAL / "s2"
 CONV = APPS / "13. NUEVOS DESARROLLOS" / "salidas" / "planeacion-integral" / "convenios-2019-hoy.geojson"
+HUELLA = RAIZ / "salidas" / "indicadores" / "huella_base_ghsl2020.gpkg"
 NDVI_MAX = 0.30
-VEGETADO_BASE = 0.70
+HA_MIN = 2.0
+BUFFER_M = 20.0
+VERTICAL_U_HA = 150
+RURAL_MAX = 0.30
 
 
 def ciudad_vieja():
     mun = gpd.read_file(APPS / "0. CAPAS VARIAS" / "LIMITES_VIGENTES" / "LIMITE MUNICIPAL" / "LIMITE_MUNICIPAL.shp")
-    mun_moll = (mun if mun.crs else mun.set_crs(32614)).to_crs(cr.MOLL).union_all()
+    mun = mun if mun.crs else mun.set_crs(32614)
+    mun_moll = mun.to_crs(cr.MOLL).union_all()
     s00, t = cr.leer(2000, mun_moll.bounds)
     s20, _ = cr.leer(2020, mun_moll.bounds)
     m = ((s00 >= 4000) & (s20 >= 4000)).astype("uint8")
     geom = unary_union([shape(g) for g, v in shapes(m, mask=m == 1, transform=t) if v == 1])
-    return gpd.GeoSeries([geom], crs=cr.MOLL).to_crs(4326).iloc[0]
+    return gpd.GeoSeries([geom], crs=cr.MOLL).to_crs(4326).iloc[0], mun.to_crs(4326).union_all()
+
+
+def unidades_de_analisis() -> gpd.GeoDataFrame:
+    conv = gpd.read_file(CONV).to_crs(32614)
+    r1b = pd.read_csv(SAL / "1b-por-convenio.csv")
+    conv = conv.merge(r1b[["id", "desarrollo", "habitacional", "firma", "unidades", "contratadas_con_tope", "consolidacion_actual", "clase"]],
+                      on="id", how="inner", suffixes=("_nd", ""))
+    conv = conv[conv.habitacional == True].copy()  # noqa: E712
+    conv["ha"] = conv.area / 1e4
+    grandes = conv[conv.ha >= HA_MIN].copy()
+    grandes["unidad"] = grandes.id
+    chicos = conv[conv.ha < HA_MIN]
+    suma = chicos.groupby("desarrollo").ha.sum()
+    junt = chicos[chicos.desarrollo.isin(suma[suma >= HA_MIN].index)]
+    des = junt.dissolve(by="desarrollo", aggfunc={"id": "count", "firma": "min", "unidades": "sum", "contratadas_con_tope": "sum"}).reset_index()
+    des["unidad"] = "DES:" + des.desarrollo
+    des["consolidacion_actual"] = des.contratadas_con_tope / des.unidades
+    des["clase"] = "por desarrollo"
+    u = pd.concat([grandes[["unidad", "desarrollo", "firma", "unidades", "contratadas_con_tope", "consolidacion_actual", "clase", "geometry"]],
+                   des[["unidad", "desarrollo", "firma", "unidades", "contratadas_con_tope", "consolidacion_actual", "clase", "geometry"]]],
+                  ignore_index=True)
+    u = gpd.GeoDataFrame(u, geometry="geometry", crs=32614)
+    u["ha"] = u.area / 1e4
+    u["unidades_por_ha"] = u.unidades / u.ha
+    u["vertical"] = u.unidades_por_ha > VERTICAL_U_HA
+    u["geometry"] = u.geometry.buffer(-BUFFER_M)
+    return u[~u.geometry.is_empty].to_crs(4326).reset_index(drop=True), conv.to_crs(4326)
 
 
 def main() -> None:
@@ -56,77 +91,62 @@ def main() -> None:
     def capa(anio, idx):
         return np.fromfile(S2 / f"{anio}-{idx}.bin", dtype="float32").reshape(alto, ancho)
 
-    vieja = rasterize([(ciudad_vieja(), 1)], out_shape=(alto, ancho), transform=tr, fill=0).astype(bool)
+    vieja_geom, mun = ciudad_vieja()
+    vieja = rasterize([(vieja_geom, 1)], out_shape=(alto, ancho), transform=tr, fill=0).astype(bool)
+    u, conv_todos = unidades_de_analisis()
+    huella = gpd.read_file(HUELLA).to_crs(4326).geometry.iloc[0]
+    excl = rasterize([(huella, 1)] + [(g, 1) for g in conv_todos.geometry], out_shape=(alto, ancho), transform=tr, fill=0).astype(bool)
+    en_mun = rasterize([(mun, 1)], out_shape=(alto, ancho), transform=tr, fill=0).astype(bool)
+    rural = en_mun & ~excl
+    ids = rasterize([(g, i + 1) for i, g in enumerate(u.geometry)], out_shape=(alto, ancho), transform=tr, fill=0, dtype="int32")
 
-    conv = gpd.read_file(CONV).to_crs(4326)
-    r1b = pd.read_csv(SAL / "1b-por-convenio.csv")
-    conv = conv.merge(r1b[["id", "desarrollo", "habitacional", "firma", "consolidacion_actual", "clase"]], on="id", how="inner")
-    conv = conv[conv.habitacional == True].reset_index(drop=True)  # noqa: E712
-    ids = rasterize([(g, i + 1) for i, g in enumerate(conv.geometry)], out_shape=(alto, ancho), transform=tr, fill=0, dtype="int32")
-    curvas = pd.read_csv(SAL / "1b-curvas-mensuales.csv")
-
-    umbrales, filas = {}, []
+    escenas, filas = {}, []
     for anio in anios:
         ndvi, ndbi, mndwi = capa(anio, "ndvi"), capa(anio, "ndbi"), capa(anio, "mndwi")
-        ref = ndbi[vieja & np.isfinite(ndbi)]
-        T = float(np.percentile(ref, 25))
-        umbrales[anio] = {"T_ndbi": round(T, 4), "pixeles_ciudad_vieja": int(ref.size), "dia": meta["escenas"][str(anio)]["dia"]}
         valido = np.isfinite(ndvi) & np.isfinite(ndbi) & np.isfinite(mndwi)
+        T = float(np.percentile(ndbi[vieja & valido], 25))
+        rural_bajo = float(np.mean(ndvi[rural & valido] <= NDVI_MAX))
+        escenas[anio] = {"dia": meta["escenas"][str(anio)]["dia"], "guarda_mil_sin_restar": meta["escenas"][str(anio)].get("trae_mil_sin_restar"),
+                         "rural_ndvi_bajo_de_cada_100": round(100 * rural_bajo, 1), "urbanizado_dudoso": bool(rural_bajo > RURAL_MAX),
+                         "T_ndbi_diagnostico": round(T, 4)}
         urb = valido & (ndvi <= NDVI_MAX) & (mndwi < 0)
         con = valido & (ndbi >= T)
-        veg = valido & (ndvi > NDVI_MAX)
-        n = np.bincount(ids[valido], minlength=len(conv) + 1)
-        nu = np.bincount(ids[urb], minlength=len(conv) + 1)
-        nc = np.bincount(ids[con], minlength=len(conv) + 1)
-        nv = np.bincount(ids[veg], minlength=len(conv) + 1)
-        for i, c in conv.iterrows():
+        n = np.bincount(ids[valido], minlength=len(u) + 1)
+        nu = np.bincount(ids[urb], minlength=len(u) + 1)
+        nc = np.bincount(ids[con], minlength=len(u) + 1)
+        for i, f in u.iterrows():
             k = i + 1
             if n[k] < 5:
                 continue
-            filas.append({"id": c.id, "anio": anio, "pixeles": int(n[k]), "urbanizado": round(nu[k] / n[k], 4),
-                          "construido": round(nc[k] / n[k], 4), "vegetado": round(nv[k] / n[k], 4)})
+            filas.append({"unidad": f.unidad, "anio": anio, "pixeles": int(n[k]), "urbanizado": round(nu[k] / n[k], 4),
+                          "firma_construida_diagnostico": round(nc[k] / n[k], 4)})
     serie = pd.DataFrame(filas)
+    serie.to_csv(SAL / "1c-serie-por-unidad.csv", index=False, encoding="utf-8")
 
-    # Consolidacion por tomas en septiembre de cada año (1b), para cruzar.
-    curvas["anio"] = curvas.mes.str[:4].astype(int)
-    sep = curvas[curvas.mes.str.endswith("-09")][["id", "anio", "consolidacion"]]
-    serie = serie.merge(sep, on=["id", "anio"], how="left")
-    serie.to_csv(SAL / "1c-serie-por-convenio.csv", index=False, encoding="utf-8")
-
-    # Par antes / despues.
     par = []
-    for _, c in conv.iterrows():
-        f = pd.Period(c.firma, "M")
-        base = f.year if f.month > 9 else f.year - 1
-        s = serie[serie.id == c.id].set_index("anio")
-        # 2022 no tiene escena despejada de ago-oct en el catalogo: se usa el año disponible anterior y se marca.
-        previos = [y for y in s.index if y <= base]
+    for _, f in u.iterrows():
+        firma = pd.Period(f.firma, "M")
+        base_pedida = firma.year if firma.month > 9 else firma.year - 1
+        s = serie[serie.unidad == f.unidad].set_index("anio")
+        previos = [y for y in s.index if y <= base_pedida]
         if not previos or 2026 not in s.index:
             continue
-        base_pedida, base = base, max(previos)
-        a, d = s.loc[base], s.loc[2026]
-        par.append({"id": c.id, "desarrollo": c.desarrollo, "firma": c.firma, "anio_antes": base, "anio_antes_sustituido": bool(base != base_pedida),
-                    "urbanizado_antes": a.urbanizado, "construido_antes": a.construido, "vegetado_antes": a.vegetado,
-                    "urbanizado_2026": d.urbanizado, "construido_2026": d.construido,
-                    "consolidacion_tomas_2026": c.consolidacion_actual, "clase_tomas": c.clase,
-                    "brecha_construido_menos_tomas": round(d.construido - c.consolidacion_actual, 4)})
+        base = max(previos)
+        par.append({"unidad": f.unidad, "desarrollo": f.desarrollo, "firma": f.firma, "ha": round(f.ha, 2), "vertical": bool(f.vertical),
+                    "anio_antes": base, "anio_antes_sustituido": bool(base != base_pedida),
+                    "urbanizado_antes": s.loc[base, "urbanizado"], "urbanizado_2026": s.loc[2026, "urbanizado"],
+                    "consolidacion_tomas_2026": round(float(f.consolidacion_actual), 4) if not f.vertical else None, "clase_tomas": f.clase})
     par = pd.DataFrame(par)
     par.to_csv(SAL / "1c-par-antes-despues.csv", index=False, encoding="utf-8")
 
-    v = par[par.vegetado_antes >= VEGETADO_BASE]
-    k1 = {"n": int(len(v)), "construido_antes_p50_p90": [round(float(x), 3) for x in np.percentile(v.construido_antes, [50, 90])] if len(v) else None,
-          "de_cada_100_bajo_10": int(round(100 * (v.construido_antes < 0.10).mean())) if len(v) else None}
-    k1["pasa"] = bool(len(v) and np.median(v.construido_antes) < 0.10)
-    s80 = par[par.consolidacion_tomas_2026 >= 0.80]
-    k2 = {"n": int(len(s80)), "construido_2026_p10_p50": [round(float(x), 3) for x in np.percentile(s80.construido_2026, [10, 50])] if len(s80) else None,
-          "de_cada_100_con_50_o_mas": int(round(100 * (s80.construido_2026 >= 0.5).mean())) if len(s80) else None}
-    k2["pasa"] = bool(len(s80) and np.median(s80.construido_2026) >= 0.5)
-
     casos = par[par.desarrollo.str.match(r"^(MARROKA|ZANDA|EL MOLINO)")].sort_values(["desarrollo", "firma"])
-    res = {"escenas_y_umbral": umbrales, "convenios_con_par": int(len(par)), "contraste_1_suelo_vegetado": k1, "contraste_2_consolidados": k2,
-           "casos": casos.round(3).to_dict("records")}
+    res = {"escenas": escenas, "unidades": int(len(u)), "convenios_de_2ha_o_mas": int((~u.unidad.str.startswith("DES:")).sum()),
+           "desarrollos_sumados": int(u.unidad.str.startswith("DES:").sum()), "verticales": int(u.vertical.sum()),
+           "con_par": int(len(par)), "casos": casos.round(3).to_dict("records"),
+           "rotulo": "superficie urbanizada (sin vegetación ni agua), Sentinel-2, NDVI a 10 m, MNDWI y NDBI a 20 m; polígonos de 2 ha o más; no es conteo de viviendas"}
     (SAL / "1c-resumen.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
-    print(json.dumps(res, ensure_ascii=False, indent=1, default=str)[:7000])
+    print(json.dumps({k: v for k, v in res.items() if k != "casos"}, ensure_ascii=False, indent=1, default=str))
+    print(casos[["desarrollo", "firma", "ha", "anio_antes", "urbanizado_antes", "urbanizado_2026", "consolidacion_tomas_2026"]].round(2).to_string())
 
 
 if __name__ == "__main__":
