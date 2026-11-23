@@ -26,6 +26,9 @@ UTM = 32614
 CLASES = ["alta", "media", "baja"]
 NOMBRE = {"alta": "Ritmo alto", "media": "Ritmo medio", "baja": "Ritmo bajo"}
 MIN_CONV, MIN_UNID, LIGA, PIEZA_MIN = 3, 100, 0.5, 1.0
+# Convenios chicos (SEGURIDAD via Cuentas, regla R8, 23/11): menos de 5 unidades o 1 a 4 tomas posteriores a la firma. Su r
+# despeja tomas, asi que no entran al r publicado ni al «convenio que mas pesa»; la clase sigue la regla dictaminada.
+CHICOS = APPS / "11. ANALISIS DE CUENTAS" / "ORDENES-DEL-MASTER" / "entregas" / "2026-11-23-convenios-chicos-R8.csv"
 
 
 def sha(p: Path) -> str:
@@ -51,6 +54,8 @@ def main() -> None:
     conv["por_revisar"] = es_verdad(conv.por_revisar)
     conv["provisional"] = es_verdad(conv.provisional)
     conv["con_clase"] = conv.habitacional & conv.clase_base.isin(CLASES)
+    chicos = set(pd.read_csv(CHICOS, encoding="utf-8-sig").id)
+    conv["chico"] = conv.id.isin(chicos)
     conv["a0"] = conv.area
 
     def marcas(g: pd.DataFrame, peso: str) -> dict:
@@ -99,7 +104,7 @@ def main() -> None:
 
     # 3. Sector de planeacion y colonia.
     def piezas(capa: gpd.GeoDataFrame, llave: str) -> pd.DataFrame:
-        xx = gpd.overlay(hab[["id", "desarrollo", "a0", "unidades", "r", "con_clase", "por_revisar", "provisional", "consolidacion_actual", "geometry"]],
+        xx = gpd.overlay(hab[["id", "desarrollo", "a0", "unidades", "r", "con_clase", "chico", "por_revisar", "provisional", "consolidacion_actual", "geometry"]],
                          capa[[llave, "geometry"]], how="intersection", keep_geom_type=True)
         xx["u"] = xx.unidades * xx.area / xx.a0
         return xx[xx.u >= PIEZA_MIN].drop(columns="geometry")
@@ -111,9 +116,15 @@ def main() -> None:
                 "consolidacion_actual_ponderada": round(float(np.average(g.consolidacion_actual, weights=g.u)), 4)}
         if len(cc):
             rp = float(np.average(cc.r, weights=cc.u))
-            mayor = cc.sort_values("u", ascending=False).iloc[0]
-            fila |= {"r_ponderado": round(rp, 4), "clase_calculada": clase_r(rp), "convenio_que_mas_pesa": mayor.id,
-                     "desarrollo_que_mas_pesa": mayor.desarrollo, "unidades_del_que_mas_pesa": round(float(mayor.u), 1)} | marcas(cc, "u")
+            fila |= {"clase_calculada": clase_r(rp), "r_interno": rp} | marcas(cc, "u")
+            pub = cc[~cc.chico]
+            if len(pub):
+                rpub = float(np.average(pub.r, weights=pub.u))
+                mayor = pub.sort_values("u", ascending=False).iloc[0]
+                fila |= {"r_ponderado": round(rpub, 4), "convenio_que_mas_pesa": mayor.id, "desarrollo_que_mas_pesa": mayor.desarrollo,
+                         "unidades_del_que_mas_pesa": round(float(mayor.u), 1), "clase_cambiaria_sin_chicos": clase_r(rpub) != clase_r(rp)}
+            else:
+                fila |= {"r_ponderado": None, "convenio_que_mas_pesa": None, "desarrollo_que_mas_pesa": None, "clase_cambiaria_sin_chicos": None}
         return fila
 
     plan = gpd.read_file(PLAN).to_crs(UTM)[["SECTOR", "geometry"]]
@@ -133,7 +144,7 @@ def main() -> None:
         filas.append(fila)
     sp = plan[["SECTOR"]].merge(pd.DataFrame(filas), on="SECTOR", how="left")
     sp["clase_poligono"] = sp.clase_poligono.fillna("Sin convenio")
-    sp.to_csv(SAL / "1b-poligono-sector-planeacion.csv", index=False, encoding="utf-8")
+    sp.drop(columns=["r_interno"], errors="ignore").to_csv(SAL / "1b-poligono-sector-planeacion.csv", index=False, encoding="utf-8")
 
     col = gpd.read_file(COLONIAS).to_crs(UTM)[["gid", "nombre", "geometry"]]
     col["geometry"] = col.geometry.make_valid().buffer(0)
@@ -151,7 +162,7 @@ def main() -> None:
         filas.append(fila)
     cl = col[["colonia_gid", "nombre"]].merge(pd.DataFrame(filas), on="colonia_gid", how="left")
     cl["clase_poligono"] = cl.clase_poligono.fillna("Sin convenio")
-    cl.to_csv(SAL / "1b-poligono-colonia.csv", index=False, encoding="utf-8")
+    cl.drop(columns=["r_interno"], errors="ignore").to_csv(SAL / "1b-poligono-colonia.csv", index=False, encoding="utf-8")
 
     total_cc = float(hab[hab.con_clase].unidades.sum())
     salidas = ["1b-poligono-convenio.csv", "1b-poligono-factibilidad.csv", "1b-poligono-sector-planeacion.csv", "1b-poligono-colonia.csv"]
@@ -165,6 +176,10 @@ def main() -> None:
         "sector_planeacion": sp.clase_poligono.value_counts().to_dict(),
         "sector_cobertura_de_cada_100_unidades_con_clase": round(100 * float(ps[ps.con_clase].u.sum()) / total_cc, 1),
         "colonia": cl.clase_poligono.value_counts().to_dict(),
+        "convenios_chicos": {"lista": CHICOS.name, "sha256": sha(CHICOS), "n": len(chicos),
+                             "sector_clase_cambiaria_sin_chicos": int(sp.clase_cambiaria_sin_chicos.fillna(False).astype(bool).sum()),
+                             "colonia_clase_cambiaria_sin_chicos": int(cl[cl.clase_poligono.str.startswith("Ritmo")].clase_cambiaria_sin_chicos.fillna(False).astype(bool).sum()),
+                             "colonia_r_null_por_chicos": int(cl[cl.convenios_con_clase.fillna(0) > 0].r_ponderado.isna().sum())},
         "colonia_unidades_con_clase_en_clasificadas": round(float(cl[cl.clase_poligono.str.startswith("Ritmo")].unidades_con_clase.sum()), 1),
         "rotulos": {
             "convenio": "Ritmo alto / medio / bajo; marcas «por revisar» y «provisional (menos de 24 meses)»; Sin clasificar: muestra chica; Sin clasificar: muy reciente; No habitacional",
