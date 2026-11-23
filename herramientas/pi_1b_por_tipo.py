@@ -32,7 +32,7 @@ def leer_tipos(ruta: Path) -> pd.DataFrame:
     t = t.rename(columns={col("id", "id_convenio"): "id", col("tipo", "tipo_desarrollo", "tipo_de_desarrollo"): "tipo",
                           col("fuente", "fuente_tipo", "origen_tipo"): "fuente"})
     t["tipo"] = t.tipo.astype(str).str.strip().str.lower().replace(
-        {"vivienda horizontal": "vivienda", "vivienda vertical": "vertical", "sin dato": "sin tipo"})  # metodo v1.1
+        {"vivienda horizontal": "vivienda", "vivienda vertical": "vertical", "sin dato": "baja densidad, por clasificar"})  # regla D-024 de Carlos (23/11)  # metodo v1.1
     t["fuente"] = t.fuente.astype(str).str.strip().str.lower()
     return t[["id", "tipo", "fuente"]]
 
@@ -52,7 +52,7 @@ def main() -> None:
     tipos = leer_tipos(Path(sys.argv[1]))
     r = pd.read_csv(SAL / "1b-por-convenio.csv")
     hab = r[r.habitacional].merge(tipos, on="id", how="left")
-    hab["tipo"] = hab.tipo.fillna("sin tipo")
+    hab["tipo"] = hab.tipo.fillna("baja densidad, por clasificar")
     hab["fuente"] = hab.fuente.fillna("sin dato")
     curvas = pd.read_csv(SAL / "1b-curvas-mensuales.csv")
     piv = curvas.pivot(index="id", columns="edad_meses", values="consolidacion")
@@ -101,10 +101,10 @@ def main() -> None:
     mh = piv.loc[ref_h].median()
     mg = piv.loc[ref.id].median()
     v30 = hab[(hab.tipo == "vertical") & (hab.unidades >= 20) & (hab.edad_meses >= 36)]
-    sd = ref[ref.tipo == "sin tipo"].id
+    sd = ref[ref.tipo == "baja densidad, por clasificar"].id
     lo = ref[ref.tipo == "lote"].id
     res["lamina"] = {
-        "rotulo": "Tipo aproximado: ningún registro trae el tipo; Nuevos Desarrollos lo infiere por la densidad del convenio (unidades por hectárea), el nombre y la factibilidad. Contratado no es construido. Padrón a oct-2026.",
+        "rotulo": "Tipo aproximado: Nuevos Desarrollos lo infiere por la densidad del convenio (unidades por ha), el nombre y la factibilidad. Contratado no es construido. Padrón a oct-2026.",
         "horizontal": {"convenios_referencia": int(len(ref_h)), "a_24_meses": round(float(mh[24]), 3), "banda_24": [round(float(piv.loc[ref_h, 24].quantile(.25)), 3), round(float(piv.loc[ref_h, 24].quantile(.75)), 3)],
                        "a_12": round(float(mh[12]), 3), "a_36": round(float(mh[36]), 3), "meses_50": int(mh[mh >= 0.5].index.min()),
                        "texto": "Vivienda horizontal: alrededor de 8 de cada 10 unidades con toma a los 24 meses (banda de 44 a 96 %); alrededor de 4 de cada 10 a los 12 meses y 9 de cada 10 a los 36. 92 convenios de referencia."},
@@ -112,7 +112,7 @@ def main() -> None:
         "vertical": {"maduros_20u_36m": int(len(v30)), "a_la_mitad_a_24_meses": int((piv.loc[v30.id, 24] >= 0.5).sum()),
                      "sin_tomas_a_24_meses": int((piv.loc[v30.id, 24] == 0).sum()), "sin_tomas_hoy": int((v30.consolidacion_actual == 0).sum()),
                      "meses_50": "sin dato suficiente",
-                     "texto": "Vivienda vertical: sin curva. De 30 convenios verticales con 3 años o más, 16 ya iban a la mitad a los 24 meses y 10 no tenían tomas a esa edad (8 hoy). La toma en edificios no se mide bien todavía."},
+                     "texto": "Vivienda vertical: sin curva. De 30 convenios verticales con 3 años o más, 16 ya iban a la mitad a los 24 meses y 10 no tenían tomas a esa edad (8 hoy). Siguiente paso: medir la toma en edificios."},
         "lote": {"convenios_referencia": int(len(lo)), "a_24_meses_casos": [round(float(x), 3) for x in piv.loc[lo, 24]], "meses_50": "sin dato suficiente",
                  "texto": "Lote: 3 convenios con 3 años o más; no alcanza para una curva."},
         "baja_densidad_lectura_posterior": {"convenios_referencia": int(len(sd)), "a_24_mediana": round(float(piv.loc[sd, 24].median()), 3),
