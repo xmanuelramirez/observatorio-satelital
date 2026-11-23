@@ -25,6 +25,8 @@ COLONIAS = APPS / "11. ANALISIS DE CUENTAS" / "public" / "data" / "capas" / "COL
 UTM = 32614
 CLASES = ["alta", "media", "baja"]
 NOMBRE = {"alta": "Ritmo alto", "media": "Ritmo medio", "baja": "Ritmo bajo"}
+# Presentacion por privacidad (MASTER, 23/11): no cambia la regla dictaminada; solo no se muestra el detalle.
+SIN_DETALLE = "Clase con convenio chico: sin detalle"
 MIN_CONV, MIN_UNID, LIGA, PIEZA_MIN = 3, 100, 0.5, 1.0
 # Convenios chicos (SEGURIDAD via Cuentas, regla R8, 23/11): menos de 5 unidades o 1 a 4 tomas posteriores a la firma. Su r
 # despeja tomas, asi que no entran al r publicado ni al «convenio que mas pesa»; la clase sigue la regla dictaminada.
@@ -83,7 +85,7 @@ def main() -> None:
     fac["geometry"] = fac.geometry.make_valid().buffer(0)
     fac["af"] = fac.area
     hab = conv[conv.habitacional]
-    x = gpd.overlay(fac[["id_capa", "af", "geometry"]], hab[["id", "a0", "unidades", "r", "con_clase", "por_revisar", "provisional", "geometry"]],
+    x = gpd.overlay(fac[["id_capa", "af", "geometry"]], hab[["id", "a0", "unidades", "r", "con_clase", "chico", "por_revisar", "provisional", "geometry"]],
                     how="intersection", keep_geom_type=True)
     x = x[x.area >= LIGA * np.minimum(x.af, x.a0)]
     filas = []
@@ -94,12 +96,26 @@ def main() -> None:
             fila["clase_poligono"] = "Sin convenio ligado a oct-2026"
         elif not lig.con_clase.any():
             fila["clase_poligono"] = "Sin clasificar: su convenio aún no tiene clase"
+        elif lig[lig.con_clase].chico.any():
+            # Defensa R8, misma logica que en colonia: r sin los chicos; si no queda ninguno o la clase cambiaria, sin detalle.
+            cc, pub = lig[lig.con_clase], lig[lig.con_clase & ~lig.chico]
+            completa = clase_r(float(np.average(cc.r, weights=cc.unidades)))
+            if len(pub) and clase_r(float(np.average(pub.r, weights=pub.unidades))) == completa:
+                rpub = float(np.average(pub.r, weights=pub.unidades))
+                fila |= {"r_ponderado": round(rpub, 4), "clase_poligono": NOMBRE[completa], "con_convenio_chico_fuera_del_r": True} | marcas(cc, "unidades")
+            else:
+                fila |= {"r_ponderado": None, "clase_poligono": SIN_DETALLE}
         else:
             cc = lig[lig.con_clase]
             rp = float(np.average(cc.r, weights=cc.unidades))
             fila |= {"r_ponderado": round(rp, 4), "clase_poligono": NOMBRE[clase_r(rp)]} | marcas(cc, "unidades")
         filas.append(fila)
     f2 = pd.DataFrame(filas)
+    con_r = f2[f2.r_ponderado.notna()]
+    # Ningun r publicado sale de un convenio chico con clase (un chico sin clase no entra al r).
+    chicos_con_clase = set(x[x.con_clase & x.chico].id)
+    solo_uno = con_r[~con_r.convenios_ligados.str.contains(";")]
+    assert not any(l in chicos_con_clase for l in solo_uno.convenios_ligados), "una factibilidad publica el r de un solo convenio chico"
     f2.to_csv(SAL / "1b-poligono-factibilidad.csv", index=False, encoding="utf-8")
 
     # 3. Sector de planeacion y colonia.
@@ -144,6 +160,7 @@ def main() -> None:
         filas.append(fila)
     sp = plan[["SECTOR"]].merge(pd.DataFrame(filas), on="SECTOR", how="left")
     sp["clase_poligono"] = sp.clase_poligono.fillna("Sin convenio")
+    sp.loc[sp.clase_poligono.str.startswith("Ritmo") & (sp.clase_cambiaria_sin_chicos.eq(True) | sp.r_ponderado.isna()), "clase_poligono"] = SIN_DETALLE
     sp.drop(columns=["r_interno"], errors="ignore").to_csv(SAL / "1b-poligono-sector-planeacion.csv", index=False, encoding="utf-8")
 
     col = gpd.read_file(COLONIAS).to_crs(UTM)[["gid", "nombre", "geometry"]]
@@ -162,6 +179,8 @@ def main() -> None:
         filas.append(fila)
     cl = col[["colonia_gid", "nombre"]].merge(pd.DataFrame(filas), on="colonia_gid", how="left")
     cl["clase_poligono"] = cl.clase_poligono.fillna("Sin convenio")
+    cl.loc[cl.clase_poligono.str.startswith("Ritmo") & (cl.clase_cambiaria_sin_chicos.eq(True) | cl.r_ponderado.isna()), "clase_poligono"] = SIN_DETALLE
+    assert not (cl.clase_poligono.str.startswith("Ritmo") & cl.r_ponderado.isna()).any(), "colonia con ritmo y sin r publicable"
     cl.drop(columns=["r_interno"], errors="ignore").to_csv(SAL / "1b-poligono-colonia.csv", index=False, encoding="utf-8")
 
     total_cc = float(hab[hab.con_clase].unidades.sum())
