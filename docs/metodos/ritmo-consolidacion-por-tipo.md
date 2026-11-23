@@ -40,3 +40,14 @@ Nuevos Desarrollos clasifica cada uno de los 374 convenios habitacionales como *
 - «Tipo de desarrollo según Nuevos Desarrollos (fuente: dato; pista aparte)».
 - «Ritmo de consolidación por tomas domésticas y mixtas, padrón a oct-2026; contratado no es construido».
 - «Urbanizado: Sentinel-2, no es conteo de viviendas».
+
+## Versión 1.1 (23/11/2026): ajuste por la estructura del insumo, antes de medir
+
+Nuevos Desarrollos entregó los tipos (`13. NUEVOS DESARROLLOS/salidas/planeacion-integral/convenios-tipo-de-desarrollo.csv`, sha 18333458). **Ningún convenio trae el tipo como «dato»**: las fuentes son pista-densidad (289), pista-nombre, pista-factibilidad o sin dato.
+
+- **La lectura «principal, solo dato» queda vacía**, y así se reporta.
+- **Lo que se entrega es la sensibilidad, con todas las pistas**, rotulada «pista» en cada cifra.
+- **Sensibilidad adicional, fijada ahora:** sin las pistas de densidad, solo nombre y factibilidad. Muestra cuánto depende el resultado del umbral de densidad de Nuevos Desarrollos.
+- **Equivalencias:** «vivienda horizontal» → vivienda; «vivienda vertical» → vertical; «lote» → lote; «sin dato» → sin tipo.
+- **Lote:** son 9 convenios en total, menos de 10 aun antes de filtrar la referencia. No lleva mediana ni contraste de brecha. Se reportan sus casos.
+- Lo demás de la versión 1 no cambia.
