@@ -56,3 +56,27 @@ Cada CSV trae id del polígono, clase, r ponderado, n de convenios con clase, un
 - «Ritmo de consolidación: tomas domésticas y mixtas contratadas sobre unidades del convenio, padrón a oct-2026; la clase mide el ritmo a los 24 meses (o provisional), no el nivel de hoy; contratado no es construido».
 - En colonia y sector: «clase del conjunto de convenios dentro, ponderada por unidades; mínimo 3 convenios».
 - En factibilidad: «clase del convenio ligado (traslape de 50 % o más); sin convenio si no llegó a convenio».
+
+## Versión 2 (23/11/2026): dictamen del juez (`2026-11-23-DICTAMEN-JUEZ-RITMO-POR-POLIGONO.md`). Manda sobre la versión 1
+
+- **Cortes exactos:** (1/3) / R(24) y (2/3) / R(24), con R(24) sin redondear de `1b-curva-referencia.csv`.
+- **Piezas:** las de menos de 1 unidad dentro del polígono no cuentan.
+- **Marcas:** «por revisar» y «provisional» van como marcas aparte de la clase, en sector, colonia y factibilidad, cuando pesan más de la mitad de las unidades con clase.
+- **Sector de planeación:**
+  - clase solo con 3 convenios con clase o más y 100 unidades con clase o más;
+  - además, la clase no debe cambiar al quitar cualquiera de esos convenios. Si cambia, va como «Sin clase firme: la decide un convenio».
+  - Debajo de 3 convenios: «Pocos convenios (menos de 3)». Sin piezas de convenio: «Sin convenio».
+- **Colonia:** clase con 100 unidades con clase dentro, con cualquier número de convenios.
+  - Debajo: «Menos de 100 unidades con clase».
+  - Si tiene convenios pero ninguno con clase: «Convenios aún sin clase».
+  - Si no tiene convenios: «Sin convenio».
+- **Factibilidad:**
+  - «Ritmo alto», «medio» o «bajo» del convenio en el mismo terreno (traslape de 50 % o más);
+  - «Sin clasificar: su convenio aún no tiene clase»;
+  - «Sin convenio ligado a oct-2026», sin relleno de clase.
+- **Convenio:**
+  - «Ritmo alto», «medio» o «bajo», con las marcas «por revisar» y «provisional (menos de 24 meses)»;
+  - «Sin clasificar: muestra chica» y «Sin clasificar: muy reciente»;
+  - «No habitacional».
+- **Ningún sector ni colonia se pinta como bajo sin su r y el convenio que más pesa:** los dos van en columnas del CSV, para el «?».
+- **Nota de sector:** «r ponderado por unidades de los convenios dentro; cubre el 41 % de las unidades con clase».
