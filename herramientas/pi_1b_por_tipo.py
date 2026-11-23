@@ -92,6 +92,44 @@ def main() -> None:
             b["contraste_lote_menos_vivienda"] = {"nota": "no evaluable: algún tipo con menos de 10 convenios con par"}
         res["brecha_urbanizado_contratado"][escenario] = b
 
+    # Condiciones del dictamen del juez del 23/11 (2026-11-23-DICTAMEN-JUEZ-RITMO-POR-TIPO.md): vertical sin curva, porque
+    # el filtro de dudoso selecciona sus ceros; horizontal como aproximacion; lote solo casos; sin dato como lectura posterior.
+    for esc in res["curvas"].values():
+        esc["vertical"] = {"convenios_referencia": esc["vertical"].get("convenios_referencia"),
+                           "nota": "sin curva: el filtro de dudoso deja en la referencia solo los verticales sin tomas (dictamen del 23/11)"}
+    ref_h = ref[(ref.tipo == "vivienda") & ref.fuente.str.startswith("pista")].id
+    mh = piv.loc[ref_h].median()
+    mg = piv.loc[ref.id].median()
+    v30 = hab[(hab.tipo == "vertical") & (hab.unidades >= 20) & (hab.edad_meses >= 36)]
+    sd = ref[ref.tipo == "sin tipo"].id
+    lo = ref[ref.tipo == "lote"].id
+    res["lamina"] = {
+        "rotulo": "Tipo aproximado: ningún registro trae el tipo; Nuevos Desarrollos lo infiere por la densidad del convenio (unidades por hectárea), el nombre y la factibilidad. Contratado no es construido. Padrón a oct-2026.",
+        "horizontal": {"convenios_referencia": int(len(ref_h)), "a_24_meses": round(float(mh[24]), 3), "banda_24": [round(float(piv.loc[ref_h, 24].quantile(.25)), 3), round(float(piv.loc[ref_h, 24].quantile(.75)), 3)],
+                       "a_12": round(float(mh[12]), 3), "a_36": round(float(mh[36]), 3), "meses_50": int(mh[mh >= 0.5].index.min()),
+                       "texto": "Vivienda horizontal: alrededor de 8 de cada 10 unidades con toma a los 24 meses (banda de 44 a 96 %); alrededor de 4 de cada 10 a los 12 meses y 9 de cada 10 a los 36. 92 convenios de referencia."},
+        "ciudad_meses_50": int(mg[mg >= 0.5].index.min()),
+        "vertical": {"maduros_20u_36m": int(len(v30)), "a_la_mitad_a_24_meses": int((piv.loc[v30.id, 24] >= 0.5).sum()),
+                     "sin_tomas_a_24_meses": int((piv.loc[v30.id, 24] == 0).sum()), "sin_tomas_hoy": int((v30.consolidacion_actual == 0).sum()),
+                     "meses_50": "sin dato suficiente",
+                     "texto": "Vivienda vertical: sin curva. De 30 convenios verticales con 3 años o más, 16 ya iban a la mitad a los 24 meses y 10 siguen sin tomas. La toma en edificios no se mide bien todavía."},
+        "lote": {"convenios_referencia": int(len(lo)), "a_24_meses_casos": [round(float(x), 3) for x in piv.loc[lo, 24]], "meses_50": "sin dato suficiente",
+                 "texto": "Lote: 3 convenios con 3 años o más; no alcanza para una curva."},
+        "baja_densidad_lectura_posterior": {"convenios_referencia": int(len(sd)), "a_24_mediana": round(float(piv.loc[sd, 24].median()), 3),
+                                            "texto": "Baja densidad (menos de 33 unidades por ha): 14 convenios de 7 desarrollos, alrededor de 1 de cada 10 unidades con toma a los 24 meses. Lectura posterior."},
+        "ayuda": "Horizontal = 33 a 256 unidades por ha. Con otros umbrales, la horizontal a 24 meses va de 74 a 84 %.",
+    }
+    # Curva mensual de horizontal y de la ciudad, para el deck (formato largo, como 1b-curvas-mensuales.csv).
+    filas = []
+    for serie, ids in (("vivienda horizontal (pista)", ref_h), ("ciudad (referencia v5)", ref.id)):
+        sub = piv.loc[ids]
+        for a_ in range(0, 37):
+            col = sub[a_].dropna()
+            filas.append({"serie": serie, "edad_meses": a_, "convenios": int(len(col)), "p25": round(float(col.quantile(.25)), 4),
+                          "consolidacion": round(float(col.median()), 4), "p75": round(float(col.quantile(.75)), 4)})
+    pd.DataFrame(filas).to_csv(SAL / "1b-por-tipo-curva-horizontal-y-ciudad.csv", index=False, encoding="utf-8")
+    hab.groupby("tipo").agg(convenios=("id", "count"), unidades=("unidades", "sum")).to_csv(SAL / "1b-por-tipo-conteo.csv", encoding="utf-8")
+
     hab[["id", "desarrollo", "firma", "unidades", "tipo", "fuente", "clase", "clase_base", "por_revisar", "provisional",
          "consolidacion_actual", "consolidacion_con_consumo", "edad_meses"]].to_csv(SAL / "1b-por-tipo-por-convenio.csv", index=False, encoding="utf-8")
     (SAL / "1b-por-tipo-resumen.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
