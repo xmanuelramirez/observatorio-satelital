@@ -4,14 +4,14 @@
     "id": "LIMITE_URBANO",
     "etiqueta": "Zona urbana"
   },
-  "generado": "2026-11-16T14:37:29.286Z",
+  "generado": "2026-11-23T17:14:53.009Z",
   "coleccion": "Sentinel-2 L2A",
-  "fechaActual": "2026-11-14",
+  "fechaActual": "2026-11-19",
   "fechaBase": "2026-10-20",
-  "separacionDias": 25,
-  "objetivoBase": "2026-10-15",
+  "separacionDias": 30,
+  "objetivoBase": "2026-10-20",
   "baseFueraDeVentana": false,
-  "nubesActual": 8.5250875,
+  "nubesActual": 9.21739,
   "nubesBase": 0.000051500000000000005,
   "mallas": [
     "13QHD",
@@ -22,22 +22,42 @@
     "areaMinimaHa": 1,
     "rejilla": 1024
   },
-  "zonas": 1,
-  "hectareas": 1,
+  "zonas": 23,
+  "hectareas": 93.5,
   "cifraConfiable": false,
   "perdidaVegetacion": {
-    "zonas": 55,
-    "hectareas": 176.6
+    "zonas": 208,
+    "hectareas": 866.9
   },
   "avisoFenologia": {
     "activo": true,
-    "medianaDndvi": -0.065
+    "medianaDndvi": -0.167
   },
   "principales": [
     {
-      "hectareas": 1,
-      "lat": 21.07294,
-      "lon": -101.67713
+      "hectareas": 48.6,
+      "lat": 21.17587,
+      "lon": -101.68684
+    },
+    {
+      "hectareas": 6.3,
+      "lat": 21.10773,
+      "lon": -101.7627
+    },
+    {
+      "hectareas": 5.1,
+      "lat": 21.18048,
+      "lon": -101.68092
+    },
+    {
+      "hectareas": 3.9,
+      "lat": 21.10213,
+      "lon": -101.77272
+    },
+    {
+      "hectareas": 2.9,
+      "lat": 21.17222,
+      "lon": -101.76411
     }
   ],
   "limites": [
@@ -52,13 +72,13 @@
   ],
   "imagen": "obra-nueva-urbana.png",
   "notas": [
-    "El verdor cambió fuera de lo construido (mediana de -0.065 en NDVI): parte de lo detectado puede ser temporada y no un cambio real.",
-    "Separación temporal: 25 días entre 2026-10-20 y 2026-11-14. Sentinel-2 L2A revisita cada 5 días, así que es el paso más fino disponible.",
+    "El verdor cambió fuera de lo construido (mediana de -0.167 en NDVI): parte de lo detectado puede ser temporada y no un cambio real.",
+    "Separación temporal: 30 días entre 2026-10-20 y 2026-11-19. Sentinel-2 L2A revisita cada 5 días, así que es el paso más fino disponible.",
     "Rejilla 1024 por 1024 sobre el área, celda de 23 por 19 m (sensor nativo 10 m).",
     "Recortado al polígono de Zona urbana: 23,057 ha dentro del área.",
-    "Mosaico de 2 escenas del 2026-11-14: 13QHD 74 por ciento, 14QKJ 1 por ciento.",
-    "Máscara de nubes de la fecha actual (scl): 13QHD con 26.1 por ciento nublado de lo que observa, 14QKJ con 25.8 por ciento nublado de lo que observa.",
-    "Quedan sin dato 24.6 por ciento de las celdas del área.",
+    "Mosaico de 2 escenas del 2026-11-19: 13QHD 72 por ciento, 14QKJ 1 por ciento.",
+    "Máscara de nubes de la fecha actual (scl): 13QHD con 27.5 por ciento nublado de lo que observa, 14QKJ con 27.7 por ciento nublado de lo que observa.",
+    "Quedan sin dato 26.6 por ciento de las celdas del área.",
     "Máscara de nubes de la fecha base (scl): 13QHD con 0.0 por ciento nublado de lo que observa, 14QKJ con 0.0 por ciento nublado de lo que observa.",
     "Regla: NDBI sube 0.08 o más, NDVI final bajo 0.30, MNDWI negativo y NDVI base de 0.35 o menos.",
     "Se descartaron las manchas menores a 1.0 ha, que a esta rejilla son menos de 23 celdas.",
