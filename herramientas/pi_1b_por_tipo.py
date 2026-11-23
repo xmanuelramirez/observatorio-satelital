@@ -112,7 +112,7 @@ def main() -> None:
         "vertical": {"maduros_20u_36m": int(len(v30)), "a_la_mitad_a_24_meses": int((piv.loc[v30.id, 24] >= 0.5).sum()),
                      "sin_tomas_a_24_meses": int((piv.loc[v30.id, 24] == 0).sum()), "sin_tomas_hoy": int((v30.consolidacion_actual == 0).sum()),
                      "meses_50": "sin dato suficiente",
-                     "texto": "Vivienda vertical: sin curva. De 30 convenios verticales con 3 años o más, 16 ya iban a la mitad a los 24 meses y 10 siguen sin tomas. La toma en edificios no se mide bien todavía."},
+                     "texto": "Vivienda vertical: sin curva. De 30 convenios verticales con 3 años o más, 16 ya iban a la mitad a los 24 meses y 10 no tenían tomas a esa edad (8 hoy). La toma en edificios no se mide bien todavía."},
         "lote": {"convenios_referencia": int(len(lo)), "a_24_meses_casos": [round(float(x), 3) for x in piv.loc[lo, 24]], "meses_50": "sin dato suficiente",
                  "texto": "Lote: 3 convenios con 3 años o más; no alcanza para una curva."},
         "baja_densidad_lectura_posterior": {"convenios_referencia": int(len(sd)), "a_24_mediana": round(float(piv.loc[sd, 24].median()), 3),
