@@ -206,12 +206,12 @@ def mapa(skill: str, parques, tabla, ageb_geom, cifras) -> None:
     # El rango que se publica es el de la muestra corregida (dos variantes de deportivos), no el determinista.
     var = json.loads((SALIDA / "correccion-a1.json").read_text(encoding="utf-8"))["variantes"]
     b, a = var["sin_deportivos_sin_vegetacion"]["rango"]
-    m = cifras["modelo"]["a1_pct"]
+    # Sin el A-1 puntual del modelo: solo el rango (condicion 3 del dictamen del juez del 25/11/2026).
     leyenda_vertical(ax, [
         ("area", dict(color=C["regenerada"]), "Espacio verde público de 0.5 ha o más (modelo)"),
         ("area", dict(color=C["superficial"]), "Cuerpo de agua"),
         ("linea", dict(color=C["superficial"], ls=(0, (3, 2)), lw=1.0), "Laguna con arbolado, a confirmar"),
-        ("area", dict(color="white", ec=C["navy"], lw=0.5), f"Hasta 400 m caminando: {m:.0f} % (rango {b:.0f}–{a:.0f} %)"),
+        ("area", dict(color="white", ec=C["navy"], lw=0.5), f"Hasta 400 m caminando: rango {b:.0f}–{a:.0f} %"),
         ("area", dict(color=C["navy"], alpha=0.22), "A 400–600 m"),
         ("area", dict(color=C["navy"], alpha=0.42), "A 600–800 m"),
         ("area", dict(color=C["navy"], alpha=0.66), "A más de 800 m"),

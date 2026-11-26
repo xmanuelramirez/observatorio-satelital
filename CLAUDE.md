@@ -53,7 +53,8 @@ La capa «Distancia a espacio verde» (`public/apertura/espacio-verde/`) no la g
 de `herramientas/espacio_verde*.py`, en orden `espacio_verde`, `espacio_verde_cifras`, `espacio_verde_muestra`,
 `espacio_verde_rf`, `espacio_verde_prioridad` y `espacio_verde_capa`. Los insumos de OSM, NDVI e INEGI y la
 revisión de la muestra viven en `salidas/espacio-verde/`. El A-1 se publica solo como rango (dictamen del juez del
-09/11/2026). La imagen de Esri se usó solo para revisar la muestra: no entra a la app.
+09/11/2026), y las bandas de 400 m en adelante van sin cifra: sumadas dejaban deducir un A-1 puntual (dictamen del
+25/11/2026). La imagen de Esri se usó solo para revisar la muestra: no entra a la app.
 
 La capa «Zonas de crecimiento» (`public/apertura/crecimiento/`) tampoco la genera `npm run desplegar`: sale de
 `herramientas/crecimiento-reciente.ts`, `crecimiento_capa.py` y `crecimiento_concordancia.py`. Lee capas internas que no

@@ -366,5 +366,13 @@
     "resumen": "En SAPAL «consolidado» quiere decir construido al 100 %; aquí la categoría es la celda que ya era urbana y ganó techo, así que pasa a llamarse densificación. Las cifras no cambian. Cada sección de los paneles de quinquenio y de ritmo trae un «?» que abre, con clic, cómo se calculó.",
     "seccion_manual": "Funciones · Capas globales",
     "evidencia": "Pedido de Carlos del 19/11/2026"
+  },
+  {
+    "fecha": "2026-11-26",
+    "tipo": "correccion",
+    "titulo": "Distancia a espacio verde: la leyenda ya no trae cifras puntuales del modelo",
+    "resumen": "Las bandas de 400 a 600 m, de 600 a 800 m y de más de 800 m mostraban un porcentaje del escenario del modelo que no tenía dictamen y que, al sumarse, dejaba deducir un valor puntual del A-1. Ahora solo «Hasta 400 m» trae cifra: el rango de 9 a 17 % ya publicado. La imagen y los rangos no cambian. Las notas precisan que el porcentaje es de la población de la zona urbana, que las zonas prioritarias son las que quedan entre las 20 primeras en los tres escenarios, y cómo se midió la concordancia de la muestra (kappa 0.91 en los 69 casos sin dudosos, 0.63 con tres clases) y la exactitud del modelo (0.86 ± 0.10).",
+    "seccion_manual": "Funciones · Capas globales",
+    "evidencia": "Dictamen del juez del 25/11/2026 sobre la condición 3 del 09/11/2026 (opción A, procede con condiciones)"
   }
 ]

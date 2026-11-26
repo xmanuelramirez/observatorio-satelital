@@ -74,33 +74,29 @@ def main() -> None:
     DESTINO.mkdir(parents=True, exist_ok=True)
     Image.fromarray(rgba, "RGBA").save(DESTINO / "capa.png", optimize=True)
 
-    # Poblacion por clase, escenario del modelo, y el rango publicado.
-    z = np.load(SALIDA / "distancias-por-espacio.npz", allow_pickle=True)
-    base_ids = list(z["ids"])
-    en_modelo = espacios.set_index("id").loc[base_ids, "en_modelo"].astype(bool).to_numpy()
-    mz = gpd.read_file(GPKG, layer="distancia_manzanas")
-    mz = mz[mz["urbano"].astype(bool) & mz["pob"].notna()].reset_index(drop=True)
-    pob = mz["pob"].to_numpy(float)
-    dmin = z["mz"][en_modelo].min(0)
+    # Solo el rango publicado del A-1. Las bandas lejanas no llevan cifra: eran puntos del modelo sin
+    # dictamen y, al sumar, dejaban deducir un A-1 puntual (dictamen del juez del 25/11/2026, opcion A).
     variantes = json.loads((SALIDA / "correccion-a1.json").read_text(encoding="utf-8"))["variantes"]
     sin = variantes["sin_deportivos_sin_vegetacion"]["rango"]
     con = variantes["con_deportivos_sin_vegetacion"]["rango"]
     prior = json.loads((SALIDA / "zonas-prioritarias.json").read_text(encoding="utf-8"))
+    rf = json.loads((SALIDA / "rf-resumen.json").read_text(encoding="utf-8"))
+    eb, eb_sd = rf["cv_exactitud_balanceada"]
 
     leyenda = [{"color": hex_de(PARQUE), "etiqueta": "Espacio verde público de 0.5 ha o más"},
                {"color": hex_de(AGUA), "etiqueta": "Cuerpo de agua (acceso a su orilla sin verificar)"}]
     for lo, hi, color, nombre in CLASES:
-        sel = (dmin > lo) & (dmin <= hi) if lo else dmin <= hi
-        pct = 100 * pob[sel].sum() / pob.sum()
-        detalle = f"rango {sin[0]:.0f} a {sin[1]:.0f} %" if not lo else f"modelo: {pct:.0f} %"
-        leyenda.append({"color": hex_de(color), "etiqueta": nombre, "detalle": detalle})
+        entrada = {"color": hex_de(color), "etiqueta": nombre}
+        if lo == 0:
+            entrada["detalle"] = f"rango {sin[0]:.0f} a {sin[1]:.0f} %"
+        leyenda.append(entrada)
     leyenda.append({"color": "#ffffff", "etiqueta": f"Zona prioritaria ({prior['robustas']} AGEB)"})
 
     notas = [
         "Distancia caminando por calles hasta el borde del espacio verde público de 0.5 ha o más más cercano, desde cada celda de 100 m del límite urbano.",
-        f"Población a 400 m o menos de un espacio verde (criterio A-1 de la NOM-001-SEDATU-2021): {sin[0]:.1f} a {sin[1]:.1f} %, solo como rango. Las unidades deportivas sin vegetación son espacio público pero no espacio verde (regla de NBS del 11/11/2026 con la NOM-001-SEDATU-2021, secs. 4.4.1.1, 5.1, 5.3, 9.1.6 vii y 9.2.3 iii). Variante «acceso a espacio público abierto», que sí las cuenta: {con[0]:.1f} a {con[1]:.1f} %.",
-        "El inventario junta OpenStreetMap y las áreas verdes del PMDUOET 2020. No cuentan plazas sin vegetación, áreas dentro de cotos, camellones, baldíos ni monte. Una muestra de 101 polígonos se revisó en imagen de alta resolución por dos revisores independientes (kappa 0.91 en sí o no); el resto lo clasificó un modelo entrenado con esas etiquetas (exactitud balanceada 0.86).",
-        "El mapa muestra el escenario del modelo. Las zonas prioritarias son las AGEB con más habitantes lejos de las tres distancias de la NOM (400 m a 0.5 ha, 600 m a 4 ha y 800 m a 7.5 ha) en los tres escenarios: cota baja, modelo y cota alta. Las que dependen del escenario no se marcan.",
+        f"Población de la zona urbana a 400 m o menos de un espacio verde (criterio A-1 de la NOM-001-SEDATU-2021): {sin[0]:.1f} a {sin[1]:.1f} %, solo como rango. Las unidades deportivas sin vegetación son espacio público pero no espacio verde (regla de NBS del 11/11/2026 con la NOM-001-SEDATU-2021, secs. 4.4.1.1, 5.1, 5.3, 9.1.6 vii y 9.2.3 iii). Variante «acceso a espacio público abierto», que sí las cuenta: {con[0]:.1f} a {con[1]:.1f} %.",
+        f"El inventario junta OpenStreetMap y las áreas verdes del PMDUOET 2020. No cuentan plazas sin vegetación, áreas dentro de cotos, camellones, baldíos ni monte. Una muestra de 101 polígonos se revisó en imagen de alta resolución por dos revisores independientes (kappa 0.91 en los 69 casos sin dudosos, 0.63 con tres clases); el resto lo clasificó un modelo entrenado con esas etiquetas (exactitud balanceada {eb:.2f} ± {eb_sd:.2f}).",
+        f"El mapa muestra el escenario del modelo. Las zonas prioritarias son las AGEB que quedan entre las {prior['top']} primeras por habitantes lejos de las tres distancias de la NOM (400 m a 0.5 ha, 600 m a 4 ha y 800 m a 7.5 ha) en los tres escenarios: cota baja, modelo y cota alta. Las que dependen del escenario no se marcan.",
         "Dos lagunas con arbolado al norte siguen a confirmar y no se suman. Los parques que no están en ninguna de las dos fuentes no se cuentan: la cifra real puede ser algo mayor.",
         "Fuentes: © colaboradores de OpenStreetMap (ODbL), Plataforma de Información Estadística y Geográfica de León (PMDUOET 2020), INEGI Censo 2020 por manzana, Sentinel-2 L2A (Copernicus).",
     ]
