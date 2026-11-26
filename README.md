@@ -7,6 +7,9 @@ contra catalogos abiertos y sin ninguna credencial.
 
 Publicado en https://observatorio-satelital.sapal.workers.dev
 
+Desde el 25/11/2026 la lleva el subagente `satellite` de SISPLAN. El estado, los compromisos con fecha y las trampas
+conocidas al traspaso están en `TRASPASO-SESION-2026-11-25.md`.
+
 ```bash
 npm install
 npm run dev        # vite, puerto 5173

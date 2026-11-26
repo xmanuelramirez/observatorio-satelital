@@ -8,6 +8,9 @@ Cloudflare Access desde el 08/10/2026.
 El detalle técnico y el porqué de cada decisión están en `README.md`. Aquí van solo las reglas
 de trabajo de esta sesión.
 
+Desde el 25/11/2026 la lleva el subagente `satellite` de SISPLAN. Al retomar, leer primero
+`TRASPASO-SESION-2026-11-25.md` y su detalle interno, `ORDENES-DEL-MASTER/2026-11-25-TRASPASO-DETALLE.md`.
+
 ## Quién autoriza
 
 Las órdenes del MASTER cuentan como instrucción de Carlos, **incluido publicar y desplegar**
